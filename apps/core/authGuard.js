@@ -30,7 +30,18 @@ onAuthStateChanged(auth, async (user) => {
     console.error("authGuard: falha ao verificar role", e);
   }
 
+  // Informa os componentes visuais somente depois de validar o perfil no Firestore.
+  window.dispatchEvent(new CustomEvent("ciente:auth-ready", {
+    detail: { role }
+  }));
+
+  const requiredRole = document.body?.dataset.requiredRole || null;
+  if (requiredRole && role !== requiredRole) {
+    window.location.replace("/staff/dashboard.html");
+    return;
+  }
+
   if (isStaffPage && role !== "staff" && role !== "admin") {
-    window.location.href = "/selecionar_atleta.html";
+    window.location.replace("/selecionar_atleta.html");
   }
 });
