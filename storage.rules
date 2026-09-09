@@ -1,9 +1,44 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function meuUsuario() {
+      return firestore.get(
+        /databases/(default)/documents/users/$(request.auth.uid)
+      ).data;
+    }
+
+    function atleta(athleteId) {
+      return firestore.get(
+        /databases/(default)/documents/athletes/$(athleteId)
+      ).data;
+    }
+
+    function mesmoClube(athleteId) {
+      return logado()
+        && meuUsuario().clubId == atleta(athleteId).clubId;
+    }
+
+    function podeGerenciar(athleteId) {
+      return mesmoClube(athleteId)
+        && meuUsuario().role in ['staff', 'admin'];
+    }
+
     match /atletas/{athleteId}/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null;
+      // Somente integrantes do mesmo clube podem visualizar a foto.
+      allow read: if mesmoClube(athleteId);
+
+      // Upload e alteração: apenas staff/admin do clube, somente imagens até 5 MB.
+      allow create, update: if podeGerenciar(athleteId)
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      // Exclusão: apenas staff/admin do mesmo clube.
+      allow delete: if podeGerenciar(athleteId);
     }
   }
 }
