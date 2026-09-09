@@ -29,6 +29,12 @@ service cloud.firestore {
       return logado() && meuClub() == clubId;
     }
 
+    // Impede que uma atualização mova um documento para outro clube.
+    // Usar somente em regras de update, quando resource e request.resource existem.
+    function clubIdImutavel() {
+      return request.resource.data.clubId == resource.data.clubId;
+    }
+
 
     // ── users ──────────────────────────────────────────────────────────────────
     // Leitura: usuário lê o próprio documento; admin lê todos
@@ -44,7 +50,8 @@ service cloud.firestore {
     match /athletes/{athleteId} {
       allow read:          if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:        if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -55,7 +62,7 @@ service cloud.firestore {
     match /daily_metrics/{docId} {
       allow read:   if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create: if logado() && request.resource.data.clubId == meuClub();
-      allow update: if logado() && resource.data.clubId == meuClub();
+      allow update: if logado() && resource.data.clubId == meuClub() && clubIdImutavel();
       allow delete: if isStaff() && resource.data.clubId == meuClub();
     }
 
@@ -65,7 +72,7 @@ service cloud.firestore {
     match /scout_partidas/{docId} {
       allow read:   if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create: if logado() && request.resource.data.clubId == meuClub();
-      allow update: if logado() && resource.data.clubId == meuClub();
+      allow update: if logado() && resource.data.clubId == meuClub() && clubIdImutavel();
       allow delete: if isStaff() && resource.data.clubId == meuClub();
 
       // Subcoleção de eventos da partida
@@ -80,7 +87,8 @@ service cloud.firestore {
     match /assessments_medical/{docId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -88,7 +96,8 @@ service cloud.firestore {
     match /assessments_functional/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -96,7 +105,8 @@ service cloud.firestore {
     match /assessments_planning/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -104,7 +114,8 @@ service cloud.firestore {
     match /rtp_progress/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -114,7 +125,7 @@ service cloud.firestore {
     match /microciclo_dias/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update:         if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
       allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
@@ -163,7 +174,8 @@ service cloud.firestore {
     match /jogos/{jogoId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -171,7 +183,8 @@ service cloud.firestore {
     match /viagens/{viagemId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
 
       match /participantes/{partId} {
         allow read, write: if isStaff() && meuClub() == get(/databases/$(database)/documents/viagens/$(viagemId)).data.clubId;
@@ -189,7 +202,8 @@ service cloud.firestore {
     match /julgamentos/{docId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -199,7 +213,8 @@ service cloud.firestore {
     match /daily_recommendations/{docId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -209,7 +224,8 @@ service cloud.firestore {
     match /motor_state/{docId} {
       allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -218,7 +234,8 @@ service cloud.firestore {
     match /athlete_sessions/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if logado() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -232,7 +249,8 @@ service cloud.firestore {
     match /cardapios/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
 
@@ -240,7 +258,8 @@ service cloud.firestore {
     match /suplementacao/{docId} {
       allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
       allow create:         if isStaff() && request.resource.data.clubId == meuClub();
-      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub() && clubIdImutavel();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
     }
 
   }
