@@ -177,7 +177,7 @@
     if (clubId !== 'ponte_preta') {
       document.querySelector('.flex-1.flex.flex-col').innerHTML =
         '<div class="flex flex-1 items-center justify-center"><p class="text-gray-400 text-sm">Esta funcionalidade não está disponível para o seu clube.</p></div>';
-    }
+    } else {
 
     /* ── Carrega atletas do Firestore ──────────────────────────── */
     async function carregarAtletas() {
@@ -572,6 +572,7 @@
       lbl.textContent = `Concluído: ${feitos} importadas, ${erros} erros.`;
       document.getElementById('importDone').classList.remove('hidden');
     });
+    }
   </script>
 </body>
 </html>
