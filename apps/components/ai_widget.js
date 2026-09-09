@@ -7,10 +7,12 @@ import { db } from '../core/firebase.js';
 import {
   collection, getDocs, query, where
 } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+import {
+  getFunctions, httpsCallable
+} from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js';
 
 /* ── Config ─────────────────────────────────────── */
-const GEMINI_MODEL    = 'gemini-2.0-flash';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+const askAi = httpsCallable(getFunctions(), 'askAi', { timeout: 120000 });
 
 const SYSTEM_SHORT = `Você é o Analista IA da Ciente IE. Responda em português, de forma direta e objetiva em no máximo 5 linhas. Use apenas os dados fornecidos. Nunca prescreva treinos nem faça diagnósticos médicos.`;
 
@@ -33,7 +35,6 @@ const pad2    = n  => String(n).padStart(2, '0');
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
 const daysAgoISO = n => { const d = new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
 
-function getApiKey()  { return localStorage.getItem('gemini_api_key') || ''; }
 function getClubId()  { return JSON.parse(localStorage.getItem('userContext') || '{}').clubId || ''; }
 
 function pageContext() {
@@ -152,17 +153,11 @@ async function buildCtx(intent, clubId) {
 
 /* ── Gemini call ─────────────────────────────────── */
 async function askGemini(contextStr, question) {
-  const key = getApiKey();
-  if (!key) throw new Error('Chave da API não configurada. Acesse o Analista IA completo para configurar (⚙).');
-  const url  = `${GEMINI_ENDPOINT}?key=${key}`;
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: `${SYSTEM_SHORT}\n\n${contextStr}\n\nPERGUNTA: ${question}` }] }],
-    generationConfig: { temperature: 0.25, maxOutputTokens: 400 }
-  };
-  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `Erro ${res.status}`); }
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta.';
+  const result = await askAi({
+    provider: 'gemini', context: contextStr, question,
+    systemPrompt: SYSTEM_SHORT, maxTokens: 400
+  });
+  return result.data?.text || 'Sem resposta.';
 }
 
 /* ── Injeção de estilos ──────────────────────────── */
@@ -246,6 +241,7 @@ function buildWidget(clubId) {
 
 /* ── Init ────────────────────────────────────────── */
 (function init() {
+  localStorage.removeItem('gemini_api_key');
   const clubId = getClubId();
   if (!clubId) {
     // Aguarda auth

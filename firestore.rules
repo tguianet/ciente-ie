@@ -138,9 +138,10 @@ service cloud.firestore {
 
 
     // ── ai_usage ───────────────────────────────────────────────────────────────
-    // Contador de uso da IA por clube — staff lê e escreve o próprio clube
+    // Contador de uso da IA por clube — cliente apenas lê; backend Admin atualiza
     match /ai_usage/{clubId} {
-      allow read, write: if isStaff() && meuClub() == clubId;
+      allow read: if isStaff() && meuClub() == clubId;
+      allow write: if false;
     }
 
 

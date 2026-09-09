@@ -164,18 +164,11 @@
 <div id="modalSettings" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50">
   <div class="bg-slate-900 w-[420px] max-w-[96vw] rounded-2xl p-6 border border-slate-700 shadow-2xl">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-black text-white text-lg">Configuração da API</h3>
+      <h3 class="font-black text-white text-lg">Segurança da IA</h3>
       <button id="btnCloseSettings" class="text-slate-400 hover:text-white text-xl font-black">✕</button>
     </div>
-    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Chave Anthropic API</label>
-    <input id="inputApiKey" type="password"
-      class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm mb-2 focus:outline-none focus:border-blue-600"
-      placeholder="sk-ant-…">
-    <p class="text-xs text-slate-500 mb-4">Obtenha em <span class="text-blue-400">console.anthropic.com/settings/keys</span></p>
-    <div class="flex gap-2">
-      <button id="btnSaveKey" class="flex-1 py-2 rounded-xl font-black text-sm bg-blue-700 hover:bg-blue-600 text-white">Salvar</button>
-      <button id="btnCloseSettings2" class="flex-1 py-2 rounded-xl font-black text-sm bg-slate-700 hover:bg-slate-600 text-white">Cancelar</button>
-    </div>
+    <p class="text-sm text-slate-300 mb-4">As credenciais dos provedores ficam protegidas no servidor e não são armazenadas neste navegador.</p>
+    <button id="btnCloseSettings2" class="w-full py-2 rounded-xl font-black text-sm bg-slate-700 hover:bg-slate-600 text-white">Fechar</button>
   </div>
 </div>
 
@@ -197,6 +190,7 @@ import {
   query, where, orderBy, limit as limitFS, serverTimestamp, updateDoc
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
 import { gerarSessao, gerarSugestaoExercicios, PRINCIPIOS } from "../core/session_engine.js";
 import { calcularProntidao as _calcPront } from "../core/stats.js";
 
@@ -336,6 +330,7 @@ async function obterDiaMicrocicloParaIA() {
 ═══════════════════════════════════════════════════ */
 const LIMITE_DIA = 20;
 const LIMITE_MES = 100;
+const askAi = httpsCallable(getFunctions(), 'askAi', { timeout: 120000 });
 
 // Prompt geral (fallback — não deveria ser usado pois cada persona tem o seu)
 const SYSTEM_PROMPT = `Você é o Ciente IA, assistente da plataforma Ciente IE para comissões técnicas de futebol.
@@ -3162,10 +3157,8 @@ async function buildContext(intent) {
 let _chartData = null;
 
 /* ═══════════════════════════════════════════════════
-   ANTHROPIC API
+   IA VIA BACKEND SEGURO
 ═══════════════════════════════════════════════════ */
-function getApiKey() { return localStorage.getItem('anthropic_api_key') || ''; }
-
 let _currentAbort = null;
 
 function showStopBar() {
@@ -3182,34 +3175,14 @@ $('btnStop').addEventListener('click', () => {
 });
 
 async function callAnthropic(contextStr, question, maxTokens = 2000, systemPrompt = SYSTEM_PROMPT) {
-  const key = getApiKey();
-  if (!key) throw new Error('Chave Anthropic não configurada. Clique em ⚙ para configurar.');
-
-  _currentAbort = new AbortController();
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    signal: _currentAbort.signal,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: `DADOS DO ELENCO:\n${contextStr}\n\nPERGUNTA: ${question}` }]
-    })
+  const requestState = { cancelled: false };
+  _currentAbort = { abort: () => { requestState.cancelled = true; } };
+  const result = await askAi({
+    provider: 'anthropic', context: contextStr, question,
+    systemPrompt, maxTokens
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err?.error?.message || `Erro ${res.status} na API Anthropic`);
-  }
-  const data = await res.json();
-  return data.content?.[0]?.text || 'Sem resposta.';
+  if (requestState.cancelled) throw new DOMException('Resposta interrompida.', 'AbortError');
+  return result.data?.text || 'Sem resposta.';
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3224,34 +3197,14 @@ async function getUsage() {
     const d = snap.data();
     // Verifica reset mensal
     if (d.reset_em && new Date() > d.reset_em.toDate()) {
-      await setDoc(ref, { perguntas_mes: 0, perguntas_hoje: 0, reset_em: null }, { merge: true });
       return { ...d, perguntas_mes: 0, perguntas_hoje: 0 };
     }
     // Verifica reset diário
     if (d.ultima_pergunta && d.ultima_pergunta !== todayISO()) {
-      await setDoc(ref, { perguntas_hoje: 0 }, { merge: true });
       return { perguntas_mes: 0, limite_mes: LIMITE_MES, perguntas_hoje: 0, limite_dia: LIMITE_DIA, ...d, perguntas_hoje: 0 };
     }
     return { perguntas_mes: 0, limite_mes: LIMITE_MES, perguntas_hoje: 0, limite_dia: LIMITE_DIA, ...d };
   } catch { return { perguntas_mes: 0, limite_mes: LIMITE_MES, perguntas_hoje: 0, limite_dia: LIMITE_DIA }; }
-}
-
-async function incrementUsage() {
-  if (!clubId) return;
-  try {
-    const ref = doc(db, 'ai_usage', clubId);
-    const now = new Date();
-    const resetEm = new Date(now.getFullYear(), now.getMonth()+1, 1);
-    const u = await getUsage();
-    await setDoc(ref, {
-      perguntas_mes: (u.perguntas_mes || 0) + 1,
-      perguntas_hoje: (u.perguntas_hoje || 0) + 1,
-      limite_mes: LIMITE_MES,
-      limite_dia: LIMITE_DIA,
-      reset_em: resetEm,
-      ultima_pergunta: todayISO()
-    }, { merge: true });
-  } catch(e) { console.warn('Erro ao incrementar uso:', e); }
 }
 
 async function updateBadge() {
@@ -4590,7 +4543,6 @@ function appendMsg(role, text, meta = {}) {
       const newQid = uid();
       appendMsg('ai', resposta, { dados: cachedDados, alertas: cachedAlertas, queryId: newQid, nivel2: true });
       await Promise.all([
-        incrementUsage(),
         saveHistory({ pergunta: `[Análise detalhada] ${pergunta}`, resposta, intencao: intent, dados: cachedDados, queryId: newQid }),
         updateBadge()
       ]);
@@ -4685,12 +4637,6 @@ async function handleSend(question, intent) {
   _metricasGrupoCache = null;
   _cargaSemanaCache = null;
 
-  const key = getApiKey();
-  if (!key) {
-    appendMsg('ai', '⚙ Chave da API Anthropic não configurada. Clique em **⚙** no canto superior direito para configurar.');
-    return;
-  }
-
   appendMsg('user', question);
   showLoading();
 
@@ -4715,7 +4661,6 @@ async function handleSend(question, intent) {
     _cargaSemanaCache = null;
     appendMsg('ai', resposta, { dados, alertas, queryId, persona: _activePersona, metricasGrupo, cargaSemana });
     await Promise.all([
-      incrementUsage(),
       saveHistory({ pergunta: question, resposta, intencao: intent, dados, queryId }),
       updateBadge()
     ]);
@@ -4821,15 +4766,8 @@ document.querySelectorAll('.persona-card').forEach(card => {
 
 // Settings
 $('btnSettings').addEventListener('click', () => {
-  $('inputApiKey').value = localStorage.getItem('anthropic_api_key') || '';
   $('modalSettings').classList.remove('hidden');
   $('modalSettings').classList.add('flex');
-});
-$('btnSaveKey').addEventListener('click', () => {
-  const k = $('inputApiKey').value.trim();
-  if(k) localStorage.setItem('anthropic_api_key', k);
-  $('modalSettings').classList.add('hidden');
-  $('modalSettings').classList.remove('flex');
 });
 ['btnCloseSettings','btnCloseSettings2'].forEach(id => {
   $(id)?.addEventListener('click', () => { $('modalSettings').classList.add('hidden'); $('modalSettings').classList.remove('flex'); });
@@ -4840,6 +4778,9 @@ $('btnHistory').addEventListener('click', openHistory);
 $('btnCloseHistory').addEventListener('click', () => { $('modalHistory').classList.add('hidden'); $('modalHistory').classList.remove('flex'); });
 $('modalHistory').addEventListener('click', e => { if(e.target === $('modalHistory')) { $('modalHistory').classList.add('hidden'); $('modalHistory').classList.remove('flex'); } });
 $('modalSettings').addEventListener('click', e => { if(e.target === $('modalSettings')) { $('modalSettings').classList.add('hidden'); $('modalSettings').classList.remove('flex'); } });
+
+// Remove credencial antiga que versões anteriores salvavam no navegador.
+localStorage.removeItem('anthropic_api_key');
 
 /* ═══════════════════════════════════════════════════
    INIT
