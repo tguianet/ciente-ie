@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciente IE · Apresentação</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold:   #9a7b4b;
+    --green:  #10b981;
+    --amber:  #f59e0b;
+    --orange: #f97316;
+    --red:    #ef4444;
+    --dark:   #1a1a18;
+    --mid:    #2c2c2a;
+    --soft:   #f8f7f3;
+    --page:   #f1efe8;
+    --muted:  #6b7280;
+    --border: #e5e7eb;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--dark);
+    overflow: hidden;
+  }
+
+  .deck { width: 100%; height: 100%; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity .35s ease;
+  }
+  .slide.active { opacity: 1; pointer-events: all; }
+
+  .dark  { background: var(--dark);  color: #fff; }
+  .light { background: var(--soft);  color: var(--dark); }
+  .page  { background: var(--page);  color: var(--dark); }
+
+  /* progress */
+  #progress {
+    position: fixed; top: 0; left: 0;
+    height: 3px; background: var(--gold);
+    transition: width .35s ease; z-index: 100;
+  }
+
+  /* counter */
+  #counter {
+    position: fixed; bottom: 16px; right: 24px;
+    font-size: 11px; color: rgba(255,255,255,.3);
+    font-weight: 600; letter-spacing: .06em; z-index: 100;
+  }
+  .slide.light + #counter, .slide.page + #counter { color: rgba(0,0,0,.2); }
+
+  /* nav */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+    color: rgba(255,255,255,.45); width: 36px; height: 36px;
+    border-radius: 50%; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; transition: all .2s;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+  #btn-prev { left: 12px; }
+  #btn-next { right: 12px; }
+
+  /* layout */
+  .center {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 40px 80px;
+  }
+  .left {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; padding: 48px 80px;
+  }
+  .split {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+  }
+  .split > * { padding: 48px 56px; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+  .split-border > *:first-child { border-right: 1px solid rgba(255,255,255,.07); }
+
+  /* type */
+  .eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+  }
+  h1.giant {
+    font-size: clamp(44px, 6.5vw, 80px);
+    font-weight: 800; line-height: 1.0; letter-spacing: -.02em;
+  }
+  h2.heading {
+    font-size: clamp(26px, 3.5vw, 44px);
+    font-weight: 700; line-height: 1.1;
+  }
+  .lead {
+    font-size: clamp(14px, 1.6vw, 17px);
+    line-height: 1.65; color: rgba(255,255,255,.6);
+    max-width: 600px;
+  }
+  .lead.on-light { color: var(--muted); }
+  .divider { width: 40px; height: 3px; background: var(--gold); border-radius: 2px; margin: 16px 0; }
+  .gold-text { color: var(--gold); }
+
+  /* mockup shell */
+  .mock-shell {
+    background: #fff; border-radius: 10px;
+    overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.18);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #2c2c2a; font-size: 12px;
+  }
+  .mock-bar {
+    background: #f1efe8; border-bottom: 1px solid #e5e7eb;
+    padding: 7px 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .mock-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .mock-title { font-size: 10px; font-weight: 600; color: #6b7280; margin-left: 4px; letter-spacing: .04em; }
+  .mock-body { padding: 12px 14px; background: #f8f7f3; }
+
+  /* athlete cards (mini) */
+  .acard {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;
+    padding: 6px 8px; text-align: center; min-width: 56px;
+  }
+  .acard .aname { font-size: 9px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+  .acard .ascore { font-size: 13px; font-weight: 700; margin-top: 2px; }
+
+  /* sidebar mock */
+  .mock-sidebar {
+    width: 48px; background: #1a1a18; display: flex; flex-direction: column;
+    align-items: center; padding: 10px 0; gap: 10px; flex-shrink: 0;
+  }
+  .mock-sidebar-item {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(255,255,255,.07); display: flex;
+    align-items: center; justify-content: center; font-size: 12px;
+  }
+  .mock-sidebar-item.active { background: rgba(154,123,75,.3); }
+
+  /* check list */
+  .chk { list-style: none; margin-top: 14px; }
+  .chk li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; margin-bottom: 11px; line-height: 1.45; }
+  .chk li::before { content: '—'; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+
+  /* tag */
+  .tag {
+    display: inline-block; padding: 3px 9px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  }
+
+  /* hooper buttons mock */
+  .hbtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 5px; font-size: 11px; font-weight: 700;
+    background: #f1efe8; border: 1px solid #d1cfc8; color: #2c2c2a; cursor: default;
+  }
+  .hbtn.sel { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+
+  /* phase boxes */
+  .pbox {
+    flex: 1; border: 1px solid; border-radius: 8px; padding: 10px 6px;
+    text-align: center;
+  }
+  .pbox .pnum { font-size: 20px; font-weight: 800; }
+  .pbox .plbl { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin-top: 3px; }
+  .pbox .pdesc { font-size: 9px; opacity: .45; margin-top: 5px; line-height: 1.35; }
+
+  /* small bar chart */
+  .barchart { display: flex; align-items: flex-end; gap: 3px; height: 36px; }
+  .barchart .bar { border-radius: 3px 3px 0 0; min-width: 7px; flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="counter"></div>
+<button class="nav-btn" id="btn-prev" onclick="go(-1)">&#8592;</button>
+<button class="nav-btn" id="btn-next" onclick="go(+1)">&#8594;</button>
+
+<div class="deck" id="deck">
+
+  <!-- ── 1. CAPA ──────────────────────────────────────────── -->
+  <div class="slide dark active">
+    <div class="center">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:28px;">Ciente IE</div>
+      <h1 class="giant">Monitoramento<br>de Atletas</h1>
+      <div class="divider" style="margin:24px auto;"></div>
+      <p class="lead" style="text-align:center;">
+        Uma plataforma para acompanhar a prontidão do elenco
+        com dados coletados diariamente — do bem-estar ao salto vertical.
+      </p>
+      <div style="margin-top:36px;font-size:11px;opacity:.3;letter-spacing:.08em;text-transform:uppercase;">
+        Ciente IE
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. O QUE É ──────────────────────────────────────── -->
+  <div class="slide dark">
+    <div class="split split-border">
+      <div>
+        <div class="eyebrow">O que é</div>
+        <h2 class="heading">Quatro módulos de coleta.<br>Um score por atleta.</h2>
+        <div class="divider"></div>
+        <p class="lead" style="margin-bottom:20px;">
+          Cada dia, os atletas registram dados em até 5 minutos.
+          O staff abre o dashboard e vê quem está apto, quem precisa de atenção
+          e quem está fora.
+        </p>
+        <div style="font-size:12px;opacity:.4;line-height:1.8;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
+          Funciona em qualquer dispositivo com navegador.<br>Sem instalação. Dados em tempo real.
+        </div>
+      </div>
+      <div style="gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.25);border-radius:10px;padding:16px 14px;">
+            <div style="font-size:18px;font-weight:800;color:#f97316;margin-bottom:6px;">IH</div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;">Índice Hooper</div>
+            <div style="font-size:11px;opacity:.55;line-height:1.5;">Sono, estresse, fadiga e humor — 4 perguntas, escala de 1 a 7</div>
+          </div>
+          <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:16px 14px;">
+            <div style="font-size:18px;font-weight:800;color:#10b981;margin-bottom:6px;">IA</div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;">HRV</div>
+            <div style="font-size:11px;opacity:.55;line-height:1.5;">Variabilidade cardíaca com Polar H10 — leitura em 2 minutos</div>
+          </div>
+          <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:16px 14px;">
+            <div style="font-size:18px;font-weight:800;color:#60a5fa;margin-bottom:6px;">INM</div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;">CMJ</div>
+            <div style="font-size:11px;opacity:.55;line-height:1.5;">Counter movement jump — altura do salto vertical</div>
+          </div>
+          <div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:10px;padding:16px 14px;">
+            <div style="font-size:18px;font-weight:800;color:#a78bfa;margin-bottom:6px;">IC</div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;">NeuroScore</div>
+            <div style="font-size:11px;opacity:.55;line-height:1.5;">Teste cognitivo — 25 alvos sequenciais, tempo de reação</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px 14px;background:rgba(154,123,75,.1);border:1px solid rgba(154,123,75,.25);border-radius:8px;font-size:12px;opacity:.75;text-align:center;">
+          IGP = 80% média dos 4 sistemas + 20% pior sistema individual
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. COLETA — O QUE O ATLETA FAZ ─────────────────── -->
+  <div class="slide page">
+    <div class="split">
+      <div>
+        <div class="eyebrow">Coleta de dados</div>
+        <h2 class="heading" style="color:var(--dark);">O atleta registra.<br>O staff visualiza.</h2>
+        <div class="divider"></div>
+        <ul class="chk" style="color:var(--mid);">
+          <li>Hooper Index pré-treino — 4 escalas de bem-estar</li>
+          <li>HRV conectado ao Polar H10 diretamente no app</li>
+          <li>CMJ — altura do salto via câmera ou input manual</li>
+          <li>NeuroScore — teste cognitivo de 25 cliques sequenciais</li>
+          <li>PSE pós-treino — percepção de esforço e qualidade</li>
+        </ul>
+        <div style="margin-top:20px;font-size:13px;color:var(--muted);">
+          Cada atleta usa o próprio celular. O staff não precisa coletar nada.
+        </div>
+      </div>
+
+      <!-- Mockup da tela de coleta pré -->
+      <div style="display:flex;align-items:center;justify-content:center;padding:40px;">
+        <div class="mock-shell" style="width:260px;">
+          <div class="mock-bar">
+            <div class="mock-dot" style="background:#ef4444;"></div>
+            <div class="mock-dot" style="background:#f59e0b;"></div>
+            <div class="mock-dot" style="background:#10b981;"></div>
+            <span class="mock-title">Coleta Pré-Treino</span>
+          </div>
+          <div style="background:#1a1a18;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;border-radius:50%;background:#9a7b4b;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;">GA</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#fff;">Gabriel Alves</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.4);">Meia · Sub-20</div>
+            </div>
+          </div>
+          <div class="mock-body">
+            <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Como está seu sono?</div>
+            <div style="display:flex;gap:4px;margin-bottom:14px;">
+              <div class="hbtn">1</div><div class="hbtn">2</div><div class="hbtn sel">3</div>
+              <div class="hbtn">4</div><div class="hbtn">5</div><div class="hbtn">6</div><div class="hbtn">7</div>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Nível de estresse</div>
+            <div style="display:flex;gap:4px;margin-bottom:14px;">
+              <div class="hbtn sel">1</div><div class="hbtn">2</div><div class="hbtn">3</div>
+              <div class="hbtn">4</div><div class="hbtn">5</div><div class="hbtn">6</div><div class="hbtn">7</div>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Fadiga muscular</div>
+            <div style="display:flex;gap:4px;margin-bottom:14px;">
+              <div class="hbtn">1</div><div class="hbtn sel">2</div><div class="hbtn">3</div>
+              <div class="hbtn">4</div><div class="hbtn">5</div><div class="hbtn">6</div><div class="hbtn">7</div>
+            </div>
+            <div style="background:#1a1a18;color:#fff;border-radius:7px;padding:8px;text-align:center;font-size:11px;font-weight:600;margin-top:4px;">Avançar →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. DASHBOARD ────────────────────────────────────── -->
+  <div class="slide dark">
+    <div class="split split-border">
+      <div>
+        <div class="eyebrow light-text">Dashboard</div>
+        <h2 class="heading">O que o staff<br>vê todo dia.</h2>
+        <div class="divider"></div>
+        <p class="lead" style="margin-bottom:18px;">
+          Assim que os dados chegam, o dashboard atualiza.
+          O preparador, o médico e o técnico acessam a mesma tela —
+          cada um com seu nível de acesso.
+        </p>
+        <ul class="chk" style="color:rgba(255,255,255,.65);font-size:14px;">
+          <li>IGP de cada atleta com classificação por cor</li>
+          <li>Seta de tendência baseada nos últimos 28 dias</li>
+          <li>Status: Apto · Transição · Afastado</li>
+          <li>Filtro por categoria e posição</li>
+        </ul>
+      </div>
+
+      <!-- Dashboard mockup -->
+      <div style="display:flex;align-items:center;justify-content:center;padding:32px 40px;">
+        <div class="mock-shell" style="width:340px;display:flex;flex-direction:row;overflow:hidden;">
+          <!-- Sidebar -->
+          <div class="mock-sidebar">
+            <div style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.08em;">CI</div>
+            <div class="mock-sidebar-item active">📊</div>
+            <div class="mock-sidebar-item">🏟️</div>
+            <div class="mock-sidebar-item">📋</div>
+            <div class="mock-sidebar-item">🔄</div>
+            <div class="mock-sidebar-item">⚙️</div>
+          </div>
+          <!-- Content -->
+          <div style="flex:1;background:#f8f7f3;padding:10px 12px;overflow:hidden;">
+            <div style="font-size:11px;font-weight:700;color:#1a1a18;margin-bottom:8px;">Dashboard · 29/05/2026</div>
+            <!-- Status row -->
+            <div style="display:flex;gap:5px;margin-bottom:10px;">
+              <div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:5px;padding:5px;text-align:center;">
+                <div style="font-size:15px;font-weight:700;color:#10b981;">18</div>
+                <div style="font-size:8px;color:#6b7280;text-transform:uppercase;">Aptos</div>
+              </div>
+              <div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:5px;padding:5px;text-align:center;">
+                <div style="font-size:15px;font-weight:700;color:#f59e0b;">4</div>
+                <div style="font-size:8px;color:#6b7280;text-transform:uppercase;">Atenção</div>
+              </div>
+              <div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:5px;padding:5px;text-align:center;">
+                <div style="font-size:15px;font-weight:700;color:#ef4444;">2</div>
+                <div style="font-size:8px;color:#6b7280;text-transform:uppercase;">Críticos</div>
+              </div>
+              <div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:5px;padding:5px;text-align:center;">
+                <div style="font-size:15px;font-weight:700;color:#6b7280;">3</div>
+                <div style="font-size:8px;color:#6b7280;text-transform:uppercase;">Afastados</div>
+              </div>
+            </div>
+            <!-- Athlete grid -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
+              <div class="acard" style="border-color:rgba(16,185,129,.35);">
+                <div class="aname">Mateus</div>
+                <div class="ascore" style="color:#10b981;">82 ↗</div>
+              </div>
+              <div class="acard" style="border-color:rgba(16,185,129,.35);">
+                <div class="aname">Rafael</div>
+                <div class="ascore" style="color:#10b981;">79 →</div>
+              </div>
+              <div class="acard" style="border-color:rgba(245,158,11,.35);">
+                <div class="aname">Fábio</div>
+                <div class="ascore" style="color:#f59e0b;">65 ↘</div>
+              </div>
+              <div class="acard" style="border-color:rgba(16,185,129,.35);">
+                <div class="aname">Lucas</div>
+                <div class="ascore" style="color:#10b981;">74 →</div>
+              </div>
+              <div class="acard" style="border-color:rgba(16,185,129,.35);">
+                <div class="aname">Anderson</div>
+                <div class="ascore" style="color:#10b981;">71 ↗</div>
+              </div>
+              <div class="acard" style="border-color:rgba(249,115,22,.35);">
+                <div class="aname">Caio</div>
+                <div class="ascore" style="color:#f97316;">54 ↘</div>
+              </div>
+              <div class="acard" style="border-color:rgba(239,68,68,.5);">
+                <div class="aname">Renato</div>
+                <div class="ascore" style="color:#ef4444;">41 ↘</div>
+              </div>
+              <div class="acard" style="border:1.5px solid #f97316;">
+                <div class="aname">Bruno</div>
+                <div class="ascore" style="font-size:9px;color:#f97316;margin-top:1px;">Transição</div>
+              </div>
+            </div>
+            <div style="margin-top:6px;font-size:8px;color:#9ca3af;text-align:right;">↑ atualizado há 12 min</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. RELATÓRIO PRÉ-JOGO ───────────────────────────── -->
+  <div class="slide page">
+    <div class="split">
+      <div>
+        <div class="eyebrow">Pré-Jogo</div>
+        <h2 class="heading" style="color:var(--dark);">O elenco organizado<br>por posição.</h2>
+        <div class="divider"></div>
+        <p class="lead on-light" style="margin-bottom:16px;">
+          Gerado com um clique antes do jogo. Mostra o IGP de cada atleta,
+          tendência de 28 dias, carga semanal do grupo e evolução coletiva.
+          Pode ser impresso em PDF.
+        </p>
+        <ul class="chk" style="color:var(--mid);">
+          <li>Contadores: liberados, transição, afastados</li>
+          <li>Cards por posição com IGP e seta de tendência</li>
+          <li>Borda vermelha = afastado · laranja = transição</li>
+          <li>Gráficos de carga e IGP médio dos últimos 14 dias</li>
+        </ul>
+      </div>
+
+      <!-- Pre-game mockup -->
+      <div style="display:flex;align-items:center;justify-content:center;padding:28px 36px;">
+        <div class="mock-shell" style="width:320px;">
+          <div class="mock-bar">
+            <div class="mock-dot" style="background:#ef4444;"></div>
+            <div class="mock-dot" style="background:#f59e0b;"></div>
+            <div class="mock-dot" style="background:#10b981;"></div>
+            <span class="mock-title">Relatório Pré-Jogo</span>
+          </div>
+          <div style="padding:10px 12px;background:#f8f7f3;">
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;">
+              <div>
+                <div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9a7b4b;font-weight:700;">RELATÓRIO PRÉ-JOGO</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a18;margin-top:1px;">América FC vs Adversário</div>
+                <div style="font-size:9px;color:#9ca3af;">Gerado em 29/05/2026</div>
+              </div>
+              <div style="background:#1a1a18;color:#fff;border-radius:5px;padding:4px 8px;font-size:8px;font-weight:600;white-space:nowrap;">Imprimir PDF</div>
+            </div>
+            <!-- KPIs -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:9px;">
+              <div style="background:#fff;border-radius:5px;padding:6px 8px;">
+                <div style="display:flex;justify-content:space-around;margin-bottom:3px;">
+                  <div style="text-align:center;"><div style="font-size:13px;font-weight:700;color:#10b981;">21</div><div style="font-size:7px;color:#6b7280;">Aptos</div></div>
+                  <div style="text-align:center;"><div style="font-size:13px;font-weight:700;color:#f97316;">2</div><div style="font-size:7px;color:#6b7280;">Transit.</div></div>
+                  <div style="text-align:center;"><div style="font-size:13px;font-weight:700;color:#ef4444;">3</div><div style="font-size:7px;color:#6b7280;">Afastados</div></div>
+                </div>
+              </div>
+              <div style="background:#fff;border-radius:5px;padding:5px 8px;">
+                <div style="font-size:7px;color:#6b7280;text-transform:uppercase;margin-bottom:3px;">Carga 7d</div>
+                <div class="barchart">
+                  <div class="bar" style="height:60%;background:#3b82f6;"></div>
+                  <div class="bar" style="height:75%;background:#f59e0b;"></div>
+                  <div class="bar" style="height:90%;background:#f97316;"></div>
+                  <div class="bar" style="height:50%;background:#3b82f6;"></div>
+                  <div class="bar" style="height:80%;background:#f59e0b;"></div>
+                  <div class="bar" style="height:40%;background:#3b82f6;"></div>
+                  <div class="bar" style="height:65%;background:#f59e0b;"></div>
+                </div>
+              </div>
+              <div style="background:#fff;border-radius:5px;padding:5px 8px;">
+                <div style="font-size:7px;color:#6b7280;text-transform:uppercase;margin-bottom:3px;">IGP médio 14d</div>
+                <!-- mini line chart SVG -->
+                <svg width="100%" height="36" viewBox="0 0 80 36">
+                  <line x1="0" y1="26" x2="80" y2="26" stroke="#e5e7eb" stroke-width="0.5"/>
+                  <polyline points="0,28 10,22 20,20 30,24 40,18 50,15 60,17 70,12 80,14"
+                    fill="none" stroke="#10b981" stroke-width="1.5" stroke-linejoin="round"/>
+                  <line x1="0" y1="18" x2="80" y2="18" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+                </svg>
+              </div>
+            </div>
+            <!-- Position rows -->
+            <div style="margin-bottom:7px;">
+              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;font-weight:600;margin-bottom:4px;">Goleiros · <span style="color:#10b981;">2 disponíveis</span></div>
+              <div style="display:flex;gap:4px;">
+                <div class="acard" style="border-color:rgba(16,185,129,.4);">
+                  <div class="aname">Bruno</div>
+                  <div class="ascore" style="color:#10b981;">81 ↗</div>
+                </div>
+                <div class="acard" style="border-color:rgba(245,158,11,.4);">
+                  <div class="aname">Carlos</div>
+                  <div class="ascore" style="color:#f59e0b;">63 →</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-bottom:7px;">
+              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;font-weight:600;margin-bottom:4px;">Zagueiros · <span style="color:#10b981;">3 disponíveis</span></div>
+              <div style="display:flex;gap:4px;">
+                <div class="acard" style="border-color:rgba(16,185,129,.4);">
+                  <div class="aname">André</div>
+                  <div class="ascore" style="color:#10b981;">77 ↗</div>
+                </div>
+                <div class="acard" style="border-color:rgba(16,185,129,.4);">
+                  <div class="aname">Marcos</div>
+                  <div class="ascore" style="color:#10b981;">73 →</div>
+                </div>
+                <div class="acard" style="border: 1.5px solid #ef4444;">
+                  <div class="aname">Diego</div>
+                  <div class="ascore" style="font-size:9px;color:#ef4444;">Afastado</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;font-weight:600;margin-bottom:4px;">Meias · <span style="color:#10b981;">4 disponíveis</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <div class="acard" style="border-color:rgba(16,185,129,.4);">
+                  <div class="aname">Felipe</div>
+                  <div class="ascore" style="color:#10b981;">79 ↗</div>
+                </div>
+                <div class="acard" style="border-color:rgba(249,115,22,.35);">
+                  <div class="aname">Caio</div>
+                  <div class="ascore" style="color:#f97316;">55 ↘</div>
+                </div>
+                <div class="acard" style="border: 1.5px solid #f97316;">
+                  <div class="aname">Henrique</div>
+                  <div class="ascore" style="font-size:9px;color:#f97316;">Transição</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 6. GESTÃO DE CARGA ──────────────────────────────── -->
+  <div class="slide dark">
+    <div class="split split-border">
+      <div>
+        <div class="eyebrow light-text">Gestão de Carga</div>
+        <h2 class="heading">O histórico de carga<br>de cada atleta.</h2>
+        <div class="divider"></div>
+        <p class="lead" style="margin-bottom:16px;">
+          A carga diária (PSE × minutos) é registrada pelo atleta após o treino.
+          O sistema calcula o ISP semanal e mostra a relação aguda/crônica do grupo.
+        </p>
+        <ul class="chk" style="color:rgba(255,255,255,.65);font-size:14px;">
+          <li>ISP — Índice Semanal de Adaptação por atleta</li>
+          <li>ACWR — razão carga aguda/crônica (7d ÷ 28d)</li>
+          <li>Microciclo: MD-3, MD-2, MD-1, MD0, MD+1…</li>
+          <li>Carga de jogo preenchida automaticamente via Scout</li>
+        </ul>
+      </div>
+      <div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin-bottom:10px;">ISP · Índice Semanal de Adaptação</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;text-align:center;padding:10px 6px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;">
+              <div style="font-size:15px;font-weight:700;color:#10b981;">Alto</div>
+              <div style="font-size:10px;opacity:.5;margin-top:3px;">≥70</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;">
+              <div style="font-size:15px;font-weight:700;color:#f59e0b;">Regular</div>
+              <div style="font-size:10px;opacity:.5;margin-top:3px;">60–69</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);border-radius:8px;">
+              <div style="font-size:15px;font-weight:700;color:#f97316;">Limitado</div>
+              <div style="font-size:10px;opacity:.5;margin-top:3px;">50–59</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px 6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;">
+              <div style="font-size:15px;font-weight:700;color:#ef4444;">Insuf.</div>
+              <div style="font-size:10px;opacity:.5;margin-top:3px;">&lt;50</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px 16px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin-bottom:10px;">Notação de microciclo</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(16,185,129,.15);color:#10b981;font-weight:600;">MD-3</span>
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(249,115,22,.15);color:#f97316;font-weight:600;">MD-2</span>
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(16,185,129,.15);color:#10b981;font-weight:600;">MD-1</span>
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(59,130,246,.25);color:#93c5fd;font-weight:600;">MD0 · Jogo</span>
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(139,92,246,.15);color:#a78bfa;font-weight:600;">MD+1</span>
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;background:rgba(107,114,128,.15);color:#9ca3af;font-weight:600;">MD+2</span>
+          </div>
+          <div style="font-size:11px;opacity:.45;line-height:1.5;">
+            A classificação do dia dentro do microciclo é automática a partir do calendário de jogos.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 7. DEPARTAMENTO MÉDICO / RTP ────────────────────── -->
+  <div class="slide page">
+    <div class="left">
+      <div class="eyebrow">Departamento Médico</div>
+      <h2 class="heading" style="color:var(--dark);">Return to Play com etapas<br>definidas.</h2>
+      <div class="divider"></div>
+      <p class="lead on-light" style="max-width:560px;margin-bottom:24px;">
+        O RTP é dividido em 5 fases — do afastamento ao retorno pleno.
+        O médico e o preparador registram a progressão no sistema.
+        O técnico vê o status de cada atleta no dashboard.
+      </p>
+      <div style="display:flex;gap:8px;align-items:stretch;max-width:780px;">
+        <div class="pbox" style="border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.07);">
+          <div class="pnum" style="color:#ef4444;">F0</div>
+          <div class="plbl">Afastado</div>
+          <div class="pdesc">Indisponível para treino e jogo</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#d1d5db;font-size:16px;flex-shrink:0;">›</div>
+        <div class="pbox" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.07);">
+          <div class="pnum" style="color:#f59e0b;">F1</div>
+          <div class="plbl">Recon­dicionamento</div>
+          <div class="pdesc">Trabalho físico individual</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#d1d5db;font-size:16px;flex-shrink:0;">›</div>
+        <div class="pbox" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.07);">
+          <div class="pnum" style="color:#8b5cf6;">F2</div>
+          <div class="plbl">Treino Adaptado</div>
+          <div class="pdesc">CMJ e carga controlados</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#d1d5db;font-size:16px;flex-shrink:0;">›</div>
+        <div class="pbox" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.07);">
+          <div class="pnum" style="color:#3b82f6;">F3</div>
+          <div class="plbl">Treino Coletivo</div>
+          <div class="pdesc">Integração plena com o grupo</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#d1d5db;font-size:16px;flex-shrink:0;">›</div>
+        <div class="pbox" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.08);">
+          <div class="pnum" style="color:#10b981;">F4</div>
+          <div class="plbl">Liberado</div>
+          <div class="pdesc">Apto para jogo</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:13px;color:var(--muted);max-width:620px;line-height:1.6;border-top:1px solid #e5e7eb;padding-top:14px;">
+        Atletas em F1–F3 aparecem como "Transição" no relatório pré-jogo com borda laranja.
+        A progressão de fase é registrada pelo staff — o sistema não avança automaticamente.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 8. PARA QUEM É ──────────────────────────────────── -->
+  <div class="slide dark">
+    <div class="split split-border">
+      <div>
+        <div class="eyebrow light-text">Para quem é</div>
+        <h2 class="heading">Cada profissional<br>tem sua visão.</h2>
+        <div class="divider"></div>
+        <p class="lead">
+          O acesso é por nível de perfil. Staff e admin
+          veem o elenco completo. O atleta registra apenas
+          os próprios dados.
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-size:22px;flex-shrink:0;">💊</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Médico / Fisioterapeuta</div>
+            <div style="font-size:12px;opacity:.55;line-height:1.5;">Gestão de afastamentos, protocolo RTP, histórico clínico e integração com IGP.</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-size:22px;flex-shrink:0;">⚡</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Preparador Físico</div>
+            <div style="font-size:12px;opacity:.55;line-height:1.5;">Carga diária, ISP, ACWR, CMJ e controle de microciclo por atleta e por grupo.</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-size:22px;flex-shrink:0;">🎯</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Técnico</div>
+            <div style="font-size:12px;opacity:.55;line-height:1.5;">Relatório pré-jogo com IGP por posição, status de disponibilidade e tendência de cada atleta.</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-size:22px;flex-shrink:0;">🏃</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Atleta</div>
+            <div style="font-size:12px;opacity:.55;line-height:1.5;">Coleta os próprios dados — Hooper, HRV, CMJ, PSE pós-treino. Não vê outros atletas.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 9. ENCERRAMENTO ─────────────────────────────────── -->
+  <div class="slide dark">
+    <div class="center">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:24px;">Ciente IE</div>
+      <h1 class="giant">Monitoramento<br><span style="color:var(--gold);">que o staff usa</span><br>de verdade.</h1>
+      <div class="divider" style="margin:24px auto;"></div>
+      <p class="lead" style="text-align:center;max-width:520px;">
+        Desenvolvido e utilizado pelo Depto. de Medicina Esportiva<br>
+        e Performance do América FC.
+      </p>
+      <div style="margin-top:32px;padding:12px 28px;border:1.5px solid rgba(154,123,75,.5);border-radius:10px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);">
+        Ciente IE
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<script>
+  const slides  = Array.from(document.querySelectorAll('.slide'));
+  const total   = slides.length;
+  let   current = 0;
+
+  function show(idx) {
+    slides[current].classList.remove('active');
+    current = (idx + total) % total;
+    slides[current].classList.add('active');
+    document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+    document.getElementById('counter').textContent  = `${current + 1} / ${total}`;
+
+    const isDark = slides[current].classList.contains('dark');
+    document.getElementById('counter').style.color  = isDark ? 'rgba(255,255,255,.3)' : 'rgba(0,0,0,.2)';
+    document.getElementById('btn-prev').style.display = current === 0        ? 'none' : 'flex';
+    document.getElementById('btn-next').style.display = current === total - 1 ? 'none' : 'flex';
+  }
+
+  function go(dir) { show(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown'  || e.key === ' ')  go(+1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) go(dx < 0 ? +1 : -1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>

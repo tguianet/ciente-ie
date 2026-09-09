@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Prontidão & Carga · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex">
+
+<!-- SIDEBAR -->
+<div id="sidebar-container"></div>
+
+<div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 space-y-6">
+
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">Prontidão & Carga</h1>
+  </div>
+
+  <!-- Botões ocultos — usados pelos listeners de prontidao.js e auto-trigger de ?relatorio=X -->
+  <div style="display:none">
+    <button id="btnPosJogo">Relatório Pós-Jogo</button>
+    <button id="btnExportarPDF">Relatório Diário</button>
+    <button id="btnRelatorioSemanal">Relatório Semanal</button>
+    <!-- filtro de categoria exclusivo para o relatório semanal (não afeta a tabela de prontidão) -->
+    <select id="filtroCategoriaSemanal"><option value=""></option></select>
+  </div>
+
+  <!-- Banner Microciclo -->
+  <div id="bannerMicrociclo"
+       style="display:none;align-items:center;gap:12px;padding:12px 18px;background:#1e3a5f;border-radius:10px;">
+  </div>
+
+  <!-- FILTROS -->
+  <div class="bg-white p-4 rounded-lg border grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div>
+      <label class="text-sm font-semibold">Data</label>
+      <input type="date" id="filtroData"
+             class="w-full mt-1 border rounded px-3 py-2">
+    </div>
+
+    <div>
+      <label class="text-sm font-semibold">Categoria</label>
+      <select id="filtroCategoria"
+              class="w-full mt-1 border rounded px-3 py-2">
+        <option value="">Todas</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="text-sm font-semibold">Posição</label>
+      <select id="filtroPosicao"
+              class="w-full mt-1 border rounded px-3 py-2">
+        <option value="">Todas</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="text-sm font-semibold">Grupo</label>
+      <select id="filtroGrupo"
+              class="w-full mt-1 border rounded px-3 py-2">
+        <option value="">Todos</option>
+        <option value="Geral">Geral</option>
+        <option value="G1">G1</option>
+        <option value="G2">G2</option>
+        <option value="G3">G3</option>
+        <option value="G4">G4</option>
+        <option value="Transição - RTP">Transição - RTP</option>
+        <option value="Restrição">Restrição</option>
+      </select>
+    </div>
+  </div>
+
+
+  <!-- CARDS -->
+  <div id="cardsMedios"
+       class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+  </div>
+
+  <!-- TABELA -->
+  <div class="bg-white rounded-lg border overflow-hidden mt-6">
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[700px]">
+      <thead class="bg-gray-100 text-center">
+        <tr>
+          <th class="p-3 font-semibold">Atleta</th>
+          <th class="p-3 font-semibold">Posição</th>
+          <th class="p-3 font-semibold">IGP</th>
+          <th class="p-3 font-semibold">ISP</th>
+          <th class="p-3 font-semibold">Subjetivo</th>
+          <th class="p-3 font-semibold">Autonômico</th>
+          <th class="p-3 font-semibold">Neuromuscular</th>
+          <th class="p-3 font-semibold">Cognitivo</th>
+          <th class="p-3 font-semibold">Emocional</th>
+          <th class="p-3 font-semibold">Carga</th>
+          <th class="p-3 font-semibold" id="th-rtp" style="display:none;">RTP<br><span style="font-weight:400;font-size:10px;opacity:.7;">fase</span></th>
+        </tr>
+      </thead>
+      <tbody id="tabelaAtletas"></tbody>
+    </table>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="./prontidao.js"></script>
+<script src="/components/layout.js"></script>
+</body>
+</html>

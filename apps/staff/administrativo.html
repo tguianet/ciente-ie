@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrativo · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+
+<div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Administrativo</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Atletas afastados por questões administrativas (punição, contrato, negociação, etc.)</p>
+      </div>
+    </div>
+
+    <!-- Resumo -->
+    <div id="resumoCards" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6"></div>
+
+    <!-- Atletas afastados -->
+    <div class="bg-white rounded-lg border mb-6">
+      <div class="px-5 py-3 border-b flex items-center gap-3">
+        <span class="w-2 h-2 rounded-full bg-purple-600 flex-shrink-0"></span>
+        <h2 class="font-bold text-gray-700">Afastados Administrativamente</h2>
+        <span id="cntAfastadosAdmin" class="text-xs font-bold text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">0</span>
+      </div>
+      <div id="tabelaAfastados" class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-2 text-left">Atleta</th>
+              <th class="px-4 py-2 text-left">Posição</th>
+              <th class="px-4 py-2 text-left">Categoria</th>
+              <th class="px-4 py-2 text-left">Motivo</th>
+              <th class="px-4 py-2 text-left">Observação</th>
+              <th class="px-4 py-2 text-left">Desde</th>
+              <th class="px-4 py-2 text-left">Dias</th>
+              <th class="px-4 py-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="bodyAfastados">
+            <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 text-sm italic">Nenhum atleta afastado.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Elenco disponível -->
+    <div class="bg-white rounded-lg border">
+      <div class="px-5 py-3 border-b flex items-center gap-3">
+        <span class="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0"></span>
+        <h2 class="font-bold text-gray-700">Elenco Disponível</h2>
+        <span id="cntDisponivel" class="text-xs font-bold text-blue-700 bg-blue-100 rounded-full px-2 py-0.5">0</span>
+        <div class="flex-1"></div>
+        <input id="buscaAtleta" type="text" placeholder="Buscar atleta..." class="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 w-56">
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-2 text-left">Atleta</th>
+              <th class="px-4 py-2 text-left">Posição</th>
+              <th class="px-4 py-2 text-left">Categoria</th>
+              <th class="px-4 py-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="bodyDisponiveis">
+            <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm italic">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+<!-- Modal Afastar -->
+<div id="modalAfastar" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" style="display:none!important">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+    <div class="px-6 py-4 border-b flex items-center justify-between" style="background:#1e3a5f;border-radius:12px 12px 0 0;">
+      <h3 class="text-base font-bold text-white">Afastar Atleta</h3>
+      <button id="btnFecharModal" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <div class="px-6 py-5 flex flex-col gap-4">
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Atleta</label>
+        <div id="modalNomeAtleta" class="text-sm font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded border"></div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Motivo</label>
+        <select id="modalMotivo" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+          <option value="Punição">Punição</option>
+          <option value="Negociação">Negociação</option>
+          <option value="Contrato">Contrato</option>
+          <option value="Suspensão Disciplinar">Suspensão Disciplinar</option>
+          <option value="Questão Jurídica">Questão Jurídica</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Data de Início</label>
+        <input id="modalData" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Observação (opcional)</label>
+        <input id="modalObs" type="text" placeholder="Ex: Aguardando resolução contratual..." class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-2">
+      <button id="btnCancelarModal" class="px-4 py-2 text-sm border rounded text-gray-600 hover:bg-gray-50">Cancelar</button>
+      <button id="btnConfirmarAfastar" class="px-4 py-2 text-sm rounded text-white font-semibold" style="background:#7c3aed;">Confirmar Afastamento</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="../core/authGuard.js"></script>
+<script type="module" src="../components/layout.js"></script>
+
+<script type="module">
+import { db } from "../core/firebase.js";
+import {
+  collection, query, where, getDocs, doc, updateDoc
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+const uc = JSON.parse(localStorage.getItem("userContext") || "{}");
+const CLUB_ID = uc.clubId || "";
+
+let _atletas = [];
+let _atletaIdSelecionado = null;
+
+// ── Carregar atletas ─────────────────────────────────────────────────────────
+async function carregar() {
+  const snap = await getDocs(query(
+    collection(db, "athletes"),
+    where("clubId", "==", CLUB_ID),
+    where("ativo", "!=", false)
+  ));
+  _atletas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  _atletas.sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR"));
+  renderTudo();
+}
+
+function renderTudo(busca = "") {
+  const afastados   = _atletas.filter(a => a.afastadoAdmin);
+  const disponiveis = _atletas.filter(a => !a.afastadoAdmin);
+  const filtrados   = busca
+    ? disponiveis.filter(a => a.nome?.toLowerCase().includes(busca.toLowerCase()))
+    : disponiveis;
+
+  // Resumo
+  document.getElementById("resumoCards").innerHTML = `
+    <div class="bg-purple-50 border border-purple-200 rounded-lg px-5 py-4">
+      <div class="text-3xl font-extrabold text-purple-700">${afastados.length}</div>
+      <div class="text-xs font-bold text-purple-500 uppercase tracking-wider mt-1">Afastados Admin.</div>
+    </div>
+    <div class="bg-blue-50 border border-blue-200 rounded-lg px-5 py-4">
+      <div class="text-3xl font-extrabold text-blue-700">${disponiveis.length}</div>
+      <div class="text-xs font-bold text-blue-500 uppercase tracking-wider mt-1">Disponíveis</div>
+    </div>
+    <div class="bg-gray-50 border border-gray-200 rounded-lg px-5 py-4">
+      <div class="text-3xl font-extrabold text-gray-700">${_atletas.length}</div>
+      <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">Total no Elenco</div>
+    </div>`;
+
+  document.getElementById("cntAfastadosAdmin").textContent = afastados.length;
+  document.getElementById("cntDisponivel").textContent     = filtrados.length;
+
+  // Tabela afastados
+  const bodyAf = document.getElementById("bodyAfastados");
+  if (!afastados.length) {
+    bodyAf.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 text-sm italic">Nenhum atleta afastado administrativamente.</td></tr>`;
+  } else {
+    bodyAf.innerHTML = afastados.map(a => {
+      const dias = a.dataAfastamentoAdmin
+        ? Math.round((Date.now() - new Date(a.dataAfastamentoAdmin + "T00:00:00").getTime()) / 86400000)
+        : null;
+      const diasStr = dias != null ? `<span class="${dias >= 14 ? "text-red-600" : dias >= 7 ? "text-yellow-600" : "text-green-600"} font-bold">${dias}d</span>` : "—";
+      return `<tr class="border-b hover:bg-purple-50 transition-colors">
+        <td class="px-4 py-3 font-semibold text-gray-800">${a.nome || "—"}</td>
+        <td class="px-4 py-3 text-gray-600">${a.posicao || "—"}</td>
+        <td class="px-4 py-3 text-gray-600">${a.categoria || "—"}</td>
+        <td class="px-4 py-3"><span class="text-xs font-bold px-2 py-1 rounded-full bg-purple-100 text-purple-700">${a.motivoAdmin || "—"}</span></td>
+        <td class="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">${a.obsAdmin || "—"}</td>
+        <td class="px-4 py-3 text-gray-600">${a.dataAfastamentoAdmin ? formatarData(a.dataAfastamentoAdmin) : "—"}</td>
+        <td class="px-4 py-3">${diasStr}</td>
+        <td class="px-4 py-3 text-center">
+          <button class="btnLiberar text-xs px-3 py-1.5 rounded border border-green-300 text-green-700 hover:bg-green-50 font-semibold" data-id="${a.id}">Liberar</button>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Tabela disponíveis
+  const bodyDis = document.getElementById("bodyDisponiveis");
+  if (!filtrados.length) {
+    bodyDis.innerHTML = `<tr><td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm italic">${busca ? "Nenhum resultado." : "Nenhum atleta disponível."}</td></tr>`;
+  } else {
+    bodyDis.innerHTML = filtrados.map(a => `
+      <tr class="border-b hover:bg-gray-50 transition-colors">
+        <td class="px-4 py-3 font-semibold text-gray-800">${a.nome || "—"}</td>
+        <td class="px-4 py-3 text-gray-600">${a.posicao || "—"}</td>
+        <td class="px-4 py-3 text-gray-600">${a.categoria || "—"}</td>
+        <td class="px-4 py-3 text-center">
+          <button class="btnAfastar text-xs px-3 py-1.5 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold" data-id="${a.id}" data-nome="${a.nome}">Afastar</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  // Eventos
+  document.querySelectorAll(".btnAfastar").forEach(btn => {
+    btn.addEventListener("click", () => abrirModal(btn.dataset.id, btn.dataset.nome));
+  });
+  document.querySelectorAll(".btnLiberar").forEach(btn => {
+    btn.addEventListener("click", () => liberarAtleta(btn.dataset.id));
+  });
+}
+
+function formatarData(iso) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+function abrirModal(id, nome) {
+  _atletaIdSelecionado = id;
+  document.getElementById("modalNomeAtleta").textContent = nome;
+  document.getElementById("modalMotivo").value = "Punição";
+  document.getElementById("modalData").value = new Date().toLocaleDateString("en-CA");
+  document.getElementById("modalObs").value = "";
+  document.getElementById("modalAfastar").style.cssText = "display:flex!important";
+}
+
+function fecharModal() {
+  document.getElementById("modalAfastar").style.cssText = "display:none!important";
+  _atletaIdSelecionado = null;
+}
+
+document.getElementById("btnFecharModal").addEventListener("click", fecharModal);
+document.getElementById("btnCancelarModal").addEventListener("click", fecharModal);
+
+document.getElementById("btnConfirmarAfastar").addEventListener("click", async () => {
+  if (!_atletaIdSelecionado) return;
+  const motivo = document.getElementById("modalMotivo").value;
+  const data   = document.getElementById("modalData").value;
+  const obs    = document.getElementById("modalObs").value.trim();
+
+  const btn = document.getElementById("btnConfirmarAfastar");
+  btn.textContent = "Salvando..."; btn.disabled = true;
+
+  try {
+    await updateDoc(doc(db, "athletes", _atletaIdSelecionado), {
+      afastadoAdmin:        true,
+      motivoAdmin:          motivo,
+      obsAdmin:             obs || "",
+      dataAfastamentoAdmin: data,
+    });
+
+    const idx = _atletas.findIndex(a => a.id === _atletaIdSelecionado);
+    if (idx !== -1) {
+      _atletas[idx] = { ..._atletas[idx], afastadoAdmin: true, motivoAdmin: motivo, obsAdmin: obs, dataAfastamentoAdmin: data };
+    }
+    fecharModal();
+    renderTudo(document.getElementById("buscaAtleta").value);
+  } catch (e) {
+    alert("Erro ao salvar: " + e.message);
+  } finally {
+    btn.textContent = "Confirmar Afastamento"; btn.disabled = false;
+  }
+});
+
+async function liberarAtleta(id) {
+  if (!confirm("Liberar este atleta das restrições administrativas?")) return;
+  try {
+    await updateDoc(doc(db, "athletes", id), {
+      afastadoAdmin:        false,
+      motivoAdmin:          "",
+      obsAdmin:             "",
+      dataAfastamentoAdmin: "",
+    });
+    sessionStorage.removeItem('dash_athletes');
+    const idx = _atletas.findIndex(a => a.id === id);
+    if (idx !== -1) {
+      _atletas[idx] = { ..._atletas[idx], afastadoAdmin: false, motivoAdmin: "", obsAdmin: "", dataAfastamentoAdmin: "" };
+    }
+    renderTudo(document.getElementById("buscaAtleta").value);
+  } catch (e) {
+    alert("Erro ao liberar: " + e.message);
+  }
+}
+
+document.getElementById("buscaAtleta").addEventListener("input", function () {
+  renderTudo(this.value);
+});
+
+carregar();
+</script>
+</body>
+</html>

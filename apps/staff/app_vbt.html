@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>VBT Câmera — Ciente</title>
+<script type="module" src="../core/authGuard.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --bg:#0a0a0f;
+  --surface:#13131a;
+  --surface2:#1c1c27;
+  --border:#2a2a3a;
+  --accent:#c8f542;
+  --accent2:#42f5a8;
+  --danger:#f54242;
+  --warn:#f5a742;
+  --text:#f0f0f0;
+  --muted:#6b6b80;
+  --font-display:'Syne',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-display);
+  min-height:100vh;
+  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+/* HEADER */
+header{
+  padding:1rem 1.25rem 0.75rem;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+}
+.logo{font-size:1.1rem;font-weight:800;letter-spacing:-0.02em}
+.logo span{color:var(--accent)}
+
+/* STEPS */
+.steps{
+  display:flex;
+  padding:0.75rem 1.25rem;
+  gap:0.5rem;
+  overflow-x:auto;
+  scrollbar-width:none;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.steps::-webkit-scrollbar{display:none}
+.step{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  gap:0.4rem;
+  font-size:0.75rem;
+  color:var(--muted);
+  font-weight:700;
+  padding:0.3rem 0.75rem;
+  border-radius:999px;
+  border:1px solid var(--border);
+  transition:all .2s;
+}
+.step.active{color:var(--accent);border-color:var(--accent);background:rgba(200,245,66,.07)}
+.step-num{
+  width:18px;height:18px;
+  border-radius:50%;
+  background:var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.65rem;
+}
+.step.active .step-num{background:var(--accent);color:#000}
+
+/* SECTIONS */
+.step-section{display:none;flex:1}
+.step-section.active{display:flex;flex-direction:column}
+
+/* ── STEP 1: CALIBRAR ── */
+#step-calibrar{
+  flex-direction:row;
+  gap:0;
+}
+.cal-cam{
+  flex:1;
+  position:relative;
+  background:#000;
+  min-height:280px;
+}
+.cal-cam video,.cal-cam canvas{
+  position:absolute;
+  top:0;left:0;width:100%;height:100%;
+  object-fit:cover;
+}
+.cal-cam canvas{pointer-events:none}
+.det-badge{
+  position:absolute;
+  bottom:12px;left:50%;
+  transform:translateX(-50%);
+  font-size:0.72rem;
+  font-weight:700;
+  padding:0.3rem 0.8rem;
+  border-radius:999px;
+  border:1px solid transparent;
+  backdrop-filter:blur(6px);
+  white-space:nowrap;
+}
+.det-ok{background:rgba(66,245,168,.15);border-color:var(--accent2);color:var(--accent2)}
+.det-warn{background:rgba(245,167,66,.12);border-color:var(--warn);color:var(--warn)}
+.det-bad{background:rgba(245,66,66,.12);border-color:var(--danger);color:var(--danger)}
+
+.cal-panel{
+  width:280px;
+  flex-shrink:0;
+  padding:1.25rem;
+  border-left:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:0.85rem;
+  overflow-y:auto;
+}
+.cal-panel label{
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--muted);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:0.2rem;
+  display:block;
+}
+.cal-panel select,.cal-panel input[type=number]{
+  width:100%;
+  padding:0.55rem 0.75rem;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  font-family:var(--font-mono);
+  font-size:0.85rem;
+}
+.cal-panel select:focus,.cal-panel input:focus{outline:none;border-color:var(--accent)}
+
+.btn{
+  font-family:var(--font-display);
+  font-size:0.8rem;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:0.65rem 1rem;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  cursor:pointer;
+  transition:all .15s;
+  width:100%;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#000}
+.btn-primary:hover{opacity:.85;color:#000}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+.btn-danger:hover{background:rgba(245,66,66,.1)}
+
+.cal-status{
+  font-size:0.72rem;
+  color:var(--muted);
+  font-family:var(--font-mono);
+  line-height:1.5;
+  padding:0.6rem 0.75rem;
+  background:var(--surface2);
+  border-radius:6px;
+  border:1px solid var(--border);
+}
+.cal-status.ok{color:var(--accent2);border-color:var(--accent2)}
+
+/* ── STEP 2: GRAVAR ── */
+#step-gravar{flex-direction:column}
+
+.grav-wrap{
+  position:relative;
+  flex:1;
+  background:#000;
+  min-height:0;
+  overflow:hidden;
+}
+.grav-wrap video,.grav-wrap canvas{
+  position:absolute;
+  top:0;left:0;width:100%;height:100%;
+  object-fit:cover;
+}
+.grav-wrap canvas{pointer-events:none}
+
+/* HUD overlay */
+.hud{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  padding:14px;
+}
+.hud-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+}
+.hud-reps{
+  background:rgba(10,10,15,.75);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:6px 12px;
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--muted);
+  letter-spacing:.08em;
+  backdrop-filter:blur(4px);
+}
+.hud-reps span{
+  font-size:1.4rem;
+  color:var(--text);
+  font-family:var(--font-mono);
+  display:block;
+  line-height:1.1;
+}
+
+.hud-vel-box{
+  background:rgba(10,10,15,.8);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 14px;
+  text-align:right;
+  backdrop-filter:blur(4px);
+}
+.hud-vel-label{font-size:0.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.hud-vel{
+  font-size:2.4rem;
+  font-weight:800;
+  font-family:var(--font-mono);
+  line-height:1;
+  color:var(--text);
+  transition:color .1s;
+}
+.hud-vel-unit{font-size:0.75rem;color:var(--muted)}
+
+.hud-bottom{
+  margin-top:auto;
+  display:flex;
+  justify-content:center;
+}
+.phase-badge{
+  background:rgba(10,10,15,.8);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:5px 16px;
+  font-size:0.75rem;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  backdrop-filter:blur(4px);
+  transition:all .15s;
+}
+.phase-badge.ecc{color:var(--warn);border-color:var(--warn)}
+.phase-badge.trans{color:var(--muted);border-color:var(--border)}
+.phase-badge.con{color:var(--accent2);border-color:var(--accent2);box-shadow:0 0 12px rgba(66,245,168,.3)}
+
+.grav-controls{
+  padding:0.9rem 1.25rem;
+  border-top:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+  flex-wrap:wrap;
+  flex-shrink:0;
+}
+.grav-controls .ctrl-group{
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+}
+.ctrl-label{font-size:0.72rem;color:var(--muted);letter-spacing:.06em}
+.ctrl-input{
+  font-family:var(--font-mono);
+  font-size:0.9rem;
+  width:72px;
+  padding:0.45rem 0.6rem;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  color:var(--text);
+  text-align:center;
+}
+.ctrl-input:focus{outline:none;border-color:var(--accent)}
+.sep{width:1px;height:24px;background:var(--border);flex-shrink:0}
+
+/* ── STEP 3: RESULTADO ── */
+#step-resultado{padding:1.25rem;gap:1.25rem;overflow-y:auto}
+
+.res-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  flex-wrap:wrap;
+}
+.res-title{font-size:1rem;font-weight:800}
+.res-sub{font-size:0.75rem;color:var(--muted);font-family:var(--font-mono);margin-top:2px}
+
+.sync-badge{
+  font-size:0.72rem;
+  font-family:var(--font-mono);
+  color:var(--muted);
+}
+
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:0.75rem;
+}
+.stat-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:0.9rem 1rem;
+}
+.stat-card .label{font-size:0.65rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.stat-card .value{font-size:1.5rem;font-weight:800;font-family:var(--font-mono);color:var(--text)}
+.stat-card .unit{font-size:0.75rem;color:var(--muted);font-weight:400}
+
+#chartCanvas{
+  width:100%;
+  height:160px;
+  display:block;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface);
+}
+
+.rep-table{
+  width:100%;
+  border-collapse:collapse;
+  font-family:var(--font-mono);
+  font-size:0.8rem;
+}
+.rep-table th{
+  text-align:left;
+  font-size:0.62rem;
+  font-weight:500;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding:0 8px 8px 0;
+  border-bottom:1px solid var(--border);
+}
+.rep-table td{
+  padding:8px 8px 8px 0;
+  border-bottom:1px solid rgba(42,42,58,.5);
+  color:var(--text);
+}
+.rep-table tr:last-child td{border-bottom:none}
+.vl-bar{height:3px;background:var(--surface2);border-radius:2px;width:80px;overflow:hidden;margin-top:3px}
+.vl-bar-fill{height:100%;border-radius:2px;background:var(--accent2);transition:width .3s}
+
+.res-controls{
+  display:flex;
+  gap:0.75rem;
+  flex-wrap:wrap;
+}
+.res-controls .btn{width:auto;flex:1;min-width:120px}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:20px;left:50%;
+  transform:translateX(-50%) translateY(60px);
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:0.75rem 1.25rem;
+  font-size:0.8rem;
+  opacity:0;
+  transition:all .25s;
+  z-index:100;
+  max-width:360px;
+  text-align:center;
+  pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:var(--accent2);color:var(--accent2)}
+.toast.err{border-color:var(--danger);color:var(--danger)}
+
+/* REC DOT */
+.rec-dot{
+  display:inline-block;
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--danger);
+  margin-right:5px;
+  animation:none;
+}
+.rec-dot.active{animation:blink .7s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+@media(max-width:640px){
+  #step-calibrar{flex-direction:column}
+  .cal-panel{width:100%;border-left:none;border-top:1px solid var(--border)}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Ciente <span>VBT</span> <span style="color:var(--muted);font-size:.65rem;font-weight:400;margin-left:4px">câmera</span></div>
+  <div style="font-size:.72rem;color:var(--muted);font-family:var(--font-mono)" id="atletaBadge">— nenhum atleta —</div>
+</header>
+
+<div class="steps">
+  <div class="step active" id="nav-calibrar">
+    <div class="step-num">1</div>Calibrar
+  </div>
+  <div class="step" id="nav-gravar">
+    <div class="step-num">2</div>Gravar
+  </div>
+  <div class="step" id="nav-resultado">
+    <div class="step-num">3</div>Resultado
+  </div>
+</div>
+
+<!-- ── STEP 1: CALIBRAR ── -->
+<section id="step-calibrar" class="step-section active">
+
+  <div class="cal-cam">
+    <video id="videoCal" autoplay muted playsinline></video>
+    <canvas id="canvasCal"></canvas>
+    <div class="det-badge det-bad" id="calBadge">● Câmera iniciando…</div>
+  </div>
+
+  <div class="cal-panel">
+    <div>
+      <label>Atleta</label>
+      <select id="selAtleta">
+        <option value="">Carregando…</option>
+      </select>
+    </div>
+    <div>
+      <label>Exercício</label>
+      <select id="selExercise">
+        <option value="squat">Agachamento</option>
+        <option value="rdl">Terra (RDL/DL)</option>
+        <option value="press">Overhead Press</option>
+      </select>
+    </div>
+    <div>
+      <label>Altura do atleta (cm) <span id="heightSrc" style="color:var(--accent2);font-size:.65rem;text-transform:none;letter-spacing:0"></span></label>
+      <input id="heightInput" type="number" value="175" min="140" max="220" step="1">
+    </div>
+    <div class="cal-status" id="calStatus">
+      Posicione o atleta de <strong>lado</strong> para a câmera, corpo inteiro visível.<br>
+      Fique parado em pé para calibrar.
+    </div>
+    <button class="btn" id="btnCalibrar" disabled>Capturar calibração</button>
+    <button class="btn btn-primary" id="btnIrGravar" disabled style="margin-top:.25rem">
+      Ir para gravação →
+    </button>
+  </div>
+
+</section>
+
+<!-- ── STEP 2: GRAVAR ── -->
+<section id="step-gravar" class="step-section">
+
+  <div class="grav-wrap" id="gravWrap">
+    <video id="videoGrav" autoplay muted playsinline></video>
+    <canvas id="canvasGrav"></canvas>
+
+    <div class="hud">
+      <div class="hud-top">
+        <div class="hud-reps">
+          REPS<span id="hudReps">0</span>
+        </div>
+        <div class="hud-vel-box">
+          <div class="hud-vel-label"><span class="rec-dot" id="recDot"></span>MCV ao vivo</div>
+          <div class="hud-vel" id="hudVel">—</div>
+          <div class="hud-vel-unit">m/s</div>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <div class="phase-badge" id="phaseBadge">aguardando</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grav-controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Carga (kg)</span>
+      <input class="ctrl-input" id="loadInput" type="number" value="0" min="0" max="500" step="2.5">
+    </div>
+    <div class="sep"></div>
+    <button class="btn btn-primary" id="btnStart" style="width:auto;padding:.55rem 1.2rem">▶ Iniciar Série</button>
+    <button class="btn btn-danger" id="btnStop" disabled style="width:auto;padding:.55rem 1.2rem">■ Encerrar</button>
+    <button class="btn" id="btnResetRep" disabled style="width:auto;padding:.55rem 1rem;font-size:.72rem">↩ Reset Rep</button>
+    <div class="sep"></div>
+    <button class="btn" id="btnVoltar" style="width:auto;padding:.55rem 1rem;font-size:.72rem">← Calibrar</button>
+  </div>
+
+</section>
+
+<!-- ── STEP 3: RESULTADO ── -->
+<section id="step-resultado" class="step-section">
+
+  <div class="res-header">
+    <div>
+      <div class="res-title" id="resTitleEl">Série concluída</div>
+      <div class="res-sub" id="resSubEl">—</div>
+    </div>
+    <div class="sync-badge" id="syncBadge">●</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="label">MCV médio</div>
+      <div><span class="value" id="resMCV">—</span><span class="unit"> m/s</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Vel. pico</div>
+      <div><span class="value" id="resPCV">—</span><span class="unit"> m/s</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Perda de vel.</div>
+      <div><span class="value" id="resVL">—</span><span class="unit"> %</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Repetições</div>
+      <div><span class="value" id="resReps">—</span></div>
+    </div>
+  </div>
+
+  <canvas id="chartCanvas"></canvas>
+
+  <table class="rep-table" id="repTableEl">
+    <thead>
+      <tr>
+        <th>Rep</th>
+        <th>MCV (m/s)</th>
+        <th>Pico (m/s)</th>
+        <th>Dur. conc.</th>
+        <th>Perda %</th>
+        <th style="width:90px">Vel.</th>
+      </tr>
+    </thead>
+    <tbody id="repTbody"></tbody>
+  </table>
+
+  <div class="res-controls">
+    <button class="btn btn-primary" id="btnNovaSerie">Nova Série</button>
+    <button class="btn" id="btnRecalibrar">Recalibrar</button>
+  </div>
+
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {
+  PoseLandmarker,
+  FilesetResolver,
+  DrawingUtils
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
+
+import { db } from '../core/firebase.js';
+import { upsertDailyMetrics } from '../core/dailyMetrics.service.js';
+import {
+  collection, getDocs, query, where, orderBy, limit
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+/* ─── LANDMARK INDICES ──────────────────────────────────────── */
+const L = {
+  NOSE:  0,
+  SHO_L: 11, SHO_R: 12,
+  HIP_L: 23, HIP_R: 24,
+  ANK_L: 27, ANK_R: 28,
+};
+
+/* ─── STATE MACHINE ─────────────────────────────────────────── */
+const STATE = { IDLE: 0, ECC: 1, TRANS: 2, CON: 3 };
+
+// Thresholds (m/s)
+const ECC_THRESH   = 0.10;  // downward vel to enter eccentric
+const CON_THRESH   = 0.10;  // upward vel to enter concentric
+const IDLE_THRESH  = 0.07;  // below this = at rest
+
+const ECC_WINDOW   = 4;     // consecutive frames to confirm ECC
+const CON_WINDOW   = 3;     // consecutive frames to confirm CON
+const END_WINDOW   = 5;     // consecutive frames below idle to end rep
+
+const MIN_ECC_DUR   = 300;  // ms — minimum descent duration
+const MIN_ECC_DISP  = 0.06; // m  — minimum descent displacement (6cm)
+const MIN_CON_DUR   = 180;  // ms — minimum ascent duration
+const MAX_PHASE_DUR = 8000; // ms — guard against stuck state
+
+const SMOOTH_N = 7; // velocity smoothing window
+
+/* ─── GLOBAL STATE ──────────────────────────────────────────── */
+let poseLandmarker = null;
+let stream = null;
+let lastVideoTs = -1;
+let activeKey = 'calibrar';
+
+// Calibration
+let scale = null;       // meters per normalized Y unit
+let isCalibrated = false;
+let setupOK = false;
+
+// Recording
+let isRecording = false;
+let repState = STATE.IDLE;
+let prevShoY = null;
+let prevTs   = null;
+let velSmooth = [];           // circular buffer for velocity smoothing
+let curVel = 0;               // current smoothed velocity
+
+// ECC phase tracking
+let eccStartTs = null;
+let eccStartY  = null;
+let eccCurY    = null;
+let eccCount   = 0;
+
+// TRANS / CON phase tracking
+let transStartTs = null;
+let conStartTs   = null;
+let conStartY    = null;
+let conCount     = 0;
+let conEndCount  = 0;
+let concPeakVel  = 0;
+
+// Rep data
+let repData  = [];   // [{rep, vel, peak, dur, load}]
+let repVels  = [];
+let repPeakVels = [];
+let repCount = 0;
+let serieActive = false;
+
+// Atletas
+let atletas = [];
+let atletaAtual = null;
+let clubId = null;
+
+// Canvas / video elements
+let videoEls = {}, canvasEls = {}, ctxEls = {};
+
+/* ─── BOOT ──────────────────────────────────────────────────── */
+init();
+
+async function init() {
+  videoEls  = { calibrar: document.getElementById('videoCal'),  gravar: document.getElementById('videoGrav') };
+  canvasEls = { calibrar: document.getElementById('canvasCal'), gravar: document.getElementById('canvasGrav') };
+  ctxEls    = {
+    calibrar: canvasEls.calibrar.getContext('2d'),
+    gravar:   canvasEls.gravar.getContext('2d'),
+  };
+
+  await loadAtletas();
+  await loadPose();
+  await startCamera();
+  detectLoop();
+
+  document.getElementById('btnCalibrar').addEventListener('click', doCalibrate);
+  document.getElementById('btnIrGravar').addEventListener('click', () => navTo('gravar'));
+  document.getElementById('btnStart').addEventListener('click', startSerie);
+  document.getElementById('btnStop').addEventListener('click', endSerie);
+  document.getElementById('btnResetRep').addEventListener('click', resetLastRep);
+  document.getElementById('btnVoltar').addEventListener('click', () => navTo('calibrar'));
+  document.getElementById('btnNovaSerie').addEventListener('click', () => navTo('gravar'));
+  document.getElementById('btnRecalibrar').addEventListener('click', () => navTo('calibrar'));
+}
+
+/* ─── ATLETAS ───────────────────────────────────────────────── */
+async function loadAtletas() {
+  try {
+    const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+    clubId = ctx.clubId || null;
+    const sel = document.getElementById('selAtleta');
+    if (!clubId) { sel.innerHTML = '<option value="">clubId não encontrado</option>'; return; }
+
+    const q = query(collection(db, 'athletes'), where('clubId', '==', clubId), where('ativo', '==', true));
+    const snap = await getDocs(q);
+    atletas = snap.docs.map(d => ({ id: d.id, nome: d.data().nome || d.id }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    sel.innerHTML = '<option value="">Selecionar atleta…</option>' +
+      atletas.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+    sel.onchange = async e => {
+      atletaAtual = e.target.value ? (atletas.find(a => a.id === e.target.value) || null) : null;
+      document.getElementById('atletaBadge').textContent = atletaAtual ? atletaAtual.nome : '— nenhum atleta —';
+      document.getElementById('btnIrGravar').disabled = !(isCalibrated && atletaAtual);
+      if (atletaAtual) await carregarAlturaAtleta(atletaAtual.id);
+    };
+  } catch (e) {
+    console.error('Erro atletas:', e);
+    document.getElementById('selAtleta').innerHTML = '<option value="">Erro</option>';
+  }
+}
+
+/* ─── ALTURA DO ATLETA (avaliação física) ───────────────────── */
+async function carregarAlturaAtleta(atletaId) {
+  const heightInput = document.getElementById('heightInput');
+  const calStatus   = document.getElementById('calStatus');
+  try {
+    const q = query(
+      collection(db, 'assessments_functional'),
+      where('clubId', '==', clubId),
+      where('athleteId', '==', atletaId),
+      where('tipo', '==', 'fisica'),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const estatura = snap.docs[0].data()?.antropometria?.estatura_cm;
+      if (estatura && estatura > 100) {
+        heightInput.value = estatura;
+        document.getElementById('heightSrc').textContent = '· da avaliação';
+        calStatus.innerHTML = `Altura carregada da avaliação: <strong>${estatura} cm</strong>. Posicione o atleta de lado e calibre.`;
+        return;
+      }
+    }
+    // Sem avaliação — mantém valor atual e avisa
+    document.getElementById('heightSrc').textContent = '· inserir manualmente';
+    calStatus.innerHTML = 'Altura não encontrada na avaliação física. Insira manualmente e posicione o atleta de lado.';
+  } catch (e) {
+    console.warn('Erro ao buscar altura:', e);
+  }
+}
+
+/* ─── MEDIAPIPE ─────────────────────────────────────────────── */
+async function loadPose() {
+  setCalStatus('Carregando modelo MediaPipe…', false);
+  try {
+    const resolver = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
+    );
+    poseLandmarker = await PoseLandmarker.createFromOptions(resolver, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+        delegate: "GPU"
+      },
+      runningMode: "VIDEO",
+      numPoses: 1,
+      minPoseDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+      minPosePresenceConfidence: 0.5
+    });
+    setCalStatus('Modelo pronto. Posicione o atleta de lado.', false);
+  } catch (e) {
+    setCalStatus('Falha ao carregar modelo: ' + e.message, false);
+    throw e;
+  }
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+      audio: false
+    });
+    for (const k of ['calibrar', 'gravar']) {
+      videoEls[k].srcObject = stream;
+    }
+    await videoEls.calibrar.play().catch(() => {});
+    const resize = () => {
+      for (const k of ['calibrar', 'gravar']) {
+        canvasEls[k].width  = videoEls[k].videoWidth  || 640;
+        canvasEls[k].height = videoEls[k].videoHeight || 480;
+      }
+    };
+    if (videoEls.calibrar.readyState >= 1) resize();
+    videoEls.calibrar.onloadedmetadata = resize;
+  } catch (e) {
+    setCalStatus('Erro de câmera: ' + e.message, false);
+  }
+}
+
+/* ─── DETECT LOOP ───────────────────────────────────────────── */
+function detectLoop() {
+  const video  = videoEls[activeKey];
+  const canvas = canvasEls[activeKey];
+  const ctx    = ctxEls[activeKey];
+
+  if (poseLandmarker && video && video.readyState >= 2) {
+    const ts = performance.now();
+    if (ts > lastVideoTs) {
+      lastVideoTs = ts;
+      let res = null;
+      try { res = poseLandmarker.detectForVideo(video, ts); } catch {}
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (res && res.landmarks && res.landmarks.length) {
+        const lm = res.landmarks[0];
+        drawOverlay(ctx, canvas, lm);
+
+        if (activeKey === 'calibrar') checkCalQuality(lm);
+        if (activeKey === 'gravar' && isRecording) processFrame(lm, ts);
+      } else {
+        if (activeKey === 'calibrar') setQualityBadge('bad', '● Atleta não detectado');
+      }
+      ctx.restore();
+    }
+  }
+  requestAnimationFrame(detectLoop);
+}
+
+/* ─── DRAW OVERLAY ──────────────────────────────────────────── */
+function drawOverlay(ctx, canvas, lm) {
+  const px = p => ({ x: p.x * canvas.width, y: p.y * canvas.height });
+  const vis = (idx) => lm[idx].visibility ?? 1;
+
+  // Skeleton
+  const pairs = [
+    [L.SHO_L, L.SHO_R], [L.SHO_L, L.HIP_L], [L.SHO_R, L.HIP_R],
+    [L.HIP_L, L.HIP_R], [L.HIP_L, 25], [L.HIP_R, 26],
+    [25, L.ANK_L], [26, L.ANK_R]
+  ];
+  ctx.strokeStyle = 'rgba(200,245,66,.7)';
+  ctx.lineWidth = 2.5;
+  for (const [a, b] of pairs) {
+    if (vis(a) < 0.25 || vis(b) < 0.25) continue;
+    const pa = px(lm[a]), pb = px(lm[b]);
+    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+  }
+
+  // Highlight shoulders (bar position for squat/press) or hips (RDL)
+  const exercise = document.getElementById('selExercise')?.value || 'squat';
+  const barIdxs = exercise === 'rdl' ? [L.HIP_L, L.HIP_R] : [L.SHO_L, L.SHO_R];
+  const barColor = '#42f5a8';
+
+  ctx.fillStyle = barColor;
+  for (const idx of barIdxs) {
+    if (vis(idx) < 0.25) continue;
+    const p = px(lm[idx]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Bar midpoint indicator (horizontal line segment between shoulders/hips)
+  if (vis(barIdxs[0]) > 0.25 && vis(barIdxs[1]) > 0.25) {
+    const p0 = px(lm[barIdxs[0]]), p1 = px(lm[barIdxs[1]]);
+    ctx.strokeStyle = barColor;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // All other joints
+  ctx.fillStyle = 'rgba(200,245,66,.8)';
+  for (const idx of [L.HIP_L, L.HIP_R, L.ANK_L, L.ANK_R]) {
+    if (vis(idx) < 0.25) continue;
+    const p = px(lm[idx]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // During recording: draw live velocity bar (right edge)
+  if (activeKey === 'gravar' && serieActive) {
+    const barX = canvas.width - 24;
+    const barH = canvas.height * 0.6;
+    const barY = (canvas.height - barH) / 2;
+
+    // Background track
+    ctx.fillStyle = 'rgba(10,10,15,.5)';
+    ctx.beginPath(); ctx.roundRect(barX, barY, 18, barH, 4); ctx.fill();
+
+    // Fill (clamped 0–1.5 m/s)
+    const velAbs = Math.abs(curVel);
+    const fillH = Math.min(1, velAbs / 1.2) * barH;
+    const velColor = curVel > 0
+      ? (curVel > 0.75 ? '#42f5a8' : curVel > 0.4 ? '#c8f542' : '#f5a742')
+      : 'rgba(245,167,66,.4)';
+    ctx.fillStyle = velColor;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY + barH - fillH, 18, fillH, 4);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.font = 'bold 9px DM Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('m/s', barX + 9, barY - 4);
+  }
+}
+
+/* ─── CALIBRATION QUALITY CHECK ─────────────────────────────── */
+function checkCalQuality(lm) {
+  const vis = idx => lm[idx].visibility ?? 0;
+  const shoOK  = (vis(L.SHO_L) > 0.4 || vis(L.SHO_R) > 0.4);
+  const ankOK  = (vis(L.ANK_L) > 0.4 && vis(L.ANK_R) > 0.4);
+  const noseOK = vis(L.NOSE) > 0.3;
+
+  const span = ((lm[L.ANK_L].y + lm[L.ANK_R].y) / 2) - lm[L.NOSE].y;
+  const bodyVisible = span > 0.45;
+
+  if (shoOK && ankOK && noseOK && bodyVisible) {
+    setQualityBadge('ok', '● Detecção OK — pode calibrar');
+    setupOK = true;
+    document.getElementById('btnCalibrar').disabled = false;
+  } else {
+    const msg = !bodyVisible ? '● Afaste a câmera — corpo inteiro de lado'
+      : !ankOK ? '● Pés precisam aparecer na imagem'
+      : '● Ajuste enquadramento';
+    setQualityBadge('warn', msg);
+    setupOK = false;
+    document.getElementById('btnCalibrar').disabled = true;
+  }
+}
+
+function setQualityBadge(type, msg) {
+  const el = document.getElementById('calBadge');
+  el.textContent = msg;
+  el.className = 'det-badge ' + (type === 'ok' ? 'det-ok' : type === 'warn' ? 'det-warn' : 'det-bad');
+}
+
+/* ─── DO CALIBRATE ──────────────────────────────────────────── */
+function doCalibrate() {
+  const video = videoEls.calibrar;
+  if (!poseLandmarker || video.readyState < 2) { showToast('Câmera não pronta', 'err'); return; }
+
+  let res = null;
+  try { res = poseLandmarker.detectForVideo(video, performance.now()); } catch {}
+  if (!res || !res.landmarks || !res.landmarks.length) {
+    showToast('Nenhuma pose detectada', 'err'); return;
+  }
+  const lm = res.landmarks[0];
+  const vis = idx => lm[idx].visibility ?? 0;
+
+  const noseY  = lm[L.NOSE].y;
+  const ankleY = (lm[L.ANK_L].y + lm[L.ANK_R].y) / 2;
+  const span   = ankleY - noseY;
+
+  if (span < 0.3) { showToast('Corpo não visível o suficiente para calibrar', 'err'); return; }
+
+  const heightM = parseFloat(document.getElementById('heightInput').value) / 100;
+  scale = heightM / span;
+  isCalibrated = true;
+
+  const detectedH = (span * scale * 100).toFixed(0);
+  setCalStatus(`✓ Calibrado · escala ${scale.toFixed(2)} m/u · altura detectada ~${detectedH} cm`, true);
+  document.getElementById('btnIrGravar').disabled = !atletaAtual;
+  showToast('Calibração concluída!', 'ok');
+}
+
+function setCalStatus(msg, ok) {
+  const el = document.getElementById('calStatus');
+  el.innerHTML = msg;
+  el.className = 'cal-status' + (ok ? ' ok' : '');
+}
+
+/* ─── PROCESS FRAME (VBT CORE) ──────────────────────────────── */
+function processFrame(lm, ts) {
+  const exercise = document.getElementById('selExercise')?.value || 'squat';
+  const barIdxs = exercise === 'rdl' ? [L.HIP_L, L.HIP_R] : [L.SHO_L, L.SHO_R];
+
+  const v0 = lm[barIdxs[0]].visibility ?? 0;
+  const v1 = lm[barIdxs[1]].visibility ?? 0;
+  if (v0 < 0.3 && v1 < 0.3) { prevShoY = null; return; }
+
+  // Weighted average Y of bar landmarks
+  const sum = (v0 + v1) || 1;
+  const shoY = (lm[barIdxs[0]].y * v0 + lm[barIdxs[1]].y * v1) / sum;
+
+  if (prevShoY !== null && prevTs !== null) {
+    const dt = (ts - prevTs) / 1000; // seconds
+    if (dt > 0 && dt < 0.12) {
+      // MediaPipe Y: 0=top, 1=bottom → upward motion = Y decreasing → positive velocity
+      const rawVel = -(shoY - prevShoY) / dt * scale;
+
+      // Smoothing
+      velSmooth.push(rawVel);
+      if (velSmooth.length > SMOOTH_N) velSmooth.shift();
+      curVel = velSmooth.reduce((a, b) => a + b, 0) / velSmooth.length;
+
+      runStateMachine(curVel, shoY, ts);
+      updateGravHUD(curVel);
+    }
+  }
+  prevShoY = shoY;
+  prevTs   = ts;
+}
+
+/* ─── STATE MACHINE ─────────────────────────────────────────── */
+function runStateMachine(vel, shoY, ts) {
+  switch (repState) {
+
+    case STATE.IDLE:
+      updatePhase('idle');
+      if (vel < -ECC_THRESH) {
+        eccCount++;
+        if (eccCount >= ECC_WINDOW) {
+          repState = STATE.ECC;
+          eccStartTs = ts;
+          eccStartY  = shoY;
+          eccCurY    = shoY;
+          eccCount   = 0;
+          updatePhase('ecc');
+        }
+      } else {
+        eccCount = 0;
+      }
+      break;
+
+    case STATE.ECC:
+      updatePhase('ecc');
+      eccCurY = shoY; // track lowest point (highest Y value)
+
+      if (vel > -IDLE_THRESH) {
+        const eccDur  = ts - eccStartTs;
+        // displacement: shoY increased (going down), multiply by scale
+        const eccDisp = (eccCurY - eccStartY) * scale; // positive = went down
+        if (eccDur >= MIN_ECC_DUR && eccDisp >= MIN_ECC_DISP) {
+          repState     = STATE.TRANS;
+          transStartTs = ts;
+          conCount     = 0;
+          updatePhase('trans');
+        } else {
+          // too short / too small — false positive
+          repState = STATE.IDLE;
+          eccCount = 0;
+        }
+      }
+      if (ts - eccStartTs > MAX_PHASE_DUR) { repState = STATE.IDLE; eccCount = 0; }
+      break;
+
+    case STATE.TRANS:
+      updatePhase('trans');
+      if (vel > CON_THRESH) {
+        conCount++;
+        if (conCount >= CON_WINDOW) {
+          repState    = STATE.CON;
+          conStartTs  = ts;
+          conStartY   = shoY;
+          conCount    = 0;
+          conEndCount = 0;
+          concPeakVel = 0;
+          updatePhase('con');
+        }
+      } else {
+        conCount = 0;
+      }
+      if (ts - transStartTs > 3000) { repState = STATE.IDLE; eccCount = 0; }
+      break;
+
+    case STATE.CON:
+      updatePhase('con');
+      if (vel > 0) concPeakVel = Math.max(concPeakVel, vel);
+
+      if (vel < IDLE_THRESH) {
+        conEndCount++;
+      } else {
+        conEndCount = 0;
+      }
+
+      if (conEndCount >= END_WINDOW) {
+        const conDur = ts - conStartTs;
+        if (conDur >= MIN_CON_DUR) {
+          // MCV = total displacement / time (more robust than integrating)
+          const disp = (conStartY - shoY) * scale; // positive = went up
+          const mcv  = disp > 0 ? disp / (conDur / 1000) : 0;
+          if (mcv > 0.05) {
+            registerRep(mcv, concPeakVel, conDur);
+          }
+        }
+        repState    = STATE.IDLE;
+        eccCount    = 0;
+        conCount    = 0;
+        conEndCount = 0;
+        updatePhase('idle');
+      }
+      if (ts - conStartTs > MAX_PHASE_DUR) { repState = STATE.IDLE; conCount = 0; conEndCount = 0; updatePhase('idle'); }
+      break;
+  }
+}
+
+/* ─── REGISTER REP ──────────────────────────────────────────── */
+function registerRep(mcv, pcv, dur) {
+  repCount++;
+  repVels.push(mcv);
+  repPeakVels.push(pcv);
+
+  const load = parseFloat(document.getElementById('loadInput').value) || 0;
+  repData.push({ rep: repCount, vel: mcv, peak: pcv, dur, load });
+
+  document.getElementById('hudReps').textContent = repCount;
+  document.getElementById('hudVel').textContent = mcv.toFixed(2);
+
+  const hudVelEl = document.getElementById('hudVel');
+  hudVelEl.style.color = mcv >= 0.75 ? '#42f5a8' : mcv >= 0.4 ? '#c8f542' : '#f5a742';
+
+  showToast(`Rep ${repCount} · MCV ${mcv.toFixed(2)} m/s · Pico ${pcv.toFixed(2)} m/s`, 'ok');
+}
+
+/* ─── PHASE UI ──────────────────────────────────────────────── */
+function updatePhase(phase) {
+  const el = document.getElementById('phaseBadge');
+  el.className = 'phase-badge';
+  switch (phase) {
+    case 'ecc':   el.classList.add('ecc');  el.textContent = 'Excêntrica ↓'; break;
+    case 'trans': el.classList.add('trans'); el.textContent = 'Transição'; break;
+    case 'con':   el.classList.add('con');  el.textContent = '▲ Concêntrica ↑'; break;
+    default:      el.textContent = 'aguardando';
+  }
+}
+
+function updateGravHUD(vel) {
+  if (!serieActive) return;
+  // Only update velocity display during concentric phase for cleaner UX
+  if (repState === STATE.CON && vel > 0) {
+    const el = document.getElementById('hudVel');
+    el.textContent = vel.toFixed(2);
+    el.style.color = vel >= 0.75 ? '#42f5a8' : vel >= 0.4 ? '#c8f542' : '#f5a742';
+  }
+}
+
+/* ─── SERIE CONTROLS ────────────────────────────────────────── */
+function startSerie() {
+  if (!isCalibrated) { showToast('Calibre primeiro!', 'err'); return; }
+
+  serieActive = true;
+  isRecording = true;
+  repState    = STATE.IDLE;
+  repCount    = 0;
+  repData     = [];
+  repVels     = [];
+  repPeakVels = [];
+  prevShoY    = null;
+  prevTs      = null;
+  velSmooth   = [];
+  curVel      = 0;
+  eccCount    = 0;
+  conCount    = 0;
+  conEndCount = 0;
+
+  document.getElementById('hudReps').textContent = '0';
+  document.getElementById('hudVel').textContent = '—';
+  document.getElementById('hudVel').style.color = '';
+  document.getElementById('phaseBadge').className = 'phase-badge';
+  document.getElementById('phaseBadge').textContent = 'aguardando';
+  document.getElementById('recDot').classList.add('active');
+
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+  document.getElementById('btnResetRep').disabled = false;
+
+  videoEls.gravar.play().catch(() => {});
+  showToast('Série iniciada!', 'ok');
+}
+
+function endSerie() {
+  isRecording = false;
+  serieActive = false;
+  repState    = STATE.IDLE;
+
+  document.getElementById('recDot').classList.remove('active');
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('btnResetRep').disabled = true;
+
+  if (repData.length === 0) {
+    showToast('Nenhuma repetição detectada', 'err');
+    return;
+  }
+
+  showResult();
+}
+
+function resetLastRep() {
+  if (repData.length === 0) return;
+  repData.pop(); repVels.pop(); repPeakVels.pop();
+  repCount = Math.max(0, repCount - 1);
+  document.getElementById('hudReps').textContent = repCount;
+  repState    = STATE.IDLE;
+  eccCount    = 0;
+  conCount    = 0;
+  conEndCount = 0;
+  showToast('Última rep removida', '');
+}
+
+/* ─── RESULTADO ─────────────────────────────────────────────── */
+function showResult() {
+  navTo('resultado');
+
+  const exercise = document.getElementById('selExercise')?.selectedOptions[0]?.text || 'Agachamento';
+  const load = repData[0]?.load || 0;
+  document.getElementById('resTitleEl').textContent = `${exercise}${load ? ' · ' + load + ' kg' : ''}`;
+  document.getElementById('resSubEl').textContent = atletaAtual
+    ? `${atletaAtual.nome} · ${repData.length} reps`
+    : `${repData.length} reps`;
+
+  const meanMCV = repVels.reduce((a, b) => a + b, 0) / repVels.length;
+  const peakPCV = Math.max(...repPeakVels);
+  const velRef  = repVels.length >= 2 ? Math.max(repVels[0], repVels[1]) : repVels[0];
+  const vlPct   = repVels.length >= 2
+    ? ((velRef - repVels[repVels.length - 1]) / velRef * 100).toFixed(1)
+    : '—';
+
+  document.getElementById('resMCV').textContent  = meanMCV.toFixed(2);
+  document.getElementById('resPCV').textContent  = peakPCV.toFixed(2);
+  document.getElementById('resVL').textContent   = vlPct === '—' ? '—' : vlPct;
+  document.getElementById('resReps').textContent = repData.length;
+
+  buildRepTable();
+  drawChart();
+  saveToFirestore(meanMCV, peakPCV, vlPct);
+}
+
+function buildRepTable() {
+  const tbody = document.getElementById('repTbody');
+  tbody.innerHTML = '';
+  const velRef = repVels.length >= 2 ? Math.max(repVels[0], repVels[1]) : repVels[0];
+
+  repData.forEach((r, i) => {
+    const loss = velRef > 0 ? ((velRef - r.vel) / velRef * 100).toFixed(1) : '—';
+    const velColor = r.vel >= 0.75 ? '#42f5a8' : r.vel >= 0.4 ? '#c8f542' : '#f5a742';
+    const barPct = Math.min(100, (r.vel / 1.4) * 100).toFixed(0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--muted)">${r.rep}</td>
+      <td style="font-weight:700;color:${velColor}">${r.vel.toFixed(2)}</td>
+      <td style="color:var(--muted)">${r.peak.toFixed(2)}</td>
+      <td style="color:var(--muted)">${r.dur} ms</td>
+      <td style="color:${parseFloat(loss) > 20 ? 'var(--danger)' : parseFloat(loss) > 10 ? 'var(--warn)' : 'var(--muted)'}">${loss}%</td>
+      <td>
+        <div class="vl-bar"><div class="vl-bar-fill" style="width:${barPct}%;background:${velColor}"></div></div>
+        <div style="font-size:.65rem;color:var(--muted);font-family:var(--font-mono);margin-top:1px">${r.vel.toFixed(2)}</div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chartCanvas');
+  const w = canvas.offsetWidth; const h = canvas.offsetHeight;
+  canvas.width = w * devicePixelRatio; canvas.height = h * devicePixelRatio;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  ctx.clearRect(0, 0, w, h);
+  if (repData.length === 0) return;
+
+  const maxV = Math.max(...repData.map(r => r.vel), 1.0);
+  const pad  = { t: 20, b: 28, l: 10, r: 10 };
+  const plotH = h - pad.t - pad.b;
+  const plotW = w - pad.l - pad.r;
+  const yScale = plotH / maxV;
+
+  // Zone lines
+  const zones = [
+    { v: 1.00, color: 'rgba(200,245,66,.15)', label: '1.00' },
+    { v: 0.75, color: 'rgba(66,245,168,.12)', label: '0.75' },
+    { v: 0.50, color: 'rgba(245,167,66,.12)', label: '0.50' },
+  ];
+  zones.forEach(z => {
+    if (z.v > maxV * 1.1) return;
+    const y = pad.t + plotH - z.v * yScale;
+    ctx.strokeStyle = z.color.replace('0.1', '0.4');
+    ctx.setLineDash([3, 5]); ctx.lineWidth = .8;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,.2)';
+    ctx.font = '9px DM Mono, monospace'; ctx.textAlign = 'right';
+    ctx.fillText(z.label, w - pad.r - 2, y - 2);
+  });
+
+  const n    = repData.length;
+  const barW = Math.min(60, Math.max(14, (plotW - (n + 1) * 6) / n));
+  const gap  = (plotW - n * barW) / (n + 1);
+  const velRef = n >= 2 ? Math.max(repData[0].vel, repData[1].vel) : repData[0].vel;
+
+  repData.forEach((r, i) => {
+    const loss  = velRef > 0 ? (velRef - r.vel) / velRef * 100 : 0;
+    const color = i < 2 ? '#42f5a8'
+      : loss >= 20 ? '#f54242'
+      : loss >= 10 ? '#f5a742'
+      : '#42f5a8';
+    const barH = Math.max(2, r.vel * yScale);
+    const x = pad.l + gap + i * (barW + gap);
+    const y = pad.t + plotH - barH;
+
+    ctx.shadowColor = color; ctx.shadowBlur = 6;
+    const grad = ctx.createLinearGradient(x, y, x, pad.t + plotH);
+    grad.addColorStop(0, color); grad.addColorStop(1, color + '33');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Pico marker
+    if (r.peak > r.vel) {
+      const peakY = pad.t + plotH - r.peak * yScale;
+      ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = 0.4;
+      ctx.beginPath(); ctx.moveTo(x, peakY); ctx.lineTo(x + barW, peakY); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Value label
+    ctx.fillStyle = color;
+    ctx.font = `bold ${Math.max(8, Math.min(11, barW * 0.2))}px DM Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(r.vel.toFixed(2), x + barW / 2, y - 4);
+
+    // Rep label
+    ctx.fillStyle = 'rgba(255,255,255,.3)';
+    ctx.font = '9px DM Mono, monospace';
+    ctx.fillText(r.rep, x + barW / 2, pad.t + plotH + 14);
+  });
+
+  // Velocity loss line
+  if (n >= 3) {
+    const pts = repData.map((r, i) => ({
+      x: pad.l + gap + i * (barW + gap) + barW / 2,
+      y: pad.t + plotH - r.vel * yScale
+    }));
+    ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ─── FIRESTORE SAVE ────────────────────────────────────────── */
+async function saveToFirestore(meanMCV, peakPCV, vlPct) {
+  const badge = document.getElementById('syncBadge');
+  badge.style.color = 'var(--muted)';
+  badge.textContent = '● salvando…';
+
+  if (!atletaAtual) { badge.textContent = '● local (sem atleta)'; return; }
+
+  try {
+    const exercise = document.getElementById('selExercise')?.value || 'squat';
+    const load = repData[0]?.load || 0;
+    const date = new Date().toISOString().split('T')[0];
+
+    await upsertDailyMetrics({
+      athleteId: atletaAtual.id,
+      date,
+      block: 'scores',
+      data: {
+        vbt: {
+          exercise,
+          load,
+          reps: repData.map(r => ({ rep: r.rep, vel: +r.vel.toFixed(3), peak: +r.peak.toFixed(3), dur: r.dur })),
+          meanVel:  +meanMCV.toFixed(3),
+          peakVel:  +peakPCV.toFixed(3),
+          velLoss:  vlPct !== '—' ? +parseFloat(vlPct).toFixed(1) : null,
+          source:   'camera',
+          timestamp: Date.now()
+        }
+      }
+    });
+    badge.textContent = '☁ Salvo';
+    badge.style.color = 'var(--accent2)';
+  } catch (e) {
+    console.error('Erro ao salvar VBT:', e);
+    badge.textContent = '⚠ Sync falhou';
+    badge.style.color = 'var(--danger)';
+  }
+}
+
+/* ─── NAVIGATION ─────────────────────────────────────────────── */
+function navTo(key) {
+  activeKey = key;
+  document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+
+  document.getElementById('step-' + key).classList.add('active');
+  document.getElementById('nav-' + key).classList.add('active');
+
+  // Sync video playback
+  if (key === 'gravar') {
+    videoEls.gravar.play().catch(() => {});
+    // Resize canvas
+    canvasEls.gravar.width  = videoEls.gravar.videoWidth  || 640;
+    canvasEls.gravar.height = videoEls.gravar.videoHeight || 480;
+  }
+  if (key === 'calibrar') {
+    videoEls.calibrar.play().catch(() => {});
+  }
+  if (key === 'resultado') {
+    // Redraw chart after layout settles
+    setTimeout(drawChart, 50);
+  }
+}
+
+/* ─── UTILS ─────────────────────────────────────────────────── */
+let _toastTimer = null;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

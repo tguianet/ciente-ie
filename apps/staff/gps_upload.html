@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Importar GPS · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para XLSX/XLS (Polar) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- PapaParse para CSV (ambos fornecedores) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module" src="/core/authGuard.js"></script>
+  <style>
+    .step-wrap { display:flex; align-items:center; }
+    .step-dot  { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .step-num  {
+      width:32px; height:32px; border-radius:50%;
+      background:#e2e8f0; color:#94a3b8;
+      font-size:13px; font-weight:600;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .step-lbl  { font-size:11px; color:#94a3b8; font-weight:500; white-space:nowrap; }
+    .step-dot.active .step-num { background:#0891b2; color:#fff; }
+    .step-dot.active .step-lbl { color:#0891b2; }
+    .step-dot.done   .step-num { background:#16a34a; color:#fff; }
+    .step-dot.done   .step-lbl { color:#16a34a; }
+    .step-line { flex:1; height:2px; background:#e2e8f0; margin-bottom:18px; min-width:32px; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Importar Dados GPS</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Polar Team Pro · Catapult OpenField</p>
+      </div>
+      <a href="/staff/gps_grupo.html" class="text-sm text-cyan-600 hover:text-cyan-700 font-medium">
+        Ver tabela do elenco →
+      </a>
+    </header>
+
+    <!-- Acesso negado -->
+    <div id="accessDenied" style="display:none;"
+         class="flex-1 flex items-center justify-center text-gray-400 text-sm">
+      Módulo GPS não disponível para este clube.
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div id="mainContent" class="flex-1 px-6 py-6 max-w-3xl w-full mx-auto">
+
+      <!-- Progress steps -->
+      <div id="progressBar" class="step-wrap mb-8 gap-0">
+        <div class="step-dot active" data-step="1">
+          <span class="step-num">1</span><span class="step-lbl">Arquivo</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-dot" data-step="2">
+          <span class="step-num">2</span><span class="step-lbl">Mapeamento</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-dot" data-step="3">
+          <span class="step-num">3</span><span class="step-lbl">Atletas</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-dot" data-step="4">
+          <span class="step-num">4</span><span class="step-lbl">Confirmar</span>
+        </div>
+      </div>
+
+      <!-- ── STEP 1: Arquivo ─────────────────────────────────── -->
+      <div id="step1Panel" class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-5">Selecionar Arquivo</h2>
+
+        <div class="grid grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Data da Sessão</label>
+            <input type="date" id="inputDate"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fornecedor GPS</label>
+            <select id="selectFornecedor"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              <option value="">Selecionar...</option>
+              <option value="polar">Polar Team Pro</option>
+              <option value="catapult">Catapult OpenField</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Sessão</label>
+          <div class="flex gap-2">
+            <button id="btnTipoTreino" data-tipo="treino"
+              class="flex-1 py-2 rounded-lg border-2 border-cyan-500 bg-cyan-500 text-white text-sm font-semibold transition-all">
+              Treino
+            </button>
+            <button id="btnTipoJogo" data-tipo="jogo"
+              class="flex-1 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 text-sm font-semibold transition-all hover:border-gray-300">
+              Jogo
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Arquivo de Export</label>
+          <div id="dropZone"
+            class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50 transition-colors">
+            <div id="dropIdle">
+              <svg class="mx-auto mb-3 text-gray-400" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <p class="text-sm text-gray-500">Arraste o arquivo ou
+                <span class="text-cyan-600 font-medium">clique para selecionar</span></p>
+              <p class="text-xs text-gray-400 mt-1">CSV, XLS, XLSX</p>
+            </div>
+            <div id="dropFile" style="display:none;" class="flex items-center justify-center gap-3">
+              <svg class="text-green-500 flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span id="dropFileName" class="text-sm font-medium text-gray-700 truncate max-w-xs"></span>
+              <button id="btnRemoveFile" class="text-xs text-red-500 hover:text-red-600 flex-shrink-0">Remover</button>
+            </div>
+          </div>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden"/>
+        </div>
+
+        <p id="step1Error" class="mt-3 text-sm text-red-600" style="display:none;"></p>
+
+        <div class="flex justify-end mt-6">
+          <button id="btnStep1Next" disabled
+            class="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            Continuar →
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 2: Mapeamento Catapult ────────────────────── -->
+      <div id="step2Panel" style="display:none;" class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Mapeamento de Colunas</h2>
+        <p class="text-sm text-gray-500 mb-5">
+          Confirme qual coluna do arquivo corresponde a cada campo do sistema.
+          A sugestão automática já está preenchida — corrija se necessário.
+        </p>
+
+        <div id="mappingRows" class="space-y-2.5"></div>
+
+        <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p class="text-xs text-amber-700">💾 Este mapeamento será salvo para próximos imports deste clube.</p>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button id="btnStep2Back" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium">← Voltar</button>
+          <button id="btnStep2Next"
+            class="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg transition-colors">
+            Confirmar Mapeamento →
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 3: Vinculação de Atletas ──────────────────── -->
+      <div id="step3Panel" style="display:none;" class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Vinculação de Atletas</h2>
+        <p class="text-sm text-gray-500 mb-5">
+          Verifique se cada atleta do arquivo foi reconhecido corretamente no sistema.
+        </p>
+
+        <div id="step3Loading" class="py-8 text-center text-gray-400 text-sm">Carregando elenco...</div>
+        <div id="matchingRows" class="space-y-2" style="display:none;"></div>
+
+        <div id="pendentesAviso" style="display:none;"
+          class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p id="pendentesMsg" class="text-xs text-amber-700"></p>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button id="btnStep3Back" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium">← Voltar</button>
+          <button id="btnStep3Next"
+            class="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg transition-colors">
+            Continuar →
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 4: Revisar e Salvar ───────────────────────── -->
+      <div id="step4Panel" style="display:none;" class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">Revisar e Salvar</h2>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-3 py-2 text-gray-600 font-medium">Atleta</th>
+                <th class="text-right px-3 py-2 text-gray-600 font-medium">Dist. Total</th>
+                <th class="text-right px-3 py-2 text-gray-600 font-medium">HSR</th>
+                <th class="text-right px-3 py-2 text-gray-600 font-medium">Vel. Máx</th>
+                <th class="text-right px-3 py-2 text-gray-600 font-medium">Sprints</th>
+                <th class="text-right px-3 py-2 text-gray-600 font-medium">Carga</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+
+        <div id="step4Aviso" style="display:none;"
+          class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p id="step4AvisoMsg" class="text-xs text-amber-700"></p>
+        </div>
+        <p id="step4Error" class="mt-3 text-sm text-red-600" style="display:none;"></p>
+
+        <div class="flex justify-between mt-6">
+          <button id="btnStep4Back" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium">← Voltar</button>
+          <button id="btnSalvar"
+            class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-colors">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+            Salvar Dados GPS
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Sucesso ─────────────────────────────────────────── -->
+      <div id="successPanel" style="display:none;"
+        class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="text-green-600" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Dados salvos com sucesso!</h3>
+        <p id="successMsg" class="text-sm text-gray-500 mb-6"></p>
+        <div class="flex gap-3 justify-center">
+          <button id="btnNovoImport"
+            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Novo Import
+          </button>
+          <a href="/staff/gps_grupo.html"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg">
+            Ver Tabela GPS →
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module">
+    import { parsearArquivoPolar }   from '/core/gps_polar_adapter.js';
+    import {
+      lerHeadersCatapult, sugerirMapeamento, parsearArquivoCatapult
+    } from '/core/gps_catapult_adapter.js';
+    import {
+      salvarSessaoGPS, buscarAtletasDoClube,
+      buscarMapeamentoCatapult, salvarMapeamentoCatapult,
+      buscarMapeamentoNomes, salvarMapeamentoNomes,
+      normalizarTexto
+    } from '/core/gps.service.js';
+
+    // ── Estado da sessão de upload ──────────────────────────────
+    const st = {
+      clubId:            null,
+      date:              new Date().toISOString().split('T')[0],
+      tipoSessao:        'treino',
+      fornecedor:        null,
+      file:              null,
+      porAtleta:         [],
+      headers:           [],      // Catapult: headers do CSV
+      mapeamentoColunas: {},      // Catapult: coluna→campo confirmado
+      atletasSistema:    [],
+      mapeamentoNomes:   {},
+    };
+
+    // ── Campos disponíveis no sistema (para dropdown de mapeamento) ─
+    const CAMPOS_SISTEMA = [
+      { value: 'nome',                    label: 'Nome do Atleta' },
+      { value: 'distanciaTotal',          label: 'Distância Total (m)' },
+      { value: 'distanciaPorMin',         label: 'Dist./Min (m/min)' },
+      { value: 'velocidadeMax',           label: 'Velocidade Máxima (km/h)' },
+      { value: 'velocidadeMedia',         label: 'Velocidade Média (km/h)' },
+      { value: 'sprints',                 label: 'Sprints (contagem)' },
+      { value: 'distanciaAltaVelocidade', label: 'Dist. Alta Vel. / HSR (m)' },
+      { value: 'aceleracoes',             label: 'Acelerações (contagem)' },
+      { value: 'desaceleracoes',          label: 'Desacelerações (contagem)' },
+      { value: 'playerLoad',              label: 'PlayerLoad (carga externa)' },
+      { value: 'duracaoMin',              label: 'Duração (min)' },
+    ];
+
+    // ── Init ────────────────────────────────────────────────────
+    function init() {
+      const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+      st.clubId = ctx.clubId;
+
+      document.getElementById('inputDate').value = st.date;
+      document.getElementById('inputDate').addEventListener('change', e => { st.date = e.target.value; });
+      document.getElementById('selectFornecedor').addEventListener('change', e => {
+        st.fornecedor = e.target.value || null;
+        checkStep1Ready();
+      });
+
+      // Toggle Treino / Jogo
+      ['btnTipoTreino', 'btnTipoJogo'].forEach(id => {
+        document.getElementById(id).addEventListener('click', () => {
+          st.tipoSessao = document.getElementById(id).dataset.tipo;
+          document.getElementById('btnTipoTreino').className = st.tipoSessao === 'treino'
+            ? 'flex-1 py-2 rounded-lg border-2 border-cyan-500 bg-cyan-500 text-white text-sm font-semibold transition-all'
+            : 'flex-1 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 text-sm font-semibold transition-all hover:border-gray-300';
+          document.getElementById('btnTipoJogo').className = st.tipoSessao === 'jogo'
+            ? 'flex-1 py-2 rounded-lg border-2 border-cyan-500 bg-cyan-500 text-white text-sm font-semibold transition-all'
+            : 'flex-1 py-2 rounded-lg border-2 border-gray-200 bg-white text-gray-500 text-sm font-semibold transition-all hover:border-gray-300';
+        });
+      });
+
+      setupDropZone();
+      document.getElementById('btnStep1Next').addEventListener('click', onStep1Next);
+      document.getElementById('btnNovoImport').addEventListener('click', () => location.reload());
+    }
+
+    // ── Drop Zone ───────────────────────────────────────────────
+    function setupDropZone() {
+      const zone  = document.getElementById('dropZone');
+      const input = document.getElementById('fileInput');
+
+      zone.addEventListener('click', () => input.click());
+      input.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('border-cyan-400','bg-cyan-50'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('border-cyan-400','bg-cyan-50'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('border-cyan-400','bg-cyan-50');
+        if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+      });
+
+      document.getElementById('btnRemoveFile').addEventListener('click', e => {
+        e.stopPropagation();
+        st.file = null;
+        input.value = '';
+        document.getElementById('dropIdle').style.display = 'block';
+        document.getElementById('dropFile').style.display = 'none';
+        checkStep1Ready();
+      });
+    }
+
+    function setFile(file) {
+      st.file = file;
+      document.getElementById('dropIdle').style.display = 'none';
+      document.getElementById('dropFile').style.display = 'flex';
+      document.getElementById('dropFileName').textContent = file.name;
+      checkStep1Ready();
+    }
+
+    function checkStep1Ready() {
+      document.getElementById('btnStep1Next').disabled = !(st.file && st.fornecedor && st.date);
+    }
+
+    // ── Step 1 → próximo ────────────────────────────────────────
+    async function onStep1Next() {
+      const errEl = document.getElementById('step1Error');
+      errEl.style.display = 'none';
+      const btn = document.getElementById('btnStep1Next');
+      btn.textContent = 'Processando...';
+      btn.disabled = true;
+
+      try {
+        if (st.fornecedor === 'polar') {
+          const { porAtleta } = await parsearArquivoPolar(st.file);
+          if (!porAtleta.length) throw new Error('Nenhum atleta encontrado no arquivo.');
+          st.porAtleta = porAtleta;
+          await setupStep3();
+          goToStep(3);
+        } else {
+          st.headers = await lerHeadersCatapult(st.file);
+          if (!st.headers.length) throw new Error('Arquivo CSV sem colunas identificadas.');
+          await setupStep2();
+          goToStep(2);
+        }
+      } catch (err) {
+        errEl.textContent = 'Erro ao ler arquivo: ' + err.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = 'Continuar →';
+        checkStep1Ready();
+      }
+    }
+
+    // ── Step 2: Mapeamento Catapult ─────────────────────────────
+    async function setupStep2() {
+      const saved    = await buscarMapeamentoCatapult(st.clubId);
+      const sugestao = sugerirMapeamento(st.headers);
+
+      // Mapeamento salvo tem prioridade sobre sugestão automática
+      const mapa = { ...sugestao };
+      if (saved?.mapeamento) {
+        for (const [col, campo] of Object.entries(saved.mapeamento)) {
+          if (st.headers.includes(col)) mapa[col] = campo;
+        }
+      }
+      st.mapeamentoColunas = mapa;
+
+      const container = document.getElementById('mappingRows');
+      container.innerHTML = '';
+
+      for (const header of st.headers) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3';
+
+        const colLabel = document.createElement('div');
+        colLabel.className = 'flex-1 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 font-mono truncate';
+        colLabel.title = header;
+        colLabel.textContent = header;
+
+        const arrow = document.createElement('div');
+        arrow.className = 'text-gray-400 text-sm flex-shrink-0';
+        arrow.textContent = '→';
+
+        const sel = document.createElement('select');
+        sel.className = 'flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500';
+
+        const optIgnore = new Option('— Ignorar —', '');
+        sel.appendChild(optIgnore);
+        for (const c of CAMPOS_SISTEMA) {
+          const opt = new Option(c.label, c.value);
+          if (mapa[header] === c.value) opt.selected = true;
+          sel.appendChild(opt);
+        }
+
+        sel.addEventListener('change', e => { st.mapeamentoColunas[header] = e.target.value || null; });
+
+        row.appendChild(colLabel);
+        row.appendChild(arrow);
+        row.appendChild(sel);
+        container.appendChild(row);
+      }
+
+      document.getElementById('btnStep2Back').onclick = () => goToStep(1);
+      document.getElementById('btnStep2Next').onclick = async () => {
+        const btn = document.getElementById('btnStep2Next');
+        btn.textContent = 'Processando...';
+        btn.disabled = true;
+        try {
+          const { porAtleta } = await parsearArquivoCatapult(st.file, st.mapeamentoColunas);
+          if (!porAtleta.length) throw new Error('Nenhum atleta encontrado com o mapeamento atual.');
+          st.porAtleta = porAtleta;
+          await salvarMapeamentoCatapult(st.clubId, st.mapeamentoColunas);
+          await setupStep3();
+          goToStep(3);
+        } catch (err) {
+          alert('Erro: ' + err.message);
+        } finally {
+          btn.textContent = 'Confirmar Mapeamento →';
+          btn.disabled = false;
+        }
+      };
+    }
+
+    // ── Step 3: Vinculação de Atletas ───────────────────────────
+    async function setupStep3() {
+      document.getElementById('step3Loading').style.display = 'block';
+      document.getElementById('matchingRows').style.display = 'none';
+
+      [st.atletasSistema, st.mapeamentoNomes] = await Promise.all([
+        buscarAtletasDoClube(st.clubId),
+        buscarMapeamentoNomes(st.clubId),
+      ]);
+
+      // Auto-match por nome
+      for (const a of st.porAtleta) {
+        const nNorm = normalizarTexto(a.nomeOriginalArquivo);
+        // 1. Mapeamento salvo
+        if (st.mapeamentoNomes[nNorm]) {
+          a.atletaId = st.mapeamentoNomes[nNorm];
+          continue;
+        }
+        // 2. Match exato normalizado
+        const match = st.atletasSistema.find(s => normalizarTexto(s.nome) === nNorm);
+        if (match) a.atletaId = match.id;
+      }
+
+      renderMatchingRows();
+
+      document.getElementById('btnStep3Back').onclick = () => goToStep(st.fornecedor === 'catapult' ? 2 : 1);
+      document.getElementById('btnStep3Next').onclick = async () => {
+        // Persiste o de-para de nomes
+        const novoMapa = { ...st.mapeamentoNomes };
+        for (const a of st.porAtleta) {
+          if (a.atletaId) novoMapa[normalizarTexto(a.nomeOriginalArquivo)] = a.atletaId;
+        }
+        await salvarMapeamentoNomes(st.clubId, novoMapa);
+        setupStep4();
+        goToStep(4);
+      };
+    }
+
+    function renderMatchingRows() {
+      const container = document.getElementById('matchingRows');
+      container.innerHTML = '';
+
+      for (const a of st.porAtleta) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200';
+
+        const nomeArq = document.createElement('div');
+        nomeArq.className = 'flex-1 text-sm text-gray-800 font-medium truncate';
+        nomeArq.title = a.nomeOriginalArquivo;
+        nomeArq.textContent = a.nomeOriginalArquivo;
+
+        const arrow = document.createElement('span');
+        arrow.className = 'text-gray-400 text-sm flex-shrink-0';
+        arrow.textContent = '→';
+
+        const sel = document.createElement('select');
+        sel.className = 'flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500';
+
+        sel.appendChild(new Option('— Não identificado —', ''));
+        for (const s of st.atletasSistema) {
+          const opt = new Option(s.nome, s.id);
+          if (a.atletaId === s.id) opt.selected = true;
+          sel.appendChild(opt);
+        }
+
+        sel.addEventListener('change', e => {
+          a.atletaId = e.target.value || null;
+          badge.textContent = a.atletaId ? 'OK' : 'Pendente';
+          badge.className = 'flex-shrink-0 text-xs px-2 py-1 rounded-full ' +
+            (a.atletaId ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700');
+          atualizarPendentes();
+        });
+
+        const badge = document.createElement('span');
+        badge.className = 'flex-shrink-0 text-xs px-2 py-1 rounded-full ' +
+          (a.atletaId ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700');
+        badge.textContent = a.atletaId ? 'OK' : 'Pendente';
+
+        row.append(nomeArq, arrow, sel, badge);
+        container.appendChild(row);
+      }
+
+      document.getElementById('step3Loading').style.display = 'none';
+      container.style.display = 'block';
+      atualizarPendentes();
+    }
+
+    function atualizarPendentes() {
+      const n = st.porAtleta.filter(a => !a.atletaId).length;
+      const el  = document.getElementById('pendentesAviso');
+      const msg = document.getElementById('pendentesMsg');
+      if (n > 0) {
+        el.style.display = 'block';
+        msg.textContent = `${n} atleta(s) sem vínculo. Eles aparecerão como "Pendentes de vinculação" na tabela GPS — o import pode continuar assim mesmo.`;
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // ── Step 4: Preview + Salvar ────────────────────────────────
+    function setupStep4() {
+      const tbody = document.getElementById('previewBody');
+      tbody.innerHTML = '';
+      let semVinculo = 0;
+
+      for (const a of st.porAtleta) {
+        if (!a.atletaId) semVinculo++;
+        const nomeSistema = st.atletasSistema.find(s => s.id === a.atletaId)?.nome
+          || (a.nomeOriginalArquivo + ' ⚠️');
+
+        const cargaStr = a.cargaExterna
+          ? `${fmtN(a.cargaExterna.valor)} (${a.cargaExterna.tipo})`
+          : '—';
+
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100 last:border-0';
+        tr.innerHTML = `
+          <td class="px-3 py-2 text-sm font-medium text-gray-900">${nomeSistema}</td>
+          <td class="px-3 py-2 text-sm text-right text-gray-600">${fmtN(a.distanciaTotal,'m')}</td>
+          <td class="px-3 py-2 text-sm text-right text-gray-600">${fmtN(a.distanciaAltaVelocidade,'m')}</td>
+          <td class="px-3 py-2 text-sm text-right text-gray-600">${fmtN(a.velocidadeMax,'km/h')}</td>
+          <td class="px-3 py-2 text-sm text-right text-gray-600">${fmtN(a.sprints)}</td>
+          <td class="px-3 py-2 text-sm text-right text-gray-600">${cargaStr}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      const aviso = document.getElementById('step4Aviso');
+      if (semVinculo > 0) {
+        aviso.style.display = 'block';
+        document.getElementById('step4AvisoMsg').textContent =
+          `${semVinculo} atleta(s) sem vínculo serão salvos como "pendentes de vinculação".`;
+      } else {
+        aviso.style.display = 'none';
+      }
+
+      document.getElementById('btnStep4Back').onclick = () => goToStep(3);
+      document.getElementById('btnSalvar').onclick = salvar;
+    }
+
+    async function salvar() {
+      const errEl = document.getElementById('step4Error');
+      errEl.style.display = 'none';
+      const btn = document.getElementById('btnSalvar');
+      btn.innerHTML = 'Salvando...';
+      btn.disabled = true;
+
+      try {
+        await salvarSessaoGPS(st.clubId, st.date, {
+          origem:          st.fornecedor,
+          tipoSessao:      st.tipoSessao,
+          arquivoNome:     st.file.name,
+          mapeamentoUsado: null,
+          porAtleta:       st.porAtleta,
+        });
+
+        // Sucesso
+        document.getElementById('step4Panel').style.display = 'none';
+        document.getElementById('progressBar').style.display = 'none';
+        document.getElementById('successPanel').style.display = 'block';
+        document.getElementById('successMsg').textContent =
+          `${st.porAtleta.length} atletas importados para ${fmtData(st.date)}.`;
+
+      } catch (err) {
+        errEl.textContent = 'Erro ao salvar: ' + err.message;
+        errEl.style.display = 'block';
+        btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Salvar Dados GPS';
+        btn.disabled = false;
+      }
+    }
+
+    // ── Navegação entre steps ───────────────────────────────────
+    function goToStep(n) {
+      [1,2,3,4].forEach(s => {
+        const p = document.getElementById(`step${s}Panel`);
+        if (p) p.style.display = s === n ? 'block' : 'none';
+      });
+      document.querySelectorAll('.step-dot').forEach(dot => {
+        const s = +dot.dataset.step;
+        dot.classList.remove('active','done');
+        if (s === n) dot.classList.add('active');
+        else if (s < n) dot.classList.add('done');
+      });
+    }
+
+    // ── Utilitários ─────────────────────────────────────────────
+    function fmtN(v, unit = '') {
+      if (v === null || v === undefined || isNaN(v)) return '—';
+      return v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + (unit ? '\u202F' + unit : '');
+    }
+
+    function fmtData(d) {
+      const [y, m, dd] = d.split('-');
+      return `${dd}/${m}/${y}`;
+    }
+
+    init();
+  </script>
+
+  <script src="/components/layout.js"></script>
+</body>
+</html>

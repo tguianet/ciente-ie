@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<title>Pós-Treino</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  .btn-scale {
+    padding: 14px 0;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all .15s ease;
+    text-align: center;
+  }
+  .btn-scale.selected {
+    border-color: #000;
+    transform: scale(1.05);
+  }
+  .legend-dynamic {
+    margin-top: 6px;
+    font-size: .85rem;
+    font-weight: 600;
+    min-height: 22px;
+    text-align: center;
+    color: #374151;
+  }
+</style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex justify-center items-center p-4">
+
+<div class="bg-white p-6 rounded-xl shadow-md w-full max-w-xl">
+
+<button onclick="history.back()" class="text-blue-600 mb-3 text-sm font-medium">
+← Voltar
+</button>
+
+<!-- Header do atleta -->
+<div id="atletaHeader" style="display:flex;align-items:center;gap:12px;padding:10px 0 14px;border-bottom:1px solid #e5e7eb;margin-bottom:14px;">
+  <div id="atletaFoto" style="width:52px;height:52px;border-radius:50%;background:#1e3a5f;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;"></div>
+  <div>
+    <p id="atletaNome" style="font-size:16px;font-weight:800;color:#111827;margin:0;"></p>
+    <p id="atletaSubPos" style="font-size:11px;color:#6b7280;margin:2px 0 0;text-transform:uppercase;"></p>
+  </div>
+  <h1 style="margin-left:auto;font-size:13px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.05em;">Pós-treino</h1>
+</div>
+
+<div class="mb-6">
+  <label class="text-sm font-semibold text-gray-700">Data</label>
+  <input id="dataHoje" type="date"
+    class="w-full border rounded p-2 bg-gray-100"
+    disabled>
+</div>
+
+<form id="formPos">
+
+<!-- ================= PSE ================= -->
+<div class="mb-8">
+  <label class="font-semibold block mb-2">PSE (0–10)</label>
+  <p class="text-xs text-gray-500 mb-2">Escala de esforço percebido</p>
+
+  <div class="grid grid-cols-5 gap-2">
+    <button type="button" data-pse="1" class="btn-scale bg-green-600 text-white">1</button>
+    <button type="button" data-pse="2" class="btn-scale bg-green-500 text-white">2</button>
+    <button type="button" data-pse="3" class="btn-scale bg-lime-400">3</button>
+    <button type="button" data-pse="4" class="btn-scale bg-lime-300">4</button>
+    <button type="button" data-pse="5" class="btn-scale bg-yellow-400">5</button>
+    <button type="button" data-pse="6" class="btn-scale bg-orange-400 text-white">6</button>
+    <button type="button" data-pse="7" class="btn-scale bg-red-400 text-white">7</button>
+    <button type="button" data-pse="8" class="btn-scale bg-red-500 text-white">8</button>
+    <button type="button" data-pse="9" class="btn-scale bg-red-600 text-white">9</button>
+    <button type="button" data-pse="10" class="btn-scale bg-red-800 text-white">10</button>
+  </div>
+
+  <div id="pseLegenda" class="legend-dynamic"></div>
+</div>
+
+<!-- ================= TEMPO ================= -->
+<div class="mb-8">
+  <label class="font-semibold block mb-2">Tempo total (min)</label>
+  <input id="tempo" type="number" min="1"
+    class="w-full border rounded p-3"
+    placeholder="Ex: 90">
+  <p id="tempoHint" style="display:none;margin-top:6px;font-size:0.8rem;color:#16a34a;font-weight:600;">⚽ Preenchido automaticamente</p>
+</div>
+
+<!-- ================= CONCENTRAÇÃO DE ESFORÇO ================= -->
+<div class="mb-8">
+  <label class="font-semibold block mb-2">Concentração de Esforço (1–5)</label>
+
+  <p class="text-xs text-gray-500 mb-2">
+    Frequência de estímulos em alta intensidade durante o treino
+  </p>
+
+  <div class="grid grid-cols-5 gap-2">
+    <button type="button" data-dens="1" class="btn-scale bg-green-500 text-white">1</button>
+    <button type="button" data-dens="2" class="btn-scale bg-lime-400">2</button>
+    <button type="button" data-dens="3" class="btn-scale bg-yellow-400">3</button>
+    <button type="button" data-dens="4" class="btn-scale bg-orange-400 text-white">4</button>
+    <button type="button" data-dens="5" class="btn-scale bg-red-500 text-white">5</button>
+  </div>
+
+  <div id="densLegenda" class="legend-dynamic"></div>
+</div>
+
+<!-- ================= QUALIDADE ================= -->
+<div class="mb-8">
+  <label class="font-semibold block mb-2">Qualidade do treino (0–5)</label>
+
+  <p class="text-xs text-gray-500 mb-2">
+    Qualidade percebida da sessão
+  </p>
+
+  <div class="grid grid-cols-5 gap-2">
+    <button type="button" data-qual="1" class="btn-scale bg-red-400 text-white">1</button>
+    <button type="button" data-qual="2" class="btn-scale bg-orange-400 text-white">2</button>
+    <button type="button" data-qual="3" class="btn-scale bg-yellow-400">3</button>
+    <button type="button" data-qual="4" class="btn-scale bg-lime-400">4</button>
+    <button type="button" data-qual="5" class="btn-scale bg-green-600 text-white">5</button>
+  </div>
+
+  <div id="qualLegenda" class="legend-dynamic"></div>
+</div>
+
+<!-- ================= PESO PÓS ================= -->
+<div class="mb-8">
+  <label class="font-semibold block mb-1">Peso pós-treino (kg) <span class="text-sm font-normal text-gray-400">— opcional</span></label>
+  <p class="text-xs text-gray-500 mb-2">Usado para calcular perda hídrica</p>
+  <input id="pesoPosTreino" type="number" step="0.1" min="30" max="150"
+    class="w-full border rounded p-3 text-sm"
+    placeholder="Ex: 76.8">
+</div>
+
+<button type="submit"
+  class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold">
+Salvar Pós-Treino
+</button>
+
+</form>
+</div>
+
+<script type="module" src="./coleta_pos.js"></script>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Suplementação · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body > * { display: none !important; }
+      #printArea { display: block !important; }
+    }
+    #printArea { display: none; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+
+<div class="flex-1 flex flex-col min-w-0">
+
+  <header class="bg-white border-b px-6 py-4 pl-14 md:pl-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Suplementação</h1>
+      <p class="text-sm text-gray-500">Prescrição individualizada por carga de treino, HRV e composição corporal</p>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-6">
+
+    <!-- FILTROS -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
+      <input id="busca" type="text" placeholder="Buscar atleta…"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        oninput="filtrar()" />
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600 font-medium whitespace-nowrap">Prescrições a partir de:</label>
+        <input id="filtroData" type="date"
+          class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onchange="filtrar()" />
+      </div>
+      <button onclick="limparFiltros()" class="text-sm text-blue-600 hover:underline">Limpar</button>
+      <span id="countAtletas" class="text-sm text-gray-400 ml-auto"></span>
+    </div>
+
+    <!-- TABELA -->
+    <div id="viewTabela">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Atleta</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Posição</th>
+              <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Peso</th>
+              <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Última Prescrição</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAtletas">
+            <tr><td colspan="5" class="text-center text-gray-400 py-10 text-sm">Carregando atletas…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DETALHE -->
+    <div id="viewDetalhe" class="hidden space-y-5">
+      <button onclick="voltarTabela()" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+        ← Voltar à lista
+      </button>
+
+      <!-- Cabeçalho do atleta -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="flex items-center gap-4">
+          <div id="detalheAvatar" class="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl font-bold flex-shrink-0 overflow-hidden"></div>
+          <div>
+            <h2 id="detalheNome" class="text-lg font-bold text-gray-900"></h2>
+            <p id="detalheInfo" class="text-sm text-gray-500"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo de Carga -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-gray-700">Resumo de Carga — Últimos 14 Dias</h2>
+          <span class="text-xs text-gray-400" id="periodoLabel"></span>
+        </div>
+        <div id="loadingCarga" class="text-sm text-gray-400 py-4 text-center">Carregando dados…</div>
+        <div id="gridCarga" class="hidden">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div class="bg-orange-50 rounded-lg p-3 text-center">
+              <p class="text-xs text-orange-600 mb-1">PSE Médio</p>
+              <p id="statPse" class="text-xl font-bold text-orange-700">—</p>
+              <p class="text-xs text-orange-400">UA (0–10)</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3 text-center">
+              <p class="text-xs text-blue-600 mb-1">Carga Média</p>
+              <p id="statCarga" class="text-xl font-bold text-blue-700">—</p>
+              <p class="text-xs text-blue-400">UA</p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-3 text-center">
+              <p class="text-xs text-green-600 mb-1">HRV Médio</p>
+              <p id="statHrv" class="text-xl font-bold text-green-700">—</p>
+              <p class="text-xs text-green-400">ms</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 text-center">
+              <p class="text-xs text-gray-500 mb-1">Dias com Dados</p>
+              <p id="statDias" class="text-xl font-bold text-gray-700">—</p>
+              <p class="text-xs text-gray-400">/ 14 dias</p>
+            </div>
+          </div>
+          <p id="objCardapio" class="text-xs text-gray-400 italic"></p>
+        </div>
+      </div>
+
+      <!-- Recomendações -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-1">Recomendações</h2>
+        <p class="text-xs text-gray-400 mb-4">Pré-seleção automática baseada nos dados dos últimos 14 dias e peso corporal. O staff pode ajustar individualmente.</p>
+        <div id="listaSupl" class="space-y-3">
+          <p class="text-sm text-gray-400 py-4 text-center">Aguardando dados…</p>
+        </div>
+      </div>
+
+      <!-- Observações & Ações -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Observações</h2>
+        <textarea id="notasSupl" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Interações medicamentosas, restrições, ajustes individuais…"></textarea>
+        <div class="flex gap-3 mt-4 flex-wrap">
+          <button onclick="salvarSupl()" class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Salvar Prescrição</button>
+          <button onclick="imprimirSupl()" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors border border-gray-300">Imprimir / PDF</button>
+        </div>
+        <p id="msgSucesso" class="hidden mt-3 text-sm text-green-600 font-medium">Prescrição salva com sucesso!</p>
+        <p id="msgErro"    class="hidden mt-3 text-sm text-red-600 font-medium"></p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ÁREA DE IMPRESSÃO -->
+<div id="printArea">
+  <style>
+    #printArea { font-family: Arial, sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; }
+    #printArea h1 { font-size: 20px; font-weight: bold; margin-bottom: 4px; }
+    #printArea .print-sub { font-size: 12px; color: #666; margin-bottom: 16px; }
+    #printArea .print-metricas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    #printArea .print-metrica-box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; text-align: center; }
+    #printArea .print-metrica-box .label { font-size: 10px; color: #6b7280; }
+    #printArea .print-metrica-box .value { font-size: 18px; font-weight: bold; }
+    #printArea .print-supl { margin-bottom: 10px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; }
+    #printArea .print-supl .supl-nome { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
+    #printArea .print-supl .supl-info { font-size: 11px; color: #374151; }
+    #printArea .print-notas { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 12px; }
+    #printArea .print-disclaimer { font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 12px; }
+  </style>
+  <h1 id="printNome"></h1>
+  <p class="print-sub" id="printSub"></p>
+  <div class="print-metricas" id="printMetricas"></div>
+  <div id="printSupl"></div>
+  <div class="print-notas" id="printNotas"></div>
+  <p class="print-disclaimer">Recomendações baseadas em evidências científicas (ISSN, ACSM). Não substituem avaliação individual por profissional habilitado. Consulte um nutricionista esportivo para ajuste fino de doses.</p>
+</div>
+
+<script type="module" src="/core/authGuard.js"></script>
+<script src="/components/layout.js"></script>
+
+<script type="module">
+import {
+  collection, getDocs, addDoc, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { db } from "/core/firebase.js";
+
+const HOJE = new Date().toLocaleDateString('en-CA');
+let CLUB_ID = '';
+let todosAtletas = [];
+let atletasFiltrados = [];
+let avaliacaoMap = {};   // athleteId → { peso, date }
+let suplMap = {};        // athleteId → { date }
+let atletaIdAtual = null;
+let metricasAtuais = null;
+let suplAtivos = {};
+
+// ── Definição dos suplementos ─────────────────────────────────────────────────
+// dose pode ser string fixa ou função (metricas, peso) → string
+const SUPLEMENTOS = [
+  {
+    id: 'creatina',
+    nome: 'Creatina Monohidratada',
+    dose: (m, peso) => `${Math.max(3, Math.min(5, Math.round(peso * 0.05)))}g/dia (baseado em ${peso}kg)`,
+    doseFixa: '3–5g/dia',
+    quando: 'Diariamente, preferível pós-treino ou com refeição',
+    rationale: 'Recomendado para todos os atletas. Aumenta força, potência e recuperação muscular. Seguro para uso contínuo. Dose: ~0,05g/kg/dia.',
+    cor: 'blue',
+    trigger: () => true,
+  },
+  {
+    id: 'whey',
+    nome: 'Proteína (Whey)',
+    dose: (m, peso) => `25–30g/dose · alvo diário: ${Math.round(peso * 2)}g proteína (2g/kg)`,
+    doseFixa: '25–30g por dose',
+    quando: 'Pós-treino e/ou entre refeições',
+    rationale: 'Carga de treino elevada. Auxilia síntese proteica muscular e recuperação. Dose total diária baseada no peso corporal.',
+    cor: 'green',
+    trigger: (m) => m.pse_medio >= 6 || m.dias_alta_carga >= 3,
+  },
+  {
+    id: 'omega3',
+    nome: 'Ômega-3 (EPA+DHA)',
+    dose: () => '2–3g/dia (EPA+DHA combinados)',
+    doseFixa: '2–3g/dia (EPA+DHA)',
+    quando: 'Com refeições para melhor absorção',
+    rationale: 'Alta frequência de esforço competitivo/intenso. Ação anti-inflamatória e proteção articular.',
+    cor: 'yellow',
+    trigger: (m) => m.dias_alta_carga >= 2,
+  },
+  {
+    id: 'betaalanina',
+    nome: 'Beta-alanina',
+    dose: (m, peso) => `${Math.max(3.2, Math.min(6.4, Math.round(peso * 0.065 * 10) / 10)).toFixed(1)}g/dia (baseado em ${peso}kg, dividido em 2–4 doses)`,
+    doseFixa: '3,2–6,4g/dia dividido',
+    quando: 'Dividido ao longo do dia para reduzir parestesia',
+    rationale: 'Carga acumulada muito alta. Retarda fadiga neuromuscular. Dose baseada em ~0,065g/kg/dia.',
+    cor: 'orange',
+    trigger: (m) => m.carga_media >= 450 || m.pse_medio >= 7,
+  },
+  {
+    id: 'magnesio',
+    nome: 'Magnésio',
+    dose: () => '300–400mg/dia',
+    doseFixa: '300–400mg/dia',
+    quando: 'À noite, 1h antes de dormir',
+    rationale: 'HRV baixo com PSE elevado indica recuperação insuficiente. Melhora qualidade do sono e relaxamento muscular.',
+    cor: 'purple',
+    trigger: (m) => m.hrv_medio !== null && m.hrv_medio < 55 && m.pse_medio >= 6,
+  },
+  {
+    id: 'vitd3zinc',
+    nome: 'Vitamina D3 + Zinco',
+    dose: () => 'Vit D: 1000–2000 UI/dia · Zinco: 10–25mg/dia',
+    doseFixa: 'Vit D: 1000–2000 UI · Zinco: 10–25mg',
+    quando: 'Vit D com refeição gordurosa. Zinco longe de competições.',
+    rationale: 'Suporte imunológico e hormonal geral. Deficiência comum em atletas.',
+    cor: 'gray',
+    trigger: () => true,
+  },
+];
+
+const COR_MAP = {
+  blue:   { badge: 'bg-blue-100 text-blue-700',   border: 'border-blue-200',   },
+  green:  { badge: 'bg-green-100 text-green-700',  border: 'border-green-200',  },
+  yellow: { badge: 'bg-yellow-100 text-yellow-700',border: 'border-yellow-200', },
+  orange: { badge: 'bg-orange-100 text-orange-700',border: 'border-orange-200', },
+  purple: { badge: 'bg-purple-100 text-purple-700',border: 'border-purple-200', },
+  gray:   { badge: 'bg-gray-100 text-gray-600',    border: 'border-gray-200',   },
+};
+
+function avg(arr) {
+  const v = arr.filter(x => x !== null && x !== undefined && !isNaN(x));
+  return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+}
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── Filtros ───────────────────────────────────────────────────────────────────
+window.filtrar = function() {
+  const busca = document.getElementById('busca').value.toLowerCase().trim();
+  const data  = document.getElementById('filtroData').value;
+  atletasFiltrados = todosAtletas.filter(a => {
+    const nomeOk = !busca || a.nome.toLowerCase().includes(busca);
+    const dataOk = !data || (suplMap[a.id]?.date || '') >= data;
+    return nomeOk && dataOk;
+  });
+  renderTabela();
+};
+
+window.limparFiltros = function() {
+  document.getElementById('busca').value = '';
+  document.getElementById('filtroData').value = '';
+  filtrar();
+};
+
+// ── Renderizar tabela ─────────────────────────────────────────────────────────
+function renderTabela() {
+  const tbody = document.getElementById('tbodyAtletas');
+  document.getElementById('countAtletas').textContent = `${atletasFiltrados.length} atleta${atletasFiltrados.length !== 1 ? 's' : ''}`;
+  if (!atletasFiltrados.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-10 text-sm">Nenhum atleta encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = atletasFiltrados.map(a => {
+    const av   = avaliacaoMap[a.id];
+    const supl = suplMap[a.id];
+    const pesoStr = av?.peso != null ? av.peso.toFixed(1) + ' kg' : '—';
+    const foto = a.fotoUrl
+      ? `<img src="${a.fotoUrl}" class="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="" />`
+      : `<div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">${a.nome.charAt(0).toUpperCase()}</div>`;
+    return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-3">${foto}<span class="font-medium text-gray-900">${a.nome}</span></div>
+      </td>
+      <td class="px-4 py-3 text-gray-500 text-sm">${a.posicao || '—'}</td>
+      <td class="px-4 py-3 text-center text-sm text-gray-700 font-medium">${pesoStr}</td>
+      <td class="px-4 py-3 text-center text-xs text-gray-400">${supl?.date || '—'}</td>
+      <td class="px-4 py-3 text-right">
+        <button onclick="abrirAtleta('${a.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+          Ver / Prescrever
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Abrir detalhe do atleta ───────────────────────────────────────────────────
+window.abrirAtleta = async function(id) {
+  atletaIdAtual = id;
+  metricasAtuais = null;
+  suplAtivos = {};
+  hide('viewTabela');
+  show('viewDetalhe');
+  hide('msgSucesso'); hide('msgErro');
+  document.getElementById('notasSupl').value = '';
+  window.scrollTo(0, 0);
+
+  const atleta = todosAtletas.find(a => a.id === id);
+  const av = avaliacaoMap[id];
+
+  // Cabeçalho
+  const avatarEl = document.getElementById('detalheAvatar');
+  if (atleta?.fotoUrl) {
+    avatarEl.innerHTML = `<img src="${atleta.fotoUrl}" class="w-full h-full object-cover" alt="" />`;
+  } else {
+    avatarEl.textContent = atleta?.nome?.charAt(0)?.toUpperCase() || '?';
+  }
+  document.getElementById('detalheNome').textContent = atleta?.nome || '—';
+  const pesoInfo = av?.peso != null ? ` · ${av.peso.toFixed(1)} kg` : '';
+  document.getElementById('detalheInfo').textContent = (atleta?.posicao || '') + (atleta?.categoria ? ` · ${atleta.categoria}` : '') + pesoInfo;
+
+  // Carregar métricas dos últimos 14 dias
+  show('loadingCarga');
+  hide('gridCarga');
+  document.getElementById('listaSupl').innerHTML = '<p class="text-sm text-gray-400 py-4 text-center">Carregando dados…</p>';
+
+  const dataFim = new Date();
+  const dataInicio = new Date(dataFim);
+  dataInicio.setDate(dataInicio.getDate() - 13);
+  const dataInicioISO = dataInicio.toLocaleDateString('en-CA');
+  document.getElementById('periodoLabel').textContent = `${dataInicioISO} → ${HOJE}`;
+
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'daily_metrics'),
+      where('athleteId', '==', id),
+      where('clubId', '==', CLUB_ID)
+    ));
+
+    const docs14 = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.date && d.date >= dataInicioISO) docs14.push(d);
+    });
+
+    const pseVals      = docs14.map(d => d.post?.pse    ?? null).filter(v => v !== null);
+    const cargaVals    = docs14.map(d => d.post?.carga  ?? null).filter(v => v !== null);
+    const hrvVals      = docs14.map(d => d.hrv?.score   ?? null).filter(v => v !== null);
+    const diasComPost  = docs14.filter(d => d.post && Object.keys(d.post).length > 0).length;
+    const dias_alta_carga = cargaVals.filter(v => v >= 450).length;
+
+    const pse_medio   = avg(pseVals);
+    const carga_media = avg(cargaVals);
+    const hrv_medio   = avg(hrvVals);
+
+    metricasAtuais = { pse_medio, carga_media, carga_total: cargaVals.reduce((s,v)=>s+v,0), hrv_medio, dias_alta_carga, dias_com_dados: diasComPost };
+
+    document.getElementById('statPse').textContent   = pse_medio   !== null ? pse_medio.toFixed(1) : '—';
+    document.getElementById('statCarga').textContent = carga_media  !== null ? Math.round(carga_media) : '—';
+    document.getElementById('statHrv').textContent   = hrv_medio    !== null ? Math.round(hrv_medio)   : '—';
+    document.getElementById('statDias').textContent  = diasComPost;
+
+    // Verificar cardápio registrado
+    try {
+      const snapCard = await getDocs(query(collection(db,'cardapios'), where('athleteId','==',id), where('clubId','==',CLUB_ID)));
+      const cardapios = [];
+      snapCard.forEach(d => cardapios.push(d.data()));
+      cardapios.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      if (cardapios.length > 0 && cardapios[0].objetivo) {
+        const objLabel = { ganhar:'Ganhar Massa', manter:'Manter Peso', perder:'Perder Gordura' }[cardapios[0].objetivo] || cardapios[0].objetivo;
+        document.getElementById('objCardapio').textContent = `Objetivo nutricional: ${objLabel} (${cardapios[0].date||''})`;
+      } else {
+        document.getElementById('objCardapio').textContent = 'Nenhum cardápio registrado para este atleta.';
+      }
+    } catch { document.getElementById('objCardapio').textContent = ''; }
+
+    hide('loadingCarga');
+    show('gridCarga');
+
+    // Renderizar suplementos com peso
+    const peso = av?.peso ?? 75;
+    renderSupl(metricasAtuais, peso);
+
+  } catch (e) {
+    console.error(e);
+    hide('loadingCarga');
+    show('gridCarga');
+    document.getElementById('msgErro').textContent = 'Erro ao carregar dados: ' + e.message;
+    show('msgErro');
+  }
+};
+
+window.voltarTabela = function() {
+  atletaIdAtual = null; metricasAtuais = null;
+  hide('viewDetalhe');
+  show('viewTabela');
+};
+
+// ── Renderizar suplementos ────────────────────────────────────────────────────
+function renderSupl(metricas, peso) {
+  const lista = document.getElementById('listaSupl');
+  lista.innerHTML = '';
+  SUPLEMENTOS.forEach(s => {
+    const ativo = s.trigger(metricas || {});
+    suplAtivos[s.id] = ativo;
+    const cores = COR_MAP[s.cor] || COR_MAP.gray;
+    const doseStr = typeof s.dose === 'function' ? s.dose(metricas, peso) : s.dose;
+    const card = document.createElement('div');
+    card.className = `border rounded-xl p-4 flex items-start gap-4 ${ativo ? cores.border : 'border-gray-200'} ${ativo ? '' : 'opacity-60'}`;
+    card.id = `supl-card-${s.id}`;
+    card.innerHTML = `
+      <div class="flex-1">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+          <span class="text-xs font-bold px-2 py-0.5 rounded ${ativo ? cores.badge : 'bg-gray-100 text-gray-500'}">
+            ${ativo ? 'RECOMENDADO' : 'NÃO INDICADO'}
+          </span>
+          <span class="text-sm font-semibold text-gray-800">${s.nome}</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-1"><strong>Dose:</strong> ${doseStr}</p>
+        <p class="text-xs text-gray-500 mb-1"><strong>Quando:</strong> ${s.quando}</p>
+        <p class="text-xs text-gray-400 italic">${s.rationale}</p>
+      </div>
+      <div class="flex flex-col items-center gap-1 pt-1">
+        <input type="checkbox" id="chk-${s.id}" class="w-4 h-4 accent-blue-600 cursor-pointer" ${ativo ? 'checked' : ''}
+          onchange="toggleSupl('${s.id}', this.checked)" />
+        <label for="chk-${s.id}" class="text-xs text-gray-400 cursor-pointer">Incluir</label>
+      </div>
+    `;
+    lista.appendChild(card);
+  });
+}
+
+window.toggleSupl = function(id, checked) {
+  suplAtivos[id] = checked;
+};
+
+// ── Salvar ────────────────────────────────────────────────────────────────────
+window.salvarSupl = async function() {
+  hide('msgSucesso'); hide('msgErro');
+  if (!atletaIdAtual || !metricasAtuais) return;
+  const av   = avaliacaoMap[atletaIdAtual];
+  const peso = av?.peso ?? null;
+  const notas = document.getElementById('notasSupl').value.trim();
+  const suplementos = SUPLEMENTOS.map(s => ({
+    id: s.id, nome: s.nome, ativo: !!suplAtivos[s.id],
+    dose: typeof s.dose === 'function' ? s.dose(metricasAtuais, peso ?? 75) : s.dose,
+    quando: s.quando,
+  }));
+  try {
+    await addDoc(collection(db, 'suplementacao'), {
+      athleteId: atletaIdAtual, clubId: CLUB_ID, date: HOJE,
+      peso_kg: peso, metricas: metricasAtuais, suplementos, notas,
+      createdAt: serverTimestamp(),
+    });
+    suplMap[atletaIdAtual] = { date: HOJE };
+    show('msgSucesso');
+  } catch (e) {
+    document.getElementById('msgErro').textContent = 'Erro ao salvar: ' + e.message;
+    show('msgErro');
+  }
+};
+
+// ── Imprimir / PDF ────────────────────────────────────────────────────────────
+window.imprimirSupl = function() {
+  if (!atletaIdAtual || !metricasAtuais) return;
+  const atleta = todosAtletas.find(a => a.id === atletaIdAtual);
+  const av = avaliacaoMap[atletaIdAtual];
+  const peso = av?.peso ?? 75;
+  const notas = document.getElementById('notasSupl').value.trim();
+  const m = metricasAtuais;
+  document.getElementById('printNome').textContent = atleta?.nome || 'Atleta';
+  document.getElementById('printSub').textContent  = `Prescrição de Suplementação · ${HOJE} · ${atleta?.nome || ''} · Peso: ${av?.peso?.toFixed(1) ?? '—'} kg`;
+  document.getElementById('printMetricas').innerHTML = `
+    <div class="print-metrica-box"><div class="label">PSE Médio</div><div class="value">${m.pse_medio !== null ? m.pse_medio.toFixed(1) : '—'}</div></div>
+    <div class="print-metrica-box"><div class="label">Carga Média (UA)</div><div class="value">${m.carga_media !== null ? Math.round(m.carga_media) : '—'}</div></div>
+    <div class="print-metrica-box"><div class="label">HRV Médio</div><div class="value">${m.hrv_medio !== null ? Math.round(m.hrv_medio) : '—'}</div></div>
+    <div class="print-metrica-box"><div class="label">Peso</div><div class="value">${av?.peso?.toFixed(1) ?? '—'} kg</div></div>
+  `;
+  const ativos = SUPLEMENTOS.filter(s => suplAtivos[s.id]);
+  document.getElementById('printSupl').innerHTML = ativos.length
+    ? '<h3 style="font-size:13px;font-weight:bold;margin:12px 0 6px">Suplementos Prescritos</h3>' +
+      ativos.map(s => {
+        const doseStr = typeof s.dose === 'function' ? s.dose(m, peso) : s.dose;
+        return `<div class="print-supl">
+          <div class="supl-nome">${s.nome}</div>
+          <div class="supl-info"><strong>Dose:</strong> ${doseStr}</div>
+          <div class="supl-info"><strong>Quando:</strong> ${s.quando}</div>
+        </div>`;
+      }).join('')
+    : '<p style="font-size:12px;color:#9ca3af;margin:12px 0">Nenhum suplemento selecionado.</p>';
+  document.getElementById('printNotas').innerHTML = notas
+    ? `<strong>Observações:</strong> ${notas}`
+    : '<em style="color:#9ca3af">Sem observações registradas.</em>';
+  window.print();
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+  CLUB_ID = ctx.clubId || '';
+
+  if (!CLUB_ID) {
+    document.getElementById('tbodyAtletas').innerHTML =
+      '<tr><td colspan="5" class="text-center text-red-400 py-10 text-sm">Clube não identificado. Faça login novamente.</td></tr>';
+    return;
+  }
+
+  // Atletas
+  try {
+    const snap = await getDocs(query(collection(db,'athletes'), where('clubId','==',CLUB_ID), where('ativo','==',true)));
+    snap.forEach(d => todosAtletas.push({ id: d.id, ...d.data() }));
+    todosAtletas.sort((a,b) => a.nome.localeCompare(b.nome));
+  } catch(e) { console.error('athletes:', e.message); }
+
+  // Avaliações físicas — filtro de tipo feito client-side para evitar índice composto
+  try {
+    const snap = await getDocs(query(collection(db,'assessments_functional'), where('clubId','==',CLUB_ID)));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.tipo !== 'fisica') return;
+      if (!avaliacaoMap[data.athleteId] || data.date > (avaliacaoMap[data.athleteId]?.date || '')) {
+        const ant = data.dados?.antropometria || {};
+        avaliacaoMap[data.athleteId] = { peso: ant.peso_kg || null, date: data.date };
+      }
+    });
+  } catch(e) { console.error('assessments_functional:', e.message); }
+
+  // Histórico de suplementação
+  try {
+    const snap = await getDocs(query(collection(db,'suplementacao'), where('clubId','==',CLUB_ID)));
+    snap.forEach(d => {
+      const data = d.data();
+      if (!suplMap[data.athleteId] || (data.date||'') > (suplMap[data.athleteId]?.date || '')) {
+        suplMap[data.athleteId] = { date: data.date };
+      }
+    });
+  } catch(e) { console.error('suplementacao:', e.message); }
+
+  atletasFiltrados = [...todosAtletas];
+  renderTabela();
+}
+
+init().catch(console.error);
+</script>
+</body>
+</html>

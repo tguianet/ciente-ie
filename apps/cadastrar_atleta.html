@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ciente IE · Cadastrar Atleta</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <div id="sidebar-container"></div>
+
+  <!-- Conteúdo -->
+  <div class="flex-1">
+
+    <div class="max-w-3xl mx-auto p-6 space-y-8">
+
+      <!-- ========== FORMULÁRIO DE CADASTRO ========== -->
+      <div>
+        <div class="flex items-center justify-between mb-6 pl-14 md:pl-0">
+          <h1 class="text-3xl font-bold">Cadastrar Atleta</h1>
+        </div>
+
+        <form id="formAtleta" class="bg-white rounded-xl shadow-md p-6 space-y-4">
+
+          <div>
+            <label class="block font-medium mb-1">Nome completo</label>
+            <input id="nome" type="text" required
+                   class="w-full p-3 border rounded-lg"/>
+          </div>
+
+          <div>
+            <label class="block font-medium mb-1">Data de nascimento</label>
+            <input id="dataNascimento" type="date" required
+                   class="w-full p-3 border rounded-lg"/>
+          </div>
+
+          <div>
+            <label class="block font-medium mb-1">Posição</label>
+            <select id="posicao" required class="w-full p-3 border rounded-lg">
+              <option value="">Selecione</option>
+              <option>Goleiro</option>
+              <option>Lateral</option>
+              <option>Zagueiro</option>
+              <option>Volante</option>
+              <option>Meia</option>
+              <option>Ponta</option>
+              <option>Centro-Avante</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-medium mb-1">Categoria</label>
+            <select id="categoria" required class="w-full p-3 border rounded-lg">
+              <option value="">Selecione</option>
+              <option>Sub-20</option>
+              <option>Profissional</option>
+            </select>
+          </div>
+
+          <!-- Foto -->
+          <div>
+            <label class="block font-medium mb-1">
+              Foto
+              <span class="text-gray-400 text-sm font-normal">(opcional · JPG / PNG · máx. 5 MB)</span>
+            </label>
+            <input id="foto" type="file" accept="image/*"
+                   class="w-full p-2 border rounded-lg text-sm file:mr-3
+                          file:py-2 file:px-4 file:rounded-lg file:border-0
+                          file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+          </div>
+
+          <div class="pt-2 flex gap-3">
+            <button id="btnSalvar" type="submit"
+                    disabled
+                    class="flex-1 bg-blue-600 text-white py-3 rounded-lg opacity-50 cursor-not-allowed">
+              Salvar atleta
+            </button>
+            <button type="button" id="btnLimpar"
+                    class="px-5 bg-gray-200 py-3 rounded-lg">
+              Limpar
+            </button>
+          </div>
+
+          <p id="mensagem" class="text-center font-medium"></p>
+        </form>
+      </div>
+
+      <!-- ========== GERENCIAR ATLETAS ========== -->
+      <div>
+        <h2 class="text-2xl font-bold mb-4">Gerenciar Atletas</h2>
+
+        <div class="bg-white rounded-xl shadow-md p-6 space-y-4">
+
+          <!-- Filtros -->
+          <div class="flex gap-3 flex-wrap">
+            <input id="filtroBusca" type="text" placeholder="Buscar por nome…"
+                   class="flex-1 min-w-[180px] p-3 border rounded-lg text-sm"/>
+            <select id="filtroCategoria" class="p-3 border rounded-lg text-sm">
+              <option value="">Todas as categorias</option>
+              <option>Sub-20</option>
+              <option>Profissional</option>
+            </select>
+            <select id="filtroStatus" class="p-3 border rounded-lg text-sm">
+              <option value="ativos">Ativos</option>
+              <option value="inativos">Inativos</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+
+          <!-- Lista -->
+          <div id="listaAtletas" class="space-y-2">
+            <p class="text-gray-400 text-sm text-center py-4">Carregando atletas…</p>
+          </div>
+
+          <p id="mensagemGerenciar" class="text-center font-medium text-sm"></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="/core/firebase.js"></script>
+  <script type="module" src="/cadastrar_atleta.js"></script>
+  <script src="/components/layout.js"></script>
+
+</body>
+</html>

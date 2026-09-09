@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Importar HRV · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap');
+    body { font-family: 'DM Sans', sans-serif; }
+    .mono { font-family: 'DM Mono', monospace; }
+    .drop-zone { border: 2px dashed #cbd5e1; transition: all 0.2s; }
+    .drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+    .status-ok    { background:#dcfce7; color:#15803d; }
+    .status-warn  { background:#fef9c3; color:#a16207; }
+    .status-error { background:#fee2e2; color:#b91c1c; }
+    .row-saved    { background:#f0fdf4; }
+    .row-error    { background:#fff1f2; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<header class="bg-blue-700 text-white px-6 py-4 flex items-center gap-3 shadow">
+  <span class="text-2xl">📥</span>
+  <div>
+    <h1 class="text-lg font-bold leading-tight">Importar HRV · Ciente IE</h1>
+    <p class="text-xs text-blue-200">Upload de CSVs → cálculo automático → salvar no Firestore</p>
+  </div>
+  <div class="ml-auto text-xs text-blue-200" id="userInfo">Carregando...</div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+  <!-- Drop Zone -->
+  <div id="dropZone"
+       class="drop-zone rounded-xl p-10 text-center cursor-pointer bg-white"
+       onclick="document.getElementById('fileInput').click()"
+       ondragover="onDragOver(event)"
+       ondragleave="onDragLeave(event)"
+       ondrop="onDrop(event)">
+    <div class="text-4xl mb-3">📂</div>
+    <p class="font-semibold text-gray-700">Arraste os CSVs aqui ou clique para selecionar</p>
+    <p class="text-xs text-gray-400 mt-1">Formato esperado: <span class="mono">{athleteId}_HRV_{date}.csv</span></p>
+    <input type="file" id="fileInput" multiple accept=".csv" class="hidden" onchange="onFiles(event)" />
+  </div>
+
+  <!-- Data override -->
+  <div class="bg-white rounded-xl border px-5 py-4 flex items-center gap-4">
+    <label class="text-sm font-semibold text-gray-700">Data dos registros:</label>
+    <input type="date" id="dataOverride" class="border rounded px-3 py-1.5 text-sm mono" />
+    <span class="text-xs text-gray-400">(sobrescreve a data do nome do arquivo se preenchida)</span>
+  </div>
+
+  <!-- Results table -->
+  <div id="resultSection" class="hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-gray-800">Prévia dos resultados</h2>
+      <div class="flex gap-2">
+        <button onclick="salvarTodos()"
+                id="btnSalvar"
+                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition">
+          💾 Salvar todos no Firestore
+        </button>
+        <button onclick="limpar()"
+                class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition">
+          Limpar
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Atleta ID</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Data</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Intervalos RR</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">RMSSD</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">lnRR</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Score</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Salvo</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+
+    <div id="saveLog" class="mt-3 text-xs text-gray-500 mono hidden"></div>
+  </div>
+
+</main>
+
+<script type="module">
+import { db } from "./core/firebase.js";
+import {
+  doc, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+/* ── Club fixo ── */
+const CLUB_ID = "america_fc";
+document.getElementById("userInfo").textContent = "clube: america_fc";
+
+/* ── HRV Math ── */
+function calcularHRV(rrValues) {
+  if (rrValues.length < 2) return null;
+  const diffs = rrValues.slice(1).map((v, i) => v - rrValues[i]);
+  const rmssd = Math.sqrt(diffs.reduce((s, d) => s + d * d, 0) / diffs.length);
+  const lnRR  = Math.log(rmssd);
+  const meanRR = rrValues.reduce((a, b) => a + b, 0) / rrValues.length;
+  const meanHR = Math.round(60000 / meanRR);
+
+  let score;
+  if      (lnRR < 2.0) score = 10 + ((lnRR - 0)   * 10);
+  else if (lnRR < 3.0) score = 10 + ((lnRR - 2.0)  * 20);
+  else if (lnRR < 4.0) score = 30 + ((lnRR - 3.0)  * 25);
+  else if (lnRR < 5.0) score = 55 + ((lnRR - 4.0)  * 20);
+  else if (lnRR < 6.0) score = 75 + ((lnRR - 5.0)  * 15);
+  else                  score = 90 + Math.min((lnRR - 6.0) * 5, 5);
+  score = Math.round(Math.max(10, Math.min(score, 95)));
+
+  const status =
+    score <= 30 ? "muito_baixa" :
+    score <= 55 ? "baixa" :
+    score <= 75 ? "moderada" :
+    score <= 90 ? "boa" : "muito_boa";
+
+  return { rmssd: parseFloat(rmssd.toFixed(2)), lnRR: parseFloat(lnRR.toFixed(4)),
+           meanRR: parseFloat(meanRR.toFixed(1)), meanHR, score, status };
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const values = lines.slice(1).map(l => parseInt(l.trim())).filter(v => !isNaN(v) && v > 200 && v < 2500);
+  return values;
+}
+
+function parseFilename(name) {
+  // {athleteId}_HRV_{date}.csv
+  const m = name.match(/^([^_]+(?:_[^_]+)*)_HRV_(\d{4}-\d{2}-\d{2})\.csv$/i);
+  if (m) return { athleteId: m[1], date: m[2] };
+  // fallback: tudo antes de _HRV
+  const m2 = name.match(/^(.+)_HRV/i);
+  return { athleteId: m2 ? m2[1] : name.replace('.csv',''), date: null };
+}
+
+/* ── State ── */
+let resultados = [];
+
+/* ── File handling ── */
+window.onDragOver  = e => { e.preventDefault(); document.getElementById("dropZone").classList.add("drag-over"); };
+window.onDragLeave = e => { document.getElementById("dropZone").classList.remove("drag-over"); };
+window.onDrop      = e => { e.preventDefault(); document.getElementById("dropZone").classList.remove("drag-over"); processFiles(e.dataTransfer.files); };
+window.onFiles     = e => processFiles(e.target.files);
+
+function processFiles(files) {
+  resultados = [];
+  const tbody = document.getElementById("resultBody");
+  tbody.innerHTML = "";
+  document.getElementById("resultSection").classList.remove("hidden");
+  document.getElementById("saveLog").classList.add("hidden");
+
+  const arr = Array.from(files).filter(f => f.name.toLowerCase().endsWith(".csv"));
+  if (!arr.length) { alert("Nenhum arquivo CSV encontrado."); return; }
+
+  let done = 0;
+  arr.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const { athleteId, date: dateFromFile } = parseFilename(file.name);
+      const dateOverride = document.getElementById("dataOverride").value;
+      const date = dateOverride || dateFromFile || new Date().toISOString().slice(0,10);
+      const rr = parseCSV(e.target.result);
+      const hrv = rr.length >= 2 ? calcularHRV(rr) : null;
+
+      const row = { athleteId, date, rr: rr.length, hrv, saved: null, error: null };
+      resultados.push(row);
+      renderRow(row, tbody);
+      done++;
+      if (done === arr.length) sortTable();
+    };
+    reader.readAsText(file);
+  });
+}
+
+function scoreBadge(score) {
+  if (score == null) return '<span class="text-gray-400">—</span>';
+  const colors =
+    score >= 76 ? "bg-green-100 text-green-700" :
+    score >= 56 ? "bg-yellow-100 text-yellow-700" :
+    score >= 31 ? "bg-orange-100 text-orange-700" :
+                  "bg-red-100 text-red-700";
+  return `<span class="mono ${colors} px-2 py-0.5 rounded-full font-bold text-xs">${score}</span>`;
+}
+
+function renderRow(row, tbody) {
+  const tr = document.createElement("tr");
+  tr.id = `row-${row.athleteId}-${row.date}`;
+  tr.className = "border-b last:border-0";
+  const h = row.hrv;
+  tr.innerHTML = `
+    <td class="px-4 py-3 mono text-xs text-gray-600 truncate max-w-[160px]" title="${row.athleteId}">${row.athleteId}</td>
+    <td class="px-4 py-3 text-center mono text-xs">${row.date}</td>
+    <td class="px-4 py-3 text-center text-gray-500">${row.rr}</td>
+    <td class="px-4 py-3 text-center mono">${h ? h.rmssd : '<span class="text-red-400">erro</span>'}</td>
+    <td class="px-4 py-3 text-center mono">${h ? h.lnRR : '—'}</td>
+    <td class="px-4 py-3 text-center">${h ? scoreBadge(h.score) : '—'}</td>
+    <td class="px-4 py-3 text-center text-xs text-gray-500">${h ? h.status : '—'}</td>
+    <td class="px-4 py-3 text-center" id="status-${row.athleteId}-${row.date}">
+      <span class="text-gray-300">·</span>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function sortTable() {
+  resultados.sort((a, b) => a.athleteId.localeCompare(b.athleteId));
+  const tbody = document.getElementById("resultBody");
+  tbody.innerHTML = "";
+  resultados.forEach(r => renderRow(r, tbody));
+}
+
+/* ── Save ── */
+window.salvarTodos = async function() {
+  const btn = document.getElementById("btnSalvar");
+  btn.disabled = true;
+  btn.textContent = "Salvando...";
+
+  const log = document.getElementById("saveLog");
+  log.innerHTML = "";
+  log.classList.remove("hidden");
+
+  let ok = 0, fail = 0;
+
+  for (const row of resultados) {
+    if (!row.hrv) {
+      setStatusCell(row, "error", "Sem dados");
+      fail++;
+      continue;
+    }
+
+    const docId = `${row.athleteId}_${row.date}`;
+    const ref = doc(db, "daily_metrics", docId);
+
+    try {
+      const existing = await getDoc(ref);
+      const base = existing.exists() ? existing.data() : {};
+
+      // Merge origem array
+      const origemAtual = base?.meta?.origem ?? [];
+      const novaOrigem = origemAtual.includes("hrv_import") ? origemAtual : [...origemAtual, "hrv_import"];
+
+      await setDoc(ref, {
+        athleteId: row.athleteId,
+        date: row.date,
+        clubId: CLUB_ID,
+        meta: {
+          updatedAt: new Date(),
+          origem: novaOrigem
+        },
+        hrv: {
+          lnRR:      row.hrv.lnRR,
+          rmssd:     row.hrv.rmssd,
+          meanRR:    row.hrv.meanRR,
+          meanHR:    row.hrv.meanHR,
+          score:     row.hrv.score,
+          status:    row.hrv.status,
+          importedAt: new Date().toISOString()
+        }
+      }, { merge: true });
+
+      setStatusCell(row, "ok", "✅ Salvo");
+      log.innerHTML += `<div class="text-green-600">✅ ${row.athleteId} · ${row.date} · score ${row.hrv.score}</div>`;
+      ok++;
+    } catch(err) {
+      setStatusCell(row, "error", "⚠️ Erro");
+      log.innerHTML += `<div class="text-red-500">⚠️ ${row.athleteId}: ${err.message}</div>`;
+      fail++;
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = `💾 Salvar todos no Firestore`;
+  log.innerHTML += `<div class="mt-2 font-semibold text-gray-700">Concluído: ${ok} salvos · ${fail} erros</div>`;
+};
+
+function setStatusCell(row, type, text) {
+  const cell = document.getElementById(`status-${row.athleteId}-${row.date}`);
+  if (!cell) return;
+  const cls = type === "ok" ? "status-ok" : type === "error" ? "status-error" : "status-warn";
+  cell.innerHTML = `<span class="${cls} px-2 py-0.5 rounded-full text-xs font-semibold">${text}</span>`;
+  const tr = document.getElementById(`row-${row.athleteId}-${row.date}`);
+  if (tr) tr.classList.add(type === "ok" ? "row-saved" : "row-error");
+}
+
+window.limpar = function() {
+  resultados = [];
+  document.getElementById("resultBody").innerHTML = "";
+  document.getElementById("resultSection").classList.add("hidden");
+  document.getElementById("fileInput").value = "";
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ciente IE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fill {
+      from { width: 0% }
+      to   { width: 100% }
+    }
+    #bar {
+      animation: fill 4s ease-in-out forwards;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center">
+
+  <div class="max-w-sm w-full px-8 space-y-6 text-center">
+    <h1 class="text-2xl font-bold tracking-tight text-white">Ciente IE</h1>
+    <div class="space-y-3">
+      <p class="text-sm text-slate-400 tracking-widest uppercase" id="loadMsg">
+        Carregando Plataforma de Inteligência
+      </p>
+      <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+        <div id="bar" class="h-1.5 bg-blue-500 rounded-full"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth } from '../core/firebase.js';
+    import {
+      collection, getDocs, query, where
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { onAuthStateChanged } from
+      "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+    const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+    // Converte Timestamps para objeto serializável
+    function serialize(val) {
+      if (val === null || val === undefined) return val;
+      if (typeof val.toDate === 'function') return { _ts: val.toDate().toISOString() };
+      if (Array.isArray(val)) return val.map(serialize);
+      if (val && typeof val === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(val)) out[k] = serialize(v);
+        return out;
+      }
+      return val;
+    }
+
+    async function prefetch(name, constraints) {
+      try {
+        const snap = await getDocs(query(collection(db, name), ...constraints));
+        const docs = snap.docs.map(d => ({ id: d.id, data: serialize(d.data()) }));
+        sessionStorage.setItem('dash_' + name, JSON.stringify({ ts: Date.now(), docs }));
+      } catch (e) {
+        console.warn('[prefetch] falhou:', name, e.message);
+      }
+    }
+
+    const startTs = Date.now();
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) { window.location.href = '/login.html'; return; }
+
+      const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+      const clubId = ctx.clubId || null;
+
+      if (clubId) {
+        document.getElementById('loadMsg').textContent = 'Pré-carregando dados…';
+        const c = [where('clubId', '==', clubId)];
+        await Promise.all([
+          prefetch('athletes',            [...c, where('ativo', '!=', false)]),
+          prefetch('assessments_medical', c),
+          prefetch('daily_metrics',       c),
+          prefetch('scout_partidas',      c),
+        ]);
+      }
+
+      // Garante mínimo de 1.5s para a barra animar
+      const elapsed = Date.now() - startTs;
+      const delay = Math.max(0, 4000 - elapsed);
+      setTimeout(() => { window.location.href = '/staff/dashboard.html'; }, delay);
+    });
+  </script>
+
+</body>
+</html>

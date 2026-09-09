@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração HRV Score v2</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef1f3; padding: 20px; color: #222; }
+        h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: #666; margin-bottom: 20px; }
+        .card { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #ddd; margin-bottom: 16px; }
+        .card h2 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #333; }
+        button {
+            padding: 10px 20px; border: none; border-radius: 6px;
+            font-weight: 700; font-size: 13px; cursor: pointer; margin-right: 8px;
+        }
+        .btn-scan  { background: #007bff; color: #fff; }
+        .btn-apply { background: #28a745; color: #fff; }
+        .btn-apply:disabled { background: #aaa; cursor: not-allowed; }
+        #log {
+            background: #1e1e1e; color: #d4d4d4; font-family: monospace;
+            font-size: 11px; padding: 12px; border-radius: 6px;
+            max-height: 400px; overflow-y: auto; line-height: 1.6;
+            white-space: pre-wrap; word-break: break-all;
+        }
+        .ok   { color: #6dcc6d; }
+        .warn { color: #ffd700; }
+        .err  { color: #ff6b6b; }
+        .info { color: #79c0ff; }
+        #summary { font-size: 13px; line-height: 1.8; }
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 700; color: #fff; margin-left: 4px;
+        }
+        .badge-old { background: #888; }
+        .badge-new { background: #28a745; }
+    </style>
+</head>
+<body>
+
+<h1>🔄 Migração HRV Score — Escala Absoluta v2</h1>
+<p class="subtitle">Recalcula <code>hrv.score</code> + <code>hrv.status</code> em todos os <code>daily_metrics</code> que possuem <code>hrv.lnRR</code>. Não altera lnRR, rmssd, rrData nem nenhum outro campo.</p>
+
+<div class="card">
+    <h2>1. Escaneie os documentos</h2>
+    <button class="btn-scan" id="btnScan" onclick="scan()">🔍 Escanear Firestore</button>
+    <button class="btn-apply" id="btnApply" onclick="applyMigration()" disabled>✅ Aplicar Migração</button>
+    <p style="font-size:11px;color:#888;margin-top:8px;">Abra esta página com o usuário já logado no sistema (mesmo domínio que o app).</p>
+</div>
+
+<div class="card" id="summaryCard" style="display:none">
+    <h2>2. Resumo</h2>
+    <div id="summary"></div>
+</div>
+
+<div class="card">
+    <h2>Log</h2>
+    <div id="log">Aguardando...</div>
+</div>
+
+<script type="module">
+    import { db, auth } from "./core/firebase.js";
+    import {
+        collection, getDocs, doc, updateDoc, query, where, getDoc
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+    // ── Nova escala absoluta (idêntica ao hrv.html atualizado) ──────────────
+    function lnToScoreAbsoluto(ln) {
+        let score;
+        if (ln < 2.5) {
+            score = 5 + ((ln - 1.5) * 20);
+        } else if (ln < 3.0) {
+            score = 25 + ((ln - 2.5) * 20);
+        } else if (ln < 3.5) {
+            score = 35 + ((ln - 3.0) * 30);
+        } else if (ln < 4.0) {
+            score = 50 + ((ln - 3.5) * 36);
+        } else if (ln < 4.5) {
+            score = 68 + ((ln - 4.0) * 28);
+        } else if (ln < 5.0) {
+            score = 82 + ((ln - 4.5) * 20);
+        } else {
+            score = 92 + Math.min((ln - 5.0) * 6, 5);
+        }
+        return Math.round(Math.max(5, Math.min(score, 97)));
+    }
+
+    function scoreToStatus(score) {
+        if (score <= 32) return "muito_baixa";
+        if (score <= 52) return "baixa";
+        if (score <= 70) return "moderada";
+        if (score <= 87) return "boa";
+        return "excelente";
+    }
+
+    // ── Helpers de log ───────────────────────────────────────────────────────
+    const logEl = document.getElementById("log");
+    function log(msg, cls = "") {
+        const line = document.createElement("span");
+        if (cls) line.className = cls;
+        line.textContent = msg + "\n";
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+    function logClear() { logEl.innerHTML = ""; }
+
+    // ── Estado global ────────────────────────────────────────────────────────
+    let pendingDocs = [];   // { id, lnRR, oldScore, oldStatus, newScore, newStatus }
+    let CLUB_ID = null;
+
+    async function getClubId() {
+        return new Promise((resolve, reject) => {
+            const unsub = onAuthStateChanged(auth, async (user) => {
+                unsub();
+                if (!user) return reject(new Error("Usuário não autenticado"));
+                const snap = await getDoc(doc(db, "users", user.uid));
+                const clubId = snap.data()?.clubId;
+                if (!clubId) return reject(new Error("clubId ausente no perfil do usuário"));
+                resolve(clubId);
+            });
+        });
+    }
+
+    // ── SCAN ─────────────────────────────────────────────────────────────────
+    window.scan = async function () {
+        logClear();
+        pendingDocs = [];
+        document.getElementById("btnApply").disabled = true;
+        document.getElementById("summaryCard").style.display = "none";
+        log("🔐 Verificando autenticação...", "info");
+
+        try {
+            CLUB_ID = await getClubId();
+            log(`✅ Clube: ${CLUB_ID}`, "ok");
+        } catch (e) {
+            log("❌ " + e.message, "err");
+            return;
+        }
+
+        log(`\n🔍 Buscando daily_metrics do clube ${CLUB_ID}...`, "info");
+
+        const q = query(
+            collection(db, "daily_metrics"),
+            where("clubId", "==", CLUB_ID)
+        );
+
+        const snap = await getDocs(q);
+        log(`📦 Total de documentos encontrados: ${snap.size}`, "info");
+
+        let semHrv = 0, semLn = 0, jaV2 = 0, paraAtualizar = 0;
+
+        snap.forEach(d => {
+            const data = d.data();
+            const hrv = data.hrv;
+
+            if (!hrv) { semHrv++; return; }
+            if (typeof hrv.lnRR !== "number" || hrv.lnRR <= 0) { semLn++; return; }
+
+            // Já migrado com v2?
+            if (hrv.metodo === "absoluto_v2" || hrv.metodo === "bayesiano") {
+                jaV2++;
+                return;
+            }
+
+            const newScore  = lnToScoreAbsoluto(hrv.lnRR);
+            const newStatus = scoreToStatus(newScore);
+            const oldScore  = hrv.score ?? "—";
+            const oldStatus = hrv.status ?? "—";
+
+            pendingDocs.push({
+                id: d.id,
+                athleteId: data.athleteId,
+                date: data.date,
+                lnRR: hrv.lnRR,
+                oldScore, oldStatus,
+                newScore, newStatus
+            });
+            paraAtualizar++;
+        });
+
+        log(`\n📊 Resultado do scan:`, "info");
+        log(`   Sem bloco hrv:       ${semHrv}`);
+        log(`   Sem lnRR válido:     ${semLn}`);
+        log(`   Já em v2/bayesiano:  ${jaV2}`, "ok");
+        log(`   Para atualizar:      ${paraAtualizar}`, paraAtualizar > 0 ? "warn" : "ok");
+
+        if (paraAtualizar > 0) {
+            log(`\n🔎 Prévia das alterações (primeiros 20):`, "info");
+            pendingDocs.slice(0, 20).forEach(d => {
+                const diff = d.newScore - (typeof d.oldScore === "number" ? d.oldScore : d.newScore);
+                const arrow = diff > 0 ? `+${diff}` : `${diff}`;
+                log(`   ${d.date} | ${d.athleteId.slice(0,8)}… | ln=${d.lnRR.toFixed(2)} | score: ${d.oldScore} → ${d.newScore} (${arrow})`);
+            });
+            if (pendingDocs.length > 20) log(`   ... e mais ${pendingDocs.length - 20} documentos`);
+
+            // Resumo visual
+            document.getElementById("summaryCard").style.display = "block";
+            document.getElementById("summary").innerHTML = `
+                <b>${paraAtualizar}</b> documentos serão atualizados.<br>
+                Campos alterados: <code>hrv.score</code>, <code>hrv.status</code>, <code>hrv.metodo</code>.<br>
+                Campos preservados: <code>lnRR</code>, <code>rmssd</code>, <code>rrData</code>, <code>meanRR</code>, <code>meanHR</code>, todos os outros blocos.<br>
+                <span style="color:#28a745;font-weight:700;">Pronto para aplicar.</span>
+            `;
+            document.getElementById("btnApply").disabled = false;
+        } else {
+            log(`\n✅ Nada a migrar.`, "ok");
+        }
+    };
+
+    // ── APPLY ────────────────────────────────────────────────────────────────
+    window.applyMigration = async function () {
+        if (pendingDocs.length === 0) return;
+        document.getElementById("btnApply").disabled = true;
+        document.getElementById("btnScan").disabled = true;
+
+        log(`\n🚀 Iniciando migração de ${pendingDocs.length} documentos...`, "info");
+
+        let ok = 0, erros = 0;
+
+        for (const d of pendingDocs) {
+            try {
+                await updateDoc(doc(db, "daily_metrics", d.id), {
+                    "hrv.score":  d.newScore,
+                    "hrv.status": d.newStatus,
+                    "hrv.metodo": "absoluto_v2"
+                });
+                ok++;
+                if (ok % 10 === 0 || ok === pendingDocs.length) {
+                    log(`   ✅ ${ok}/${pendingDocs.length} atualizados...`, "ok");
+                }
+            } catch (e) {
+                erros++;
+                log(`   ❌ Erro em ${d.id}: ${e.message}`, "err");
+            }
+        }
+
+        log(`\n🏁 Migração concluída!`, "info");
+        log(`   Sucesso: ${ok}`, "ok");
+        if (erros > 0) log(`   Erros:   ${erros}`, "err");
+
+        document.getElementById("btnScan").disabled = false;
+        document.getElementById("btnApply").disabled = true;
+        pendingDocs = [];
+    };
+
+</script>
+</body>
+</html>

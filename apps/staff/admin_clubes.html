@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestão de Clubes · Ciente IE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="../core/authGuard.js"></script>
+  <style>
+    .club-card { transition: box-shadow .15s; }
+    .club-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+    .color-swatch { width:28px;height:28px;border-radius:6px;border:2px solid rgba(0,0,0,.1);flex-shrink:0; }
+    #logoPreview { max-width:80px;max-height:80px;border-radius:10px;object-fit:contain;display:none; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<script type="module" src="../core/authGuard.js"></script>
+<div class="flex-1 p-6 min-w-0 max-w-4xl mx-auto">
+
+  <!-- HEADER -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Gestão de Clubes</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Ciente IE · Administração</p>
+    </div>
+    <div class="flex items-center gap-3">
+    <button id="btnNovoClube"
+      class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+      </svg>
+      Novo Clube
+    </button>
+    <button id="btnLogout"
+      class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-4 py-2 rounded-lg text-sm transition-colors">
+      Sair
+    </button>
+    </div>
+  </div>
+
+  <!-- AVISO ADMIN -->
+  <div id="avisoAdmin" style="display:none"
+    class="mb-5 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-semibold">
+    ⚠️ Acesso restrito a administradores.
+  </div>
+
+  <!-- LISTA DE CLUBES -->
+  <div id="listaClubs" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"></div>
+
+  <!-- SEÇÃO USUÁRIOS -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-bold text-gray-900">Usuários</h2>
+    <button id="btnNovoUsuario"
+      class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
+      </svg>
+      Novo Usuário
+    </button>
+  </div>
+  <div id="listaUsuarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"></div>
+
+</div>
+
+<!-- MODAL CLUBE -->
+<div id="modalClube"
+  class="fixed inset-0 z-50 hidden items-center justify-center"
+  style="background:rgba(0,0,0,.6);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+
+    <div class="flex items-center justify-between mb-5">
+      <h2 id="modalTitulo" class="text-xl font-bold text-gray-900">Novo Clube</h2>
+      <button id="btnFecharModal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+
+    <form id="formClube" class="space-y-4">
+
+      <input type="hidden" id="editandoId"/>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">ID do Clube <span class="text-gray-400 font-normal">(slug único, ex: america_fc)</span></label>
+        <input id="clubId" type="text" required pattern="[a-z0-9_]+"
+          placeholder="america_fc"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+        <p class="text-xs text-gray-400 mt-1">Apenas letras minúsculas, números e underscore. Não pode mudar depois.</p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Nome do Clube</label>
+        <input id="clubNome" type="text" required placeholder="América FC"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Cor Primária</label>
+        <div class="flex items-center gap-3">
+          <input id="clubCor" type="color" value="#2563eb"
+            class="h-10 w-16 rounded cursor-pointer border border-gray-300"/>
+          <span id="clubCorHex" class="text-sm text-gray-500">#2563eb</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Escudo</label>
+        <div class="flex items-center gap-3 mb-2">
+          <!-- Preview -->
+          <div id="logoPreviewBox"
+            style="width:72px;height:72px;border-radius:12px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:#f9fafb;">
+            <img id="logoPreview" style="width:64px;height:64px;object-fit:contain;display:none;"/>
+            <span id="logoPlaceholder" style="font-size:22px;">🏟️</span>
+          </div>
+          <!-- Botão upload -->
+          <div class="flex-1">
+            <label for="clubLogoFile"
+              class="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm px-4 py-2 rounded-lg transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+              </svg>
+              Enviar imagem
+            </label>
+            <input id="clubLogoFile" type="file" accept="image/*" class="hidden"/>
+            <p class="text-xs text-gray-400 mt-1">PNG, SVG ou JPG · máx. 5 MB</p>
+            <button type="button" id="btnRemoverLogo" class="hidden text-xs text-red-400 hover:text-red-600 mt-1">✕ Remover escudo</button>
+          </div>
+        </div>
+        <!-- Campo URL oculto — armazena base64 ou URL externa -->
+        <input id="clubLogoUrl" type="hidden"/>
+      </div>
+
+      <div id="msgErro" class="hidden text-sm text-red-600 font-medium"></div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" id="btnSalvar"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors">
+          Salvar
+        </button>
+        <button type="button" id="btnCancelar"
+          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg transition-colors">
+          Cancelar
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- MODAL USUÁRIO -->
+<div id="modalUsuario"
+  class="fixed inset-0 z-50 hidden items-center justify-center"
+  style="background:rgba(0,0,0,.6);">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-xl font-bold text-gray-900">Novo Usuário</h2>
+      <button id="btnFecharModalUsuario" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <form id="formUsuario" class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
+        <input id="userEmail" type="email" required placeholder="staff@clube.com"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"/>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
+        <input id="userSenha" type="password" required placeholder="mínimo 6 caracteres" minlength="6" autocomplete="new-password"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"/>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Clube</label>
+        <select id="userClubId" required
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          <option value="">Selecione um clube…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+        <select id="userRole"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+          <option value="staff">staff</option>
+          <option value="atleta">atleta</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Team ID <span class="text-gray-400 font-normal">(opcional, ex: principal)</span></label>
+        <input id="userTeamId" type="text" placeholder="principal"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"/>
+      </div>
+      <div id="msgErroUsuario" class="hidden text-sm text-red-600 font-medium"></div>
+      <div id="msgOkUsuario" class="hidden text-sm text-green-600 font-medium"></div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" id="btnSalvarUsuario"
+          class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-colors">
+          Criar Usuário
+        </button>
+        <button type="button" id="btnCancelarUsuario"
+          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg transition-colors">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { auth, db } from '../core/firebase.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+import { getAuth, signOut, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+import {
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy
+} from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+
+// App secundário para criar usuários sem deslogar o admin
+const secondaryApp = getApps().find(a => a.name === 'secondary') ||
+  initializeApp({
+    apiKey: "AIzaSyD9gvY2TtH_MFIqbotCiCse8UFL0V13peI",
+    authDomain: "ciente-inteligencia-espo-cba43.firebaseapp.com",
+    projectId: "ciente-inteligencia-espo-cba43",
+    storageBucket: "ciente-inteligencia-espo-cba43.firebasestorage.app",
+    messagingSenderId: "921319294892",
+    appId: "1:921319294892:web:7a5ff0283abb7323c19c09"
+  }, 'secondary');
+const authSecondary = getAuth(secondaryApp);
+
+// ── Verifica role admin ───────────────────────────────────────────────────────
+const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+if (ctx.role !== 'admin') {
+  document.getElementById('avisoAdmin').style.display = 'block';
+  document.getElementById('btnNovoClube').disabled = true;
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await signOut(auth).catch(() => {});
+  localStorage.removeItem('userContext');
+  window.location.href = '/login.html';
+});
+
+// ── Elementos ─────────────────────────────────────────────────────────────────
+const modalClube      = document.getElementById('modalClube');
+const formClube       = document.getElementById('formClube');
+const listaClubs      = document.getElementById('listaClubs');
+const msgErro         = document.getElementById('msgErro');
+const logoPreview     = document.getElementById('logoPreview');
+const logoPlaceholder = document.getElementById('logoPlaceholder');
+const clubCorInput    = document.getElementById('clubCor');
+const clubCorHex      = document.getElementById('clubCorHex');
+const clubLogoUrl     = document.getElementById('clubLogoUrl');
+const clubLogoFile    = document.getElementById('clubLogoFile');
+const btnRemoverLogo  = document.getElementById('btnRemoverLogo');
+
+// ── Cor preview ───────────────────────────────────────────────────────────────
+clubCorInput.addEventListener('input', () => { clubCorHex.textContent = clubCorInput.value; });
+
+// ── Upload de escudo ──────────────────────────────────────────────────────────
+function mostrarLogo(src) {
+  logoPreview.src = src;
+  logoPreview.style.display = 'block';
+  logoPlaceholder.style.display = 'none';
+  btnRemoverLogo.classList.remove('hidden');
+  clubLogoUrl.value = src;
+}
+function removerLogo() {
+  logoPreview.src = '';
+  logoPreview.style.display = 'none';
+  logoPlaceholder.style.display = 'block';
+  btnRemoverLogo.classList.add('hidden');
+  clubLogoUrl.value = '';
+  clubLogoFile.value = '';
+}
+
+clubLogoFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('Arquivo maior que 5 MB.'); return; }
+  // Converte para base64 preservando transparência (PNG)
+  const reader = new FileReader();
+  reader.onload = (ev) => mostrarLogo(ev.target.result);
+  reader.readAsDataURL(file);
+});
+
+btnRemoverLogo.addEventListener('click', removerLogo);
+
+// ── Abrir/fechar modal ────────────────────────────────────────────────────────
+function abrirModal(clube = null) {
+  document.getElementById('editandoId').value = clube?.id || '';
+  document.getElementById('clubId').value     = clube?.id || '';
+  document.getElementById('clubId').disabled  = !!clube;
+  document.getElementById('clubNome').value   = clube?.name || '';
+  document.getElementById('clubCor').value    = clube?.primaryColor || '#2563eb';
+  clubCorHex.textContent                      = clube?.primaryColor || '#2563eb';
+  if (clube?.logoUrl) { mostrarLogo(clube.logoUrl); } else { removerLogo(); }
+  document.getElementById('modalTitulo').textContent = clube ? 'Editar Clube' : 'Novo Clube';
+  msgErro.classList.add('hidden');
+  modalClube.style.display = 'flex';
+}
+function fecharModal() { modalClube.style.display = 'none'; }
+
+document.getElementById('btnNovoClube').addEventListener('click',  () => abrirModal());
+document.getElementById('btnFecharModal').addEventListener('click', fecharModal);
+document.getElementById('btnCancelar').addEventListener('click',    fecharModal);
+modalClube.addEventListener('click', (e) => { if (e.target === modalClube) fecharModal(); });
+
+// ── Salvar ────────────────────────────────────────────────────────────────────
+formClube.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msgErro.classList.add('hidden');
+
+  const id    = document.getElementById('clubId').value.trim().toLowerCase();
+  const nome  = document.getElementById('clubNome').value.trim();
+  const cor   = document.getElementById('clubCor').value;
+  const logo  = document.getElementById('clubLogoUrl').value.trim();
+  const isNew = !document.getElementById('editandoId').value;
+
+  if (!id || !nome) { msgErro.textContent = 'Preencha ID e nome.'; msgErro.classList.remove('hidden'); return; }
+  if (!/^[a-z0-9_]+$/.test(id)) { msgErro.textContent = 'ID inválido (apenas letras minúsculas, números e _).'; msgErro.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('btnSalvar');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+
+  try {
+    const payload = {
+      name:         nome,
+      primaryColor: cor,
+      logoUrl:      logo || null,
+      active:       true,
+    };
+    if (isNew) {
+      // Verifica se já existe
+      const exists = await getDoc(doc(db, 'clubs', id));
+      if (exists.exists()) { throw new Error('ID "' + id + '" já está em uso.'); }
+      payload.createdAt = serverTimestamp();
+      await setDoc(doc(db, 'clubs', id), payload);
+    } else {
+      await updateDoc(doc(db, 'clubs', id), { ...payload, updatedAt: serverTimestamp() });
+    }
+    fecharModal();
+    carregarClubes();
+  } catch(err) {
+    msgErro.textContent = err.message || 'Erro ao salvar.';
+    msgErro.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar';
+  }
+});
+
+// ── Carregar lista ────────────────────────────────────────────────────────────
+async function carregarClubes() {
+  listaClubs.innerHTML = '<p class="text-gray-400 text-sm col-span-3">Carregando…</p>';
+  try {
+    const snap = await getDocs(collection(db, 'clubs'));
+    if (snap.empty) {
+      listaClubs.innerHTML = '<p class="text-gray-400 text-sm col-span-3">Nenhum clube cadastrado ainda.</p>';
+      return;
+    }
+    listaClubs.innerHTML = '';
+    snap.forEach(d => {
+      const c = { id: d.id, ...d.data() };
+      const card = document.createElement('div');
+      card.className = 'club-card bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-4';
+      card.innerHTML = `
+        <div style="width:52px;height:52px;border-radius:10px;background:${c.primaryColor||'#2563eb'}20;border:2px solid ${c.primaryColor||'#2563eb'}40;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+          ${c.logoUrl
+            ? `<img src="${c.logoUrl}" style="width:44px;height:44px;object-fit:contain;" onerror="this.style.display='none'">`
+            : `<span style="font-size:18px;font-weight:900;color:${c.primaryColor||'#2563eb'};">${(c.name||'?').substring(0,2).toUpperCase()}</span>`
+          }
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="font-bold text-gray-900 text-base">${c.name || '<span class="text-gray-400 italic">sem nome</span>'}</span>
+            ${c.active ? '<span class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Ativo</span>' : ''}
+          </div>
+          <div class="text-xs text-gray-400 font-mono">${c.id}</div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            <div class="color-swatch" style="background:${c.primaryColor||'#2563eb'};"></div>
+            <span class="text-xs text-gray-500">${c.primaryColor||'—'}</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <button data-id="${c.id}" class="btn-editar text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap">Editar</button>
+          <button data-id="${c.id}" class="btn-excluir text-xs text-red-400 hover:text-red-600 font-semibold whitespace-nowrap">Excluir</button>
+        </div>
+      `;
+      listaClubs.appendChild(card);
+    });
+
+    // Listeners de edição
+    listaClubs.querySelectorAll('.btn-editar').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const d  = await getDoc(doc(db, 'clubs', id));
+        if (d.exists()) abrirModal({ id: d.id, ...d.data() });
+      });
+    });
+
+    // Listeners de exclusão
+    listaClubs.querySelectorAll('.btn-excluir').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        if (!confirm(`Excluir o clube "${id}"?\n\nEsta ação não pode ser desfeita.`)) return;
+        try {
+          await deleteDoc(doc(db, 'clubs', id));
+          carregarClubes();
+        } catch(err) {
+          alert('Erro ao excluir: ' + err.message);
+        }
+      });
+    });
+  } catch(err) {
+    listaClubs.innerHTML = `<p class="text-red-500 text-sm col-span-3">Erro: ${err.message}</p>`;
+  }
+}
+
+carregarClubes();
+
+// ── Modal Usuário ─────────────────────────────────────────────────────────────
+const modalUsuario    = document.getElementById('modalUsuario');
+const formUsuario     = document.getElementById('formUsuario');
+const msgErroUsuario  = document.getElementById('msgErroUsuario');
+const msgOkUsuario    = document.getElementById('msgOkUsuario');
+const selectClubId    = document.getElementById('userClubId');
+
+function abrirModalUsuario() {
+  formUsuario.reset();
+  msgErroUsuario.classList.add('hidden');
+  msgOkUsuario.classList.add('hidden');
+  // Popula select de clubes
+  selectClubId.innerHTML = '<option value="">Selecione um clube…</option>';
+  getDocs(collection(db, 'clubs')).then(snap => {
+    snap.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = `${d.data().name} (${d.id})`;
+      selectClubId.appendChild(opt);
+    });
+  });
+  modalUsuario.style.display = 'flex';
+}
+function fecharModalUsuario() { modalUsuario.style.display = 'none'; }
+
+document.getElementById('btnNovoUsuario').addEventListener('click', () => {
+  if (ctx.role !== 'admin') { alert('Acesso restrito a administradores.'); return; }
+  abrirModalUsuario();
+});
+document.getElementById('btnFecharModalUsuario').addEventListener('click', fecharModalUsuario);
+document.getElementById('btnCancelarUsuario').addEventListener('click', fecharModalUsuario);
+modalUsuario.addEventListener('click', (e) => { if (e.target === modalUsuario) fecharModalUsuario(); });
+
+formUsuario.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msgErroUsuario.classList.add('hidden');
+  msgOkUsuario.classList.add('hidden');
+
+  const email  = document.getElementById('userEmail').value.trim();
+  const senha  = document.getElementById('userSenha').value;
+  const clubId = document.getElementById('userClubId').value;
+  const role   = document.getElementById('userRole').value;
+  const teamId = document.getElementById('userTeamId').value.trim() || 'principal';
+
+  if (!clubId) {
+    msgErroUsuario.textContent = 'Selecione um clube.';
+    msgErroUsuario.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('btnSalvarUsuario');
+  btn.disabled = true; btn.textContent = 'Criando…';
+
+  try {
+    // Cria o usuário no Firebase Auth via app secundário (não desloga o admin)
+    const cred = await createUserWithEmailAndPassword(authSecondary, email, senha);
+    const uid  = cred.user.uid;
+
+    // Deslogado do app secundário imediatamente
+    await signOut(authSecondary);
+
+    // Cria o doc em users/{uid} no Firestore
+    await setDoc(doc(db, 'users', uid), { role, clubId, teamId, email, createdAt: serverTimestamp() });
+
+    msgOkUsuario.textContent = `Usuário criado com sucesso! UID: ${uid}`;
+    msgOkUsuario.classList.remove('hidden');
+    formUsuario.reset();
+    carregarUsuarios();
+  } catch(err) {
+    const msgs = {
+      'auth/email-already-in-use': 'E-mail já cadastrado.',
+      'auth/invalid-email':        'E-mail inválido.',
+      'auth/weak-password':        'Senha muito fraca (mínimo 6 caracteres).',
+    };
+    msgErroUsuario.textContent = msgs[err.code] || err.message;
+    msgErroUsuario.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Criar Usuário';
+  }
+});
+
+// ── Lista de usuários ─────────────────────────────────────────────────────────
+async function carregarUsuarios() {
+  const lista = document.getElementById('listaUsuarios');
+  lista.innerHTML = '<p class="text-gray-400 text-sm col-span-3">Carregando…</p>';
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    if (snap.empty) {
+      lista.innerHTML = '<p class="text-gray-400 text-sm col-span-3">Nenhum usuário cadastrado.</p>';
+      return;
+    }
+    lista.innerHTML = '';
+    snap.forEach(d => {
+      const u = d.data();
+      const card = document.createElement('div');
+      card.className = 'bg-white border border-gray-200 rounded-xl p-4';
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-semibold text-gray-900 text-sm truncate">${u.email || '<span class="text-gray-400 italic">sem e-mail</span>'}</div>
+            <div class="text-xs text-gray-400 font-mono mt-0.5">${d.id}</div>
+            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : u.role === 'atleta' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">${u.role || '—'}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">${u.clubId || '—'}</span>
+              ${u.teamId ? `<span class="text-xs text-gray-400">${u.teamId}</span>` : ''}
+            </div>
+          </div>
+          <button data-uid="${d.id}" class="btn-excluir-user text-xs text-red-400 hover:text-red-600 font-semibold whitespace-nowrap flex-shrink-0">Excluir</button>
+        </div>
+      `;
+      lista.appendChild(card);
+    });
+
+    lista.querySelectorAll('.btn-excluir-user').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const uid = btn.dataset.uid;
+        if (!confirm(`Excluir usuário ${uid}?\n\nIsso remove apenas o registro do Firestore. O acesso ao Auth precisa ser revogado no Firebase Console.`)) return;
+        try {
+          await deleteDoc(doc(db, 'users', uid));
+          carregarUsuarios();
+        } catch(err) {
+          alert('Erro ao excluir: ' + err.message);
+        }
+      });
+    });
+  } catch(err) {
+    lista.innerHTML = `<p class="text-red-500 text-sm col-span-3">Erro: ${err.message}</p>`;
+  }
+}
+
+carregarUsuarios();
+</script>
+
+</body>
+</html>

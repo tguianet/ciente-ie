@@ -1,0 +1,2417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GPS Data · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="/core/authGuard.js"></script>
+  <style>
+    /* Barra de progresso inline */
+    .bar-cell { position:relative; background:#e2e8f0; border-radius:5px; height:26px; min-width:90px; overflow:hidden; }
+    .bar-fill  { height:100%; border-radius:5px; opacity:0.85; transition: width .3s ease; }
+    .bar-label {
+      position:absolute; inset:0;
+      display:flex; align-items:center; padding:0 8px;
+      color:#fff; font-size:11px; font-weight:600; white-space:nowrap;
+      text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+    th.sortable { cursor:pointer; user-select:none; }
+    th.sortable:hover { background:#f9fafb; }
+    th.sorted { color:#0891b2; }
+    /* Modal atleta */
+    #atletaModal { display:none; position:fixed; inset:0; z-index:100;
+      background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
+    #atletaModal.open { display:flex; }
+    #modalBox {
+      background:#fff; border-radius:16px; padding:28px;
+      max-width:820px; width:95%; max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,.25);
+    }
+    #modalBody {
+      display:grid; grid-template-columns:1fr 1fr; gap:0 24px;
+    }
+    #modalBody .modal-nota {
+      grid-column: 1 / -1;
+    }
+    /* Modal relatório */
+    #relatorioModal { display:none; position:fixed; inset:0; z-index:200;
+      background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
+    #relatorioModal.open { display:flex; }
+    .rel-tipo-btn, .rel-grupo-btn { padding:6px 14px; border-radius:8px; border:1.5px solid #e2e8f0;
+      font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; color:#64748b; background:#fff; }
+    .rel-tipo-btn.ativo { border-color:#0891b2; background:#ecfeff; color:#0891b2; }
+    .rel-grupo-btn.ativo { border-color:#7c3aed; background:#f5f3ff; color:#7c3aed; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-bold text-gray-900">GPS Data</h1>
+          <p class="text-sm text-gray-500 mt-0.5">Carga externa por sessão</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="btnRelatorioGPS"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg transition-colors">
+            Relatório GPS
+          </button>
+          <a href="/staff/gps_upload.html"
+            class="text-sm font-medium text-cyan-600 hover:text-cyan-700">
+            ↑ Importar dados GPS
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Acesso negado -->
+    <div id="accessDenied" style="display:none;"
+      class="flex-1 flex items-center justify-center text-gray-400 text-sm">
+      Módulo GPS não disponível para este clube.
+    </div>
+
+    <!-- Loading inicial -->
+    <div id="loadingState" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <div class="w-8 h-8 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p class="text-sm text-gray-400">Carregando sessões GPS...</p>
+      </div>
+    </div>
+
+    <!-- Estado vazio -->
+    <div id="emptyState" style="display:none;"
+      class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="text-gray-400" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+          </svg>
+        </div>
+        <h3 class="text-gray-700 font-semibold mb-1">Nenhuma sessão GPS importada</h3>
+        <p class="text-sm text-gray-400 mb-4">Faça o upload do export do seu GPS para visualizar os dados aqui.</p>
+        <a href="/staff/gps_upload.html"
+          class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg">
+          Importar Dados GPS
+        </a>
+      </div>
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div id="mainContent" style="display:none;" class="flex-1 px-6 py-5">
+
+      <!-- Filtros -->
+      <div class="flex flex-wrap items-center gap-3 mb-5">
+        <select id="sessaoSelect"
+          class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
+        </select>
+
+        <!-- Toggle Sessão / Semana / Jogos -->
+        <div class="flex bg-gray-100 rounded-lg p-0.5 text-sm font-medium">
+          <button id="btnSessao"
+            class="px-3 py-1.5 rounded-md bg-white shadow-sm text-gray-900 transition-all">
+            Sessões
+          </button>
+          <button id="btnSemana"
+            class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-700 transition-all">
+            Acumulado Por Semana
+          </button>
+          <button id="btnJogos"
+            class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-700 transition-all">
+            Acumulado Jogos
+          </button>
+        </div>
+
+        <span id="fonteTag"
+          class="px-2 py-1 bg-slate-100 text-slate-500 text-xs rounded-full font-medium ml-auto">
+        </span>
+      </div>
+
+      <!-- Filtro por jogo -->
+      <div id="jogoFiltroRow" style="display:none;" class="flex flex-wrap items-center gap-3 mb-5">
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jogo</span>
+        <select id="jogoSelect"
+          class="border border-amber-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+          <option value="">Selecionar jogo…</option>
+        </select>
+        <span class="text-xs text-gray-400">Selecione para ver os dados individuais do jogo</span>
+      </div>
+
+      <!-- Filtros de grupo + atleta -->
+      <div class="flex flex-wrap items-center gap-3 mb-5">
+        <div id="grupoPills" class="flex flex-wrap gap-2"></div>
+        <select id="filtroAtletaSelect"
+          class="ml-auto pl-3 pr-8 py-1.5 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white">
+          <option value="">Todos atletas</option>
+        </select>
+      </div>
+
+      <!-- Aviso: atletas pendentes -->
+      <div id="pendentesAviso" style="display:none;"
+        class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+        <svg class="text-amber-500 flex-shrink-0" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span id="pendentesMsg" class="text-sm text-amber-700"></span>
+        <a href="/staff/gps_upload.html" class="ml-auto text-xs text-amber-700 underline hover:text-amber-900">Corrigir →</a>
+      </div>
+
+      <!-- Cards de resumo -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div id="cardDistBtn" class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all select-none"
+             onclick="toggleGraficoGPS('distanciaTotal','Dist. Total','#1e40af','m')">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Dist. Média</p>
+          <p id="cardDist" class="text-2xl font-bold text-gray-900">—</p>
+          <p class="text-xs text-gray-400 mt-0.5">metros · clique para histórico</p>
+        </div>
+        <div id="cardHSRBtn" class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all select-none"
+             onclick="toggleGraficoGPS('distanciaAltaVelocidade','HSR (Alta Vel.)','#7c3aed','m')">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">HSR Médio</p>
+          <p id="cardHSR" class="text-2xl font-bold text-gray-900">—</p>
+          <p class="text-xs text-gray-400 mt-0.5">metros · clique para histórico</p>
+        </div>
+        <div id="cardDistSprintBtn" class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all select-none"
+             onclick="toggleGraficoGPS('distanciaPorMin','Dist. Total M/min','#3b82f6','m/min')">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Dist. Total M/min</p>
+          <p id="cardDistSprint" class="text-2xl font-bold text-gray-900">—</p>
+          <p class="text-xs text-gray-400 mt-0.5">m/min · clique para histórico</p>
+        </div>
+        <div id="cardVelBtn" class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all select-none"
+             onclick="toggleGraficoGPS('altaDistMMin','Dist. Alta M/min','#dc2626','m/min')">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">Dist. Alta M/min</p>
+          <p id="cardVelMax" class="text-2xl font-bold text-gray-900">—</p>
+          <p class="text-xs text-gray-400 mt-0.5">m/min · clique para histórico</p>
+        </div>
+
+        <!-- Painel de gráfico — ocupa linha inteira -->
+        <div id="graficoGPSCard" class="col-span-2 md:col-span-4 hidden bg-white rounded-xl border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <p id="graficoGPSTitulo" class="text-sm font-bold text-gray-700"></p>
+            <button onclick="fecharGraficoGPS()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+          </div>
+          <div style="height:180px;position:relative;">
+            <canvas id="graficoGPSCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela 1: Atletas individuais -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
+        <div class="px-4 py-2.5 border-b border-gray-100">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Atletas</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="gpsTable">
+            <thead>
+              <tr class="border-b border-gray-200 bg-gray-50">
+                <th class="text-left px-4 py-3 text-gray-600 font-semibold text-xs uppercase tracking-wider">Atleta</th>
+                <th class="sortable px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider" data-col="distanciaTotal">Dist. Total ↕</th>
+                <th class="sortable px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider" data-col="distanciaAltaVelocidade">HSR ↕</th>
+                <th class="sortable px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider" data-col="distanciaPorMin">Dist. Total M/min ↕</th>
+                <th class="sortable px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider" data-col="altaDistMMin">Dist. Alta M/min ↕</th>
+                <th class="sortable px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider" data-col="cargaExterna">Carga Externa ↕</th>
+              </tr>
+            </thead>
+            <tbody id="gpsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabela 2: Médias por posição -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-gray-100">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Médias por Posição</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="gpsPosicaoTable">
+            <thead>
+              <tr class="border-b border-gray-200 bg-gray-50">
+                <th class="text-left px-4 py-3 text-gray-600 font-semibold text-xs uppercase tracking-wider">Posição</th>
+                <th class="px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider">Dist. Total</th>
+                <th class="px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider">HSR</th>
+                <th class="px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider">M/min</th>
+                <th class="px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider">Dist. Alta M/min</th>
+                <th class="px-3 py-3 text-left text-gray-600 font-semibold text-xs uppercase tracking-wider">Carga Externa</th>
+              </tr>
+            </thead>
+            <tbody id="gpsPosicaoBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pendentes de vinculação (seção separada) -->
+      <div id="pendentesSection" style="display:none;" class="mt-4">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          Pendentes de vinculação
+        </h3>
+        <div id="pendentesBody" class="space-y-1"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Modal de Relatório GPS ──────────────────────────────── -->
+  <div id="relatorioModal">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-gray-900">Relatório GPS</h2>
+        <button id="relatorioModalClose" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tipo de relatório</p>
+        <div class="flex gap-2 flex-wrap">
+          <button class="rel-tipo-btn ativo" data-tipo="sessao">Sessão</button>
+          <button class="rel-tipo-btn" data-tipo="jogos">Jogos</button>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Filtrar por grupo</p>
+        <div class="flex gap-2 flex-wrap">
+          <button class="rel-grupo-btn ativo" data-grupo="">Todos</button>
+          <button class="rel-grupo-btn" data-grupo="Geral">Geral</button>
+          <button class="rel-grupo-btn" data-grupo="G1">G1</button>
+          <button class="rel-grupo-btn" data-grupo="G2">G2</button>
+          <button class="rel-grupo-btn" data-grupo="G3">G3</button>
+          <button class="rel-grupo-btn" data-grupo="G4">G4</button>
+          <button class="rel-grupo-btn" data-grupo="Transição - RTP">Transição - RTP</button>
+          <button class="rel-grupo-btn" data-grupo="Restrição">Restrição</button>
+        </div>
+      </div>
+
+      <div class="mb-5 p-3 bg-gray-50 rounded-lg">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Escopo ativo</p>
+        <p id="relatorioEscopo" class="text-sm text-gray-700"></p>
+      </div>
+
+      <div id="relatorioStatus" class="hidden mb-4 text-sm text-center text-gray-500">
+        <div class="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+        Gerando PDF…
+      </div>
+
+      <button id="btnGerarPDF"
+        class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg text-sm transition-colors">
+        Gerar PDF
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ── Modal de atleta ──────────────────────────────────────── -->
+  <div id="atletaModal">
+    <div id="modalBox">
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex-1 min-w-0">
+          <h2 id="modalNome" class="text-lg font-bold text-gray-900"></h2>
+          <p id="modalSessao" class="text-sm text-gray-500 mt-0.5"></p>
+          <div id="modalBadges" class="flex flex-wrap gap-2 mt-2"></div>
+        </div>
+        <button id="modalClose"
+          class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0 ml-4">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <!-- Tabs -->
+      <div id="modalTabs" class="flex gap-0 mt-3 mb-4 border-b border-gray-100">
+        <button id="tabResumo"
+          onclick="switchModalTab('resumo')"
+          class="px-4 py-2 text-xs font-semibold border-b-2 border-blue-500 text-blue-600 -mb-px transition-all">
+          Resumo
+        </button>
+        <button id="tabEvo"
+          onclick="switchModalTab('evo')"
+          class="px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition-all">
+          Evolução
+        </button>
+      </div>
+      <div id="modalBody"></div>
+      <div id="modalEvo" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      listarSessoesGPS, buscarAtletasDoClube, buscarDatasJogo, buscarScoutPartidas
+    } from '/core/gps.service.js';
+    import { db } from '/core/firebase.js';
+    import {
+      collection, getDocs, query, where
+    } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+
+    const CLUBES_COM_GPS = ['america_fc', 'ponte_preta'];
+
+    // ── Estado ──────────────────────────────────────────────────
+    const POSICOES = ['Goleiro','Lateral','Zagueiro','Volante','Meia','Ponta','Centro-Avante'];
+    const POSICAO_PLURAL = {
+      'Goleiro':       'Goleiros',
+      'Lateral':       'Laterais',
+      'Zagueiro':      'Zagueiros',
+      'Volante':       'Volantes',
+      'Meia':          'Meias',
+      'Ponta':         'Pontas',
+      'Centro-Avante': 'Centro-Avantes',
+    };
+
+    let clubId         = null;
+    let todasSessoes   = [];       // [{ id: 'YYYY-MM-DD', gps: {...} }]
+    let atletasMap     = {};       // { atletaId: { nome, ... } }
+    let sessaoId       = null;
+    let visualizacao   = 'sessao'; // 'sessao' | 'semana' | 'jogos'
+    let datasJogo      = new Set();
+    let scoutPartidas  = [];       // para cálculo de minutagem
+    let grupoFiltroMain = ''; // grupo do planejamento selecionado no filtro da tabela
+    let atletaFiltro   = '';
+    let planningGruposAtleta = {}; // athleteId → grupo do planejamento na data da sessão
+    let sortCol = 'distanciaTotal';
+    let sortDir = 'desc';
+
+    function isJogoSessao(s) {
+      return s.gps?.tipoSessao === 'jogo'
+          || (s.gps?.porAtleta?.[0]?.tipoSessao === 'jogo')
+          || datasJogo.has(s.id);
+    }
+    let dmDiaMap    = {};  // { atletaId: dm } para a data da sessão selecionada
+    let dmHistorico = [];  // daily_metrics dos últimos 30 dias (para ISP)
+
+    // ── Helpers IGP/ISP ─────────────────────────────────────────
+    function _calcIH(hooper) {
+      if (hooper == null) return null;
+      return Math.max(0, Math.min(100, Math.round(100 - ((hooper - 4) / 24) * 100)));
+    }
+    function _calcIA(lnRR) {
+      if (lnRR == null) return null;
+      const pts = [[1.5,5],[2.5,35],[3.0,50],[3.5,65],[4.0,80],[4.5,92],[5.5,98]];
+      if (lnRR <= pts[0][0]) return pts[0][1];
+      if (lnRR >= pts[pts.length-1][0]) return pts[pts.length-1][1];
+      for (let i = 1; i < pts.length; i++) {
+        if (lnRR <= pts[i][0]) {
+          const t = (lnRR - pts[i-1][0]) / (pts[i][0] - pts[i-1][0]);
+          return Math.round(pts[i-1][1] + t * (pts[i][1] - pts[i-1][1]));
+        }
+      }
+      return 65;
+    }
+    function _calcINM(salto) {
+      if (salto == null) return null;
+      const pts = [[10,10],[20,30],[30,50],[35,60],[40,70],[45,80],[50,88],[60,97]];
+      if (salto <= pts[0][0]) return pts[0][1];
+      if (salto >= pts[pts.length-1][0]) return pts[pts.length-1][1];
+      for (let i = 1; i < pts.length; i++) {
+        if (salto <= pts[i][0]) {
+          const t = (salto - pts[i-1][0]) / (pts[i][0] - pts[i-1][0]);
+          return Math.round(pts[i-1][1] + t * (pts[i][1] - pts[i-1][1]));
+        }
+      }
+      return 50;
+    }
+    function calcIGPdm(dm) {
+      const IH  = _calcIH(dm?.pre?.hooper ?? null);
+      const IA  = dm?.hrv?.score != null
+        ? Math.round(Math.max(0, Math.min(100, dm.hrv.score)))
+        : _calcIA(dm?.hrv?.lnRR ?? null);
+      const INM = _calcINM(dm?.pre?.salto ?? null);
+      const IC  = dm?.neuro?.score != null
+        ? Math.round(Math.max(0, Math.min(100, dm.neuro.score)))
+        : null;
+      const scores = [IH, IA, INM, IC].filter(s => s != null);
+      if (!scores.length) return null;
+      const media = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const pior  = Math.max(Math.min(...scores), 30);
+      return Math.max(0, Math.min(100, Math.round(media * 0.8 + pior * 0.2)));
+    }
+    function classifyIGP(v) {
+      if (v == null) return null;
+      if (v >= 70) return { label: 'Estável',       cor: '#15803d', bg: '#dcfce7' };
+      if (v >= 60) return { label: 'Atenção Leve',  cor: '#b45309', bg: '#fef9c3' };
+      if (v >= 50) return { label: 'Atenção',       cor: '#c2410c', bg: '#ffedd5' };
+      return             { label: 'Crítico',        cor: '#b91c1c', bg: '#fee2e2' };
+    }
+    function calcISP(atletaId, dmDia) {
+      if (!dmDia) return null;
+      const hist = dmHistorico
+        .filter(d => d.athleteId === atletaId)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-21);
+      const vals = hist.map(d => calcIGPdm(d)).filter(v => v != null);
+      if (vals.length < 5) return null;
+      const basal = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const igpHoje = calcIGPdm(dmDia);
+      if (igpHoje == null) return null;
+      return Math.max(0, Math.min(100, Math.round(igpHoje * 0.7 + basal * 0.3)));
+    }
+    function classifyISP(v) {
+      if (v == null) return null;
+      if (v >= 70) return { label: 'Alto',         cor: '#15803d', bg: '#dcfce7' };
+      if (v >= 50) return { label: 'Regular',      cor: '#b45309', bg: '#fef9c3' };
+      if (v >= 35) return { label: 'Limitado',     cor: '#c2410c', bg: '#ffedd5' };
+      return             { label: 'Insuficiente',  cor: '#b91c1c', bg: '#fee2e2' };
+    }
+
+    // ── Init ────────────────────────────────────────────────────
+    async function init() {
+      const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+      clubId = ctx.clubId;
+
+      if (!CLUBES_COM_GPS.includes(clubId)) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('accessDenied').style.display = 'flex';
+        return;
+      }
+
+      try {
+        const [sessoes, atletas, datas, partidas] = await Promise.all([
+          listarSessoesGPS(clubId),
+          buscarAtletasDoClube(clubId),
+          buscarDatasJogo(clubId),
+          buscarScoutPartidas(clubId),
+        ]);
+        datasJogo = datas;
+        scoutPartidas = partidas;
+
+        atletasMap = Object.fromEntries(atletas.map(a => [a.id, a]));
+        todasSessoes = sessoes;
+
+        document.getElementById('loadingState').style.display = 'none';
+
+        if (!sessoes.length) {
+          document.getElementById('emptyState').style.display = 'flex';
+          return;
+        }
+
+        document.getElementById('mainContent').style.display = 'block';
+        renderSessaoDropdown();
+        renderJogoSelect();
+        sessaoId = sessoes[0].id;
+        document.getElementById('sessaoSelect').value = sessaoId;
+        renderGrupoPills();
+        renderAtletaSelect();
+        renderizarDados();
+        setupEventos();
+        carregarDailyMetrics(sessaoId);
+
+      } catch (err) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'flex';
+        console.error('Erro ao carregar GPS:', err);
+      }
+    }
+
+    async function carregarDailyMetrics(data) {
+      try {
+        const d30 = new Date(data + 'T00:00:00Z');
+        d30.setUTCDate(d30.getUTCDate() - 30);
+        const d30str = d30.toISOString().slice(0, 10);
+        const [diaSnap, histSnap, grupoSnap] = await Promise.all([
+          getDocs(query(collection(db,'daily_metrics'), where('clubId','==',clubId), where('date','==',data))),
+          getDocs(query(collection(db,'daily_metrics'), where('clubId','==',clubId), where('date','>=',d30str), where('date','<',data))),
+          getDocs(query(collection(db,'athlete_sessions'), where('clubId','==',clubId), where('date','==',data))),
+        ]);
+        dmDiaMap = {};
+        diaSnap.docs.forEach(d => {
+          const v = d.data();
+          if (v.athleteId) dmDiaMap[v.athleteId] = v;
+        });
+        dmHistorico = histSnap.docs.map(d => d.data());
+        planningGruposAtleta = {};
+        grupoSnap.docs.forEach(d => {
+          const v = d.data();
+          if (v.athleteId && v.grupo) planningGruposAtleta[v.athleteId] = v.grupo;
+        });
+        grupoFiltroMain = '';
+        renderGrupoPills();
+      } catch(e) {
+        console.warn('carregarDailyMetrics:', e);
+      }
+    }
+
+    function setupEventos() {
+      document.getElementById('sessaoSelect').addEventListener('change', e => {
+        sessaoId = e.target.value;
+        renderizarDados();
+        carregarDailyMetrics(sessaoId);
+      });
+
+      document.getElementById('btnSessao').addEventListener('click', () => {
+        visualizacao = 'sessao';
+        setToggleAtivo('btnSessao');
+        renderizarDados();
+      });
+
+      document.getElementById('btnSemana').addEventListener('click', () => {
+        visualizacao = 'semana';
+        setToggleAtivo('btnSemana');
+        renderizarDados();
+      });
+
+      document.getElementById('btnJogos').addEventListener('click', () => {
+        visualizacao = 'jogos';
+        setToggleAtivo('btnJogos');
+        renderizarDados();
+      });
+
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          if (sortCol === col) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+          else { sortCol = col; sortDir = 'desc'; }
+          document.querySelectorAll('th.sortable').forEach(t => t.classList.remove('sorted'));
+          th.classList.add('sorted');
+          renderTabela(dadosAtivos());
+        });
+      });
+
+      document.getElementById('filtroAtletaSelect').addEventListener('change', (e) => {
+        atletaFiltro = e.target.value;
+        renderizarDados();
+      });
+
+
+      document.getElementById('jogoSelect').addEventListener('change', e => {
+        const data = e.target.value;
+        if (!data) return;
+        sessaoId = data;
+        visualizacao = 'sessao';
+        setToggleAtivo('btnSessao');
+        document.getElementById('sessaoSelect').value = sessaoId;
+        renderizarDados();
+        carregarDailyMetrics(sessaoId);
+      });
+
+      document.getElementById('modalClose').addEventListener('click', fecharModal);
+      document.getElementById('atletaModal').addEventListener('click', e => {
+        if (e.target === document.getElementById('atletaModal')) fecharModal();
+      });
+
+      document.getElementById('btnRelatorioGPS').addEventListener('click', abrirModalRelatorio);
+      document.getElementById('relatorioModalClose').addEventListener('click', () => {
+        document.getElementById('relatorioModal').classList.remove('open');
+      });
+      document.getElementById('relatorioModal').addEventListener('click', e => {
+        if (e.target === document.getElementById('relatorioModal'))
+          document.getElementById('relatorioModal').classList.remove('open');
+      });
+      document.querySelectorAll('.rel-tipo-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.rel-tipo-btn').forEach(b => b.classList.remove('ativo'));
+          btn.classList.add('ativo');
+        });
+      });
+      document.querySelectorAll('.rel-grupo-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.rel-grupo-btn').forEach(b => b.classList.remove('ativo'));
+          btn.classList.add('ativo');
+        });
+      });
+      document.getElementById('btnGerarPDF').addEventListener('click', gerarPDFRelatorio);
+    }
+
+    // ── Pills de grupo do planejamento ──────────────────────────
+    const GRUPOS_PLANEJAMENTO = ['Geral','G1','G2','G3','G4','Transição - RTP','Restrição'];
+
+    function renderGrupoPills() {
+      const container = document.getElementById('grupoPills');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const opcoes = ['', ...GRUPOS_PLANEJAMENTO];
+      for (const g of opcoes) {
+        const btn = document.createElement('button');
+        btn.textContent = g || 'Todos';
+        btn.dataset.grupo = g;
+        btn.className = grupoFiltroMain === g
+          ? 'px-3 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white transition-all'
+          : 'px-3 py-1 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-all';
+        btn.addEventListener('click', () => {
+          grupoFiltroMain = g;
+          renderGrupoPills();
+          renderizarDados();
+        });
+        container.appendChild(btn);
+      }
+    }
+
+    // ── Dropdown de sessões ─────────────────────────────────────
+    function renderSessaoDropdown() {
+      const sel = document.getElementById('sessaoSelect');
+      sel.innerHTML = '';
+      for (const s of todasSessoes) {
+        const d    = s.id;
+        const n    = s.gps?.porAtleta?.length ?? 0;
+        const orig = s.gps?.origem ?? '';
+        const opt  = new Option(
+          `${fmtData(d)} · ${n} atletas · ${orig}`,
+          d
+        );
+        sel.appendChild(opt);
+      }
+    }
+
+    // ── Select de atletas ───────────────────────────────────────
+    function renderAtletaSelect() {
+      const sel = document.getElementById('filtroAtletaSelect');
+      const atletaIds = new Set();
+      todasSessoes.forEach(s =>
+        (s.gps?.porAtleta || []).forEach(a => { if (a.atletaId) atletaIds.add(a.atletaId); })
+      );
+      const lista = [...atletaIds]
+        .map(id => ({ id, nome: atletasMap[id]?.nome || id }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      sel.innerHTML = '<option value="">Todos atletas</option>';
+      lista.forEach(a => sel.appendChild(new Option(a.nome, a.id)));
+    }
+
+    // ── Dropdown de jogos ───────────────────────────────────────
+    function renderJogoSelect() {
+      const sel = document.getElementById('jogoSelect');
+      const row = document.getElementById('jogoFiltroRow');
+      const sessoesDejogo = todasSessoes.filter(s => isJogoSessao(s))
+        .sort((a, b) => b.id.localeCompare(a.id));
+
+      if (!sessoesDejogo.length) {
+        row.style.display = 'none';
+        return;
+      }
+
+      row.style.display = 'flex';
+      sel.innerHTML = '<option value="">Selecionar jogo…</option>';
+      for (const s of sessoesDejogo) {
+        const n = s.gps?.porAtleta?.length ?? 0;
+        sel.appendChild(new Option(`${fmtData(s.id)} · ${n} atletas`, s.id));
+      }
+    }
+
+    // ── Helper: destaca botão ativo no toggle ───────────────────
+    function setToggleAtivo(id) {
+      ['btnSessao','btnSemana','btnJogos'].forEach(b => {
+        document.getElementById(b).className = b === id
+          ? 'px-3 py-1.5 rounded-md bg-white shadow-sm text-gray-900 transition-all'
+          : 'px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-700 transition-all';
+      });
+    }
+
+    // ── Dados a exibir (sessão única, semana ou jogos) ──────────
+    function dadosAtivos() {
+      const sessao = todasSessoes.find(s => s.id === sessaoId);
+      if (!sessao) return [];
+      if (visualizacao === 'semana') return acumularSemana(sessaoId);
+      if (visualizacao === 'jogos')  return acumularJogos();
+      return sessao.gps?.porAtleta || [];
+    }
+
+    function acumularJogos() {
+      const sessoesJogo = todasSessoes.filter(s => isJogoSessao(s));
+      const acc = {};
+
+      for (const s of sessoesJogo) {
+        for (const a of (s.gps?.porAtleta || [])) {
+          const key = a.atletaId || ('_' + a.nomeOriginalArquivo);
+          if (!acc[key]) {
+            acc[key] = {
+              atletaId: a.atletaId,
+              nomeOriginalArquivo: a.nomeOriginalArquivo,
+              distanciaTotal:          0,
+              distanciaAltaVelocidade: 0,
+              distanciaPorMin:         0,
+              altaDistMMin:            0,
+              _distPorMinCount:        0,
+              _altaDistCount:          0,
+              cargaExterna:            null,
+              duracaoMin:              0,
+              _sessoes:                0,
+            };
+          }
+          const r = acc[key];
+          r.distanciaTotal          += a.distanciaTotal          || 0;
+          r.distanciaAltaVelocidade += a.distanciaAltaVelocidade || 0;
+          if (a.distanciaPorMin != null && a.distanciaPorMin > 0) { r.distanciaPorMin += a.distanciaPorMin; r._distPorMinCount++; }
+          if (a.altaDistMMin    != null && a.altaDistMMin > 0)    { r.altaDistMMin    += a.altaDistMMin;    r._altaDistCount++; }
+          r.duracaoMin              += a.duracaoMin              || 0;
+          if (a.cargaExterna?.valor) {
+            r.cargaExterna = r.cargaExterna
+              ? { tipo: a.cargaExterna.tipo, valor: r.cargaExterna.valor + a.cargaExterna.valor }
+              : { ...a.cargaExterna };
+          }
+          r._sessoes++;
+        }
+      }
+
+      return Object.values(acc);
+    }
+
+    function acumularSemana(refDate) {
+      const inicio = semanaInicio(refDate);
+      const fim    = semanaFim(inicio);
+
+      const sessoesNaSemana = todasSessoes.filter(s => s.id >= inicio && s.id <= fim);
+      const acc = {}; // atletaId → dados acumulados
+
+      for (const s of sessoesNaSemana) {
+        for (const a of (s.gps?.porAtleta || [])) {
+          const key = a.atletaId || ('_' + a.nomeOriginalArquivo);
+          if (!acc[key]) {
+            acc[key] = {
+              atletaId: a.atletaId,
+              nomeOriginalArquivo: a.nomeOriginalArquivo,
+              distanciaTotal:          0,
+              distanciaAltaVelocidade: 0,
+              distanciaPorMin:         0,
+              altaDistMMin:            0,
+              _distPorMinCount:        0,
+              _altaDistCount:          0,
+              cargaExterna:            null,
+              duracaoMin:              0,
+              _sessoes:                0,
+            };
+          }
+          const r = acc[key];
+          r.distanciaTotal          += a.distanciaTotal          || 0;
+          r.distanciaAltaVelocidade += a.distanciaAltaVelocidade || 0;
+          if (a.distanciaPorMin != null && a.distanciaPorMin > 0) { r.distanciaPorMin += a.distanciaPorMin; r._distPorMinCount++; }
+          if (a.altaDistMMin    != null && a.altaDistMMin > 0)    { r.altaDistMMin    += a.altaDistMMin;    r._altaDistCount++; }
+          r.duracaoMin              += a.duracaoMin              || 0;
+          r._sessoes++;
+        }
+      }
+
+      return Object.values(acc);
+    }
+
+    // ── Render principal ────────────────────────────────────────
+    function renderizarDados() {
+      const sessao = todasSessoes.find(s => s.id === sessaoId);
+      if (!sessao) return;
+
+      // Tag de fonte / contexto
+      const tag = document.getElementById('fonteTag');
+      if (visualizacao === 'jogos') {
+        const nJogos = todasSessoes.filter(s => isJogoSessao(s)).length;
+        tag.textContent = `${nJogos} jogo(s) acumulado(s)`;
+        tag.style.display = 'inline';
+      } else {
+        const orig = sessao.gps?.origem || '';
+        tag.textContent = orig ? `Fonte: ${orig.charAt(0).toUpperCase() + orig.slice(1)}` : '';
+        tag.style.display = orig ? 'inline' : 'none';
+      }
+
+      const dados = dadosAtivos();
+      let dadosFiltrados = filtrarPorGrupo(dados);
+      if (atletaFiltro) dadosFiltrados = dadosFiltrados.filter(a => a.atletaId === atletaFiltro);
+      renderCards(dadosFiltrados, sessao.gps?.porAtleta?.length ?? 0);
+      renderTabela(dados);
+
+      // Re-renderizar gráfico se estiver aberto
+      if (graficoGPSCampoAtivo && graficoGPSParams) {
+        const { campo, label, cor, unidade } = graficoGPSParams;
+        graficoGPSCampoAtivo = null; // força rebuild
+        toggleGraficoGPS(campo, label, cor, unidade);
+      }
+    }
+
+    // ── Sparklines — histórico responsivo ao modo de visualização ─
+    function mediaMetricaSessao(sessao, campo) {
+      let atletas = (sessao.gps?.porAtleta || []).filter(a =>
+        a.atletaId && (!grupoFiltroMain || planningGruposAtleta[a.atletaId] === grupoFiltroMain)
+      );
+      if (atletaFiltro) atletas = atletas.filter(a => a.atletaId === atletaFiltro);
+      if (!atletas.length) return null;
+      if (campo === '__cobertura__') return atletas.length;
+      const vals = atletas
+        .map(a => campo === 'cargaExterna' ? (a.cargaExterna?.valor ?? null) : (a[campo] ?? null))
+        .filter(v => v !== null && !isNaN(v));
+      return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    }
+
+    // ── Média do indicador apenas nos jogos (linha de referência) ─
+    function calcularMediaJogos(campo) {
+      const sessoesJogo = todasSessoes.filter(s => isJogoSessao(s));
+      if (!sessoesJogo.length) return null;
+      const vals = sessoesJogo
+        .map(s => mediaMetricaSessao(s, campo))
+        .filter(v => v !== null);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    }
+
+    function calcularPontosHistorico(campo) {
+      if (visualizacao === 'sessao') {
+        // Últimas 28 dias — cada sessão = 1 ponto
+        const limite = (() => {
+          const d = new Date(sessaoId + 'T12:00:00Z');
+          d.setUTCDate(d.getUTCDate() - 27);
+          return d.toISOString().split('T')[0];
+        })();
+        return todasSessoes
+          .filter(s => s.id >= limite && s.id <= sessaoId)
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map(s => ({ date: s.id, v: mediaMetricaSessao(s, campo) }));
+      }
+
+      if (visualizacao === 'semana') {
+        // Últimas 8 semanas — cada semana = soma das sessões
+        const ref = new Date(sessaoId + 'T12:00:00Z');
+        const dow = ref.getUTCDay();
+        const daysToMon = dow === 0 ? 6 : dow - 1;
+        const semanas = Array.from({ length: 8 }, (_, w) => {
+          const mon = new Date(ref);
+          mon.setUTCDate(ref.getUTCDate() - daysToMon - (7 - w - 1) * 7);
+          const sun = new Date(mon);
+          sun.setUTCDate(mon.getUTCDate() + 6);
+          return {
+            start: mon.toISOString().split('T')[0],
+            end:   sun.toISOString().split('T')[0],
+          };
+        });
+        return semanas.map(({ start, end }) => {
+          const sessSemana = todasSessoes.filter(s => s.id >= start && s.id <= end);
+          const vals = sessSemana.map(s => mediaMetricaSessao(s, campo)).filter(v => v !== null);
+          return { date: end, v: vals.length ? vals.reduce((s, v) => s + v, 0) : null };
+        });
+      }
+
+      if (visualizacao === 'jogos') {
+        // Todos os jogos — cada jogo = 1 ponto
+        return todasSessoes
+          .filter(s => isJogoSessao(s))
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map(s => ({ date: s.id, v: mediaMetricaSessao(s, campo) }));
+      }
+      return [];
+    }
+
+    function desenharSparkline(containerId, pontos, cor) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+
+      const vals = pontos.map(p => p.v).filter(v => v !== null);
+      if (vals.length < 2) { el.innerHTML = ''; return; }
+
+      const W = 200, H = 36, PAD = 2;
+      const min  = 0;                        // eixo Y sempre começa do zero
+      const max  = Math.max(...vals) || 1;
+      const rng  = max - min || 1;
+      const n    = pontos.length;
+
+      const xp = i => (PAD + i * (W - PAD * 2) / (n - 1)).toFixed(2);
+      const yp = v => (H - PAD - ((v - min) / rng) * (H - PAD * 2 - 6)).toFixed(2);
+
+      // Média para linha de referência
+      const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+      const yAvg = parseFloat(yp(avg));
+
+      // Polilinha e área
+      const ptsFiltrados = pontos.map((p, i) => p.v !== null ? `${xp(i)},${yp(p.v)}` : null);
+      let linePath = '', areaPath = '';
+      let segStart = null;
+      for (let i = 0; i <= n; i++) {
+        const pt = ptsFiltrados[i];
+        if (pt) {
+          if (segStart === null) segStart = i;
+          linePath += (linePath ? ' L ' : 'M ') + pt;
+        } else if (segStart !== null) {
+          // fecha área do segmento
+          const ex = xp(i - 1), ey = yp(min);
+          const sx = xp(segStart),  sy = yp(min);
+          areaPath += `M ${sx},${ey} ` + ptsFiltrados.slice(segStart, i).join(' L ') + ` L ${ex},${ey} Z `;
+          segStart = null;
+        }
+      }
+      if (segStart !== null) {
+        const ex = xp(n - 1), ey = yp(min);
+        const sx = xp(segStart), sy = yp(min);
+        areaPath += `M ${sx},${ey} ` + ptsFiltrados.slice(segStart).filter(Boolean).join(' L ') + ` L ${ex},${ey} Z `;
+      }
+
+      // Último ponto válido (sessão selecionada ou mais recente)
+      const idxSel = pontos.findIndex(p => p.date === sessaoId);
+      const idxDot = idxSel >= 0 && pontos[idxSel].v !== null ? idxSel
+                   : [...ptsFiltrados].reverse().findIndex(p => p !== null);
+      const dotIdx = idxSel >= 0 && pontos[idxSel].v !== null ? idxSel
+                   : pontos.length - 1 - [...ptsFiltrados].reverse().findIndex(p => p !== null);
+      const dotPt  = ptsFiltrados[dotIdx];
+
+      el.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="g${containerId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${cor}" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="${cor}" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <line x1="${PAD}" y1="${yAvg}" x2="${W - PAD}" y2="${yAvg}"
+            stroke="${cor}" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+          ${areaPath ? `<path d="${areaPath}" fill="url(#g${containerId})"/>` : ''}
+          ${linePath ? `<path d="${linePath}" fill="none" stroke="${cor}" stroke-width="1.5" stroke-linejoin="round"/>` : ''}
+          ${dotPt ? `<circle cx="${dotPt.split(',')[0]}" cy="${dotPt.split(',')[1]}" r="2.5" fill="${cor}" stroke="#fff" stroke-width="1.2"/>` : ''}
+        </svg>
+        <p class="text-right text-gray-400" style="font-size:9px;margin-top:1px;">${
+          visualizacao === 'semana' ? `8 semanas · ${vals.length} semanas` :
+          visualizacao === 'jogos'  ? `jogos · ${vals.length} sessões` :
+          `28 dias · ${vals.length} sessões`
+        }</p>
+      `;
+    }
+
+    // ── Gráfico por clique de card ────────────────────────────────
+    let graficoGPSAtual = null;
+    let graficoGPSCampoAtivo = null;
+    let graficoGPSParams = null; // { campo, label, cor, unidade }
+
+    window.toggleGraficoGPS = function(campo, label, cor, unidade) {
+      const card = document.getElementById('graficoGPSCard');
+      if (graficoGPSCampoAtivo === campo && !card.classList.contains('hidden')) {
+        fecharGraficoGPS();
+        return;
+      }
+
+      graficoGPSCampoAtivo = campo;
+      graficoGPSParams = { campo, label, cor, unidade };
+      card.classList.remove('hidden');
+      document.getElementById('graficoGPSTitulo').textContent = `Histórico — ${label}`;
+
+      // Destaca card ativo
+      ['cardDistBtn','cardHSRBtn','cardDistSprintBtn','cardVelBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('border-blue-500','bg-blue-50');
+      });
+      const mapa = {
+        'distanciaTotal':          'cardDistBtn',
+        'distanciaAltaVelocidade': 'cardHSRBtn',
+        'distanciaPorMin':         'cardDistSprintBtn',
+        'altaDistMMin':            'cardVelBtn',
+      };
+      const btnId = mapa[campo];
+      if (btnId) {
+        const el = document.getElementById(btnId);
+        if (el) el.classList.add('border-blue-500','bg-blue-50');
+      }
+
+      const pontos = calcularPontosHistorico(campo);
+      const validos = pontos.filter(p => p.v !== null);
+
+      if (validos.length < 2) {
+        document.getElementById('graficoGPSCanvas').style.display = 'none';
+        document.getElementById('graficoGPSTitulo').textContent += ' — dados insuficientes (mín. 2 sessões)';
+        return;
+      }
+      document.getElementById('graficoGPSCanvas').style.display = 'block';
+
+      if (graficoGPSAtual) graficoGPSAtual.destroy();
+
+      const labels = pontos.map(p =>
+        visualizacao === 'sessao' ? fmtDiaSemana(p.date) :
+        visualizacao === 'jogos'  ? fmtData(p.date).slice(0,5) :
+        fmtData(p.date).slice(0,5)
+      );
+      const data   = pontos.map(p => p.v);
+
+      // Cor diferente para sessões de jogo
+      const COR_JOGO = '#f59e0b';
+      const bgColors     = pontos.map(p => isJogoSessao(todasSessoes.find(s => s.id === p.date) || {id:p.date,gps:{}}) ? COR_JOGO + 'cc' : cor + 'cc');
+      const borderColors = pontos.map(p => isJogoSessao(todasSessoes.find(s => s.id === p.date) || {id:p.date,gps:{}}) ? COR_JOGO : cor);
+
+      const vals = validos.map(p => p.v);
+      const maxV = Math.max(...vals);
+      const pad  = maxV * 0.08 || 1;
+
+      // Linha de referência: média dos jogos
+      const mediaJogos = calcularMediaJogos(campo);
+
+      const datasets = [{
+        label,
+        data,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 4,
+      }];
+
+      if (mediaJogos !== null) {
+        datasets.push({
+          type: 'line',
+          label: 'Média Jogos',
+          data: pontos.map(() => mediaJogos),
+          borderColor: COR_JOGO,
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        });
+      }
+
+      graficoGPSAtual = new Chart(document.getElementById('graficoGPSCanvas'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: mediaJogos !== null,
+              labels: { font: { size: 10 }, boxWidth: 20 },
+            },
+            tooltip: {
+              callbacks: {
+                title: ctx => {
+                  const pt = pontos[ctx[0]?.dataIndex];
+                  if (!pt) return '';
+                  return visualizacao === 'sessao'
+                    ? `${fmtDiaSemana(pt.date)} · ${fmtData(pt.date)}`
+                    : fmtData(pt.date);
+                },
+                label: ctx => {
+                  if (ctx.dataset.label === 'Média Jogos') return `Média Jogos: ${fmtN(ctx.parsed.y, 1)} ${unidade}`;
+                  const isJogo = isJogoSessao(todasSessoes.find(s => s.id === pontos[ctx.dataIndex]?.date) || {id:pontos[ctx.dataIndex]?.date,gps:{}});
+                  return `${isJogo ? '⚽ Jogo · ' : ''}${fmtN(ctx.parsed.y, 1)} ${unidade}`;
+                },
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, maxTicksLimit: 100 }
+            },
+            y: {
+              min: 0,
+              max: maxV + pad,
+              grid: { color: '#f1f5f9' },
+              ticks: {
+                font: { size: 10 },
+                callback: v => fmtN(v, 0) + (unidade ? ' ' + unidade : ''),
+              }
+            }
+          }
+        }
+      });
+    };
+
+    window.fecharGraficoGPS = function() {
+      const card = document.getElementById('graficoGPSCard');
+      card.classList.add('hidden');
+      if (graficoGPSAtual) { graficoGPSAtual.destroy(); graficoGPSAtual = null; }
+      graficoGPSCampoAtivo = null;
+      graficoGPSParams = null;
+      ['cardDistBtn','cardHSRBtn','cardDistSprintBtn','cardVelBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('border-blue-500','bg-blue-50');
+      });
+    };
+
+    // ── Posição do atleta (para agrupamento interno, não filtro) ──
+    function posicaoAtleta(a) {
+      return atletasMap[a.atletaId]?.posicao || null;
+    }
+
+    // ── Filtro por grupo do planejamento ─────────────────────────
+    function filtrarPorGrupo(dados) {
+      if (!grupoFiltroMain) return dados;
+      return dados.filter(a => planningGruposAtleta[a.atletaId] === grupoFiltroMain);
+    }
+
+    // Retorna o valor normalizado por jogo quando em modo 'jogos', ou o valor bruto
+    function jogVal(a, campo) {
+      if (visualizacao !== 'jogos') {
+        return campo === 'cargaExterna' ? (a.cargaExterna?.valor ?? null) : (a[campo] ?? null);
+      }
+      const ns = a._sessoes || 1;
+      if (campo === 'distanciaTotal')          return ns > 0 ? a.distanciaTotal / ns : null;
+      if (campo === 'distanciaAltaVelocidade') return ns > 0 ? a.distanciaAltaVelocidade / ns : null;
+      if (campo === 'distanciaPorMin')         return (a._distPorMinCount > 0) ? a.distanciaPorMin / a._distPorMinCount : null;
+      if (campo === 'altaDistMMin')            return (a._altaDistCount > 0)   ? a.altaDistMMin    / a._altaDistCount   : null;
+      if (campo === 'cargaExterna')            return (a.cargaExterna?.valor != null && ns > 0) ? a.cargaExterna.valor / ns : null;
+      return a[campo] ?? null;
+    }
+
+    function mediaGrupo(lista, campo) {
+      const vals = lista.map(a => jogVal(a, campo)).filter(v => v !== null && !isNaN(v));
+      return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    }
+
+    function renderCards(dados, totalImportados) {
+      const vinculados = dados.filter(a => a.atletaId);
+
+      const media = (campo) => {
+        const vals = vinculados.map(a => a[campo]).filter(v => v !== null && !isNaN(v));
+        return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null;
+      };
+
+      let distMedia, hsrMedia, mPerMin, mAltaMMin;
+
+      if (visualizacao === 'jogos') {
+        // Cards always show per-game averages in jogos mode (matching chart values)
+        const perJogo = (campo) => {
+          const vals = vinculados
+            .filter(a => (a._sessoes || 0) > 0)
+            .map(a => a[campo] / a._sessoes)
+            .filter(v => v !== null && !isNaN(v));
+          return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null;
+        };
+        distMedia = perJogo('distanciaTotal');
+        hsrMedia  = perJogo('distanciaAltaVelocidade');
+        mPerMin   = (() => {
+          const vals = vinculados
+            .filter(a => (a._distPorMinCount || 0) > 0)
+            .map(a => a.distanciaPorMin / a._distPorMinCount)
+            .filter(v => v !== null && !isNaN(v));
+          return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null;
+        })();
+        mAltaMMin = (() => {
+          const vals = vinculados
+            .filter(a => (a._altaDistCount || 0) > 0)
+            .map(a => a.altaDistMMin / a._altaDistCount)
+            .filter(v => v !== null && !isNaN(v));
+          return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null;
+        })();
+      } else {
+        distMedia = media('distanciaTotal');
+        hsrMedia  = media('distanciaAltaVelocidade');
+        mPerMin   = media('distanciaPorMin');
+        mAltaMMin = media('altaDistMMin');
+      }
+      document.getElementById('cardDist').textContent       = fmtN(distMedia,  0);
+      document.getElementById('cardHSR').textContent        = fmtN(hsrMedia,   0);
+      document.getElementById('cardDistSprint').textContent = fmtN(mPerMin,    1);
+      document.getElementById('cardVelMax').textContent     = fmtN(mAltaMMin,  1);
+
+      // Atletas pendentes de vinculação
+      const pendentes = dados.filter(a => !a.atletaId);
+      const aviso = document.getElementById('pendentesAviso');
+      if (pendentes.length) {
+        aviso.style.display = 'flex';
+        document.getElementById('pendentesMsg').textContent =
+          `${pendentes.length} atleta(s) pendentes de vinculação de nome.`;
+      } else {
+        aviso.style.display = 'none';
+      }
+    }
+
+    function renderTabela(dados) {
+      const tbody      = document.getElementById('gpsBody');
+      const tbodyPos   = document.getElementById('gpsPosicaoBody');
+      const secPend    = document.getElementById('pendentesSection');
+      const bodyPend   = document.getElementById('pendentesBody');
+      tbody.innerHTML    = '';
+      tbodyPos.innerHTML = '';
+      bodyPend.innerHTML = '';
+
+      const vinculadosTodos = dados.filter(a => a.atletaId);
+      const vinculados = vinculadosTodos.filter(a => {
+        if (grupoFiltroMain && planningGruposAtleta[a.atletaId] !== grupoFiltroMain) return false;
+        if (atletaFiltro && a.atletaId !== atletaFiltro) return false;
+        return true;
+      });
+      const pendentes = dados.filter(a => !a.atletaId);
+
+      // Máximos globais (escala compartilhada entre as duas tabelas) — usa valores normalizados
+      const maxOf = (campo) => Math.max(1, ...vinculadosTodos.map(a => jogVal(a, campo) || 0));
+      const maxDist       = maxOf('distanciaTotal');
+      const maxHSR        = maxOf('distanciaAltaVelocidade');
+      const maxVel        = maxOf('distanciaPorMin');
+      const maxDistSprint = maxOf('altaDistMMin');
+      const maxCarga      = maxOf('cargaExterna');
+
+      const cargaTipo = (a) => a.cargaExterna?.tipo === 'playerload' ? 'PL'
+                              : a.cargaExterna?.tipo === 'training_load_score' ? 'TLS' : 'CL';
+
+      // ── Tabela 1: Atletas individuais ─────────────────────────
+      const colVal = (a) => jogVal(a, sortCol) ?? -1;
+      vinculados.sort((a, b) =>
+        sortDir === 'desc' ? colVal(b) - colVal(a) : colVal(a) - colVal(b)
+      );
+
+      for (const a of vinculados) {
+        const pos  = posicaoAtleta(a);
+        const nome = atletasMap[a.atletaId]?.nome || a.nomeOriginalArquivo;
+        const vDist   = jogVal(a, 'distanciaTotal');
+        const vHSR    = jogVal(a, 'distanciaAltaVelocidade');
+        const vMmin   = jogVal(a, 'distanciaPorMin');
+        const vAltaM  = jogVal(a, 'altaDistMMin');
+        const vCarga  = jogVal(a, 'cargaExterna');
+        const tr   = document.createElement('tr');
+        tr.className = 'border-b border-gray-100 hover:bg-gray-50 cursor-pointer';
+        tr.innerHTML = `
+          <td class="px-4 py-2.5 whitespace-nowrap">
+            <p class="text-sm font-medium text-gray-900">${nome}</p>
+            ${pos ? `<p class="text-xs text-gray-400">${pos}</p>` : ''}
+            ${visualizacao === 'jogos' && a._sessoes ? `<p class="text-xs text-gray-400">${a._sessoes} jogo(s)</p>` : ''}
+          </td>
+          <td class="px-3 py-2">${barra(vDist, maxDist, '#1e40af', 'm')}</td>
+          <td class="px-3 py-2">${barra(vHSR, maxHSR, '#1d4ed8', 'm')}</td>
+          <td class="px-3 py-2">${barra(vMmin, maxVel, '#2563eb', 'm/min')}</td>
+          <td class="px-3 py-2">${barra(vAltaM, maxDistSprint, '#3b82f6', 'm/min')}</td>
+          <td class="px-3 py-2">${vCarga !== null
+            ? barra(vCarga, maxCarga, '#60a5fa', cargaTipo(a))
+            : '<span class="text-gray-300 text-sm">—</span>'}</td>
+        `;
+        tr.addEventListener('click', () => abrirModal(a, nome, pos));
+        tbody.appendChild(tr);
+      }
+
+      // ── Tabela 2: Médias por posição ─────────────────────────
+      for (const pos of POSICOES) {
+        const grupo = vinculadosTodos.filter(a => posicaoAtleta(a) === pos);
+        if (!grupo.length) continue;
+
+        const cargaMedia    = mediaGrupo(grupo, 'cargaExterna');
+        const primCargaTipo = grupo.find(a => a.cargaExterna)?.cargaExterna?.tipo;
+        const cargaLabel    = primCargaTipo === 'playerload' ? 'PL'
+                            : primCargaTipo === 'training_load_score' ? 'TLS' : 'CL';
+
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100';
+        tr.innerHTML = `
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-6 rounded-full bg-blue-500 flex-shrink-0"></span>
+              <div>
+                <p class="text-sm font-semibold text-gray-800">${POSICAO_PLURAL[pos] || pos}</p>
+                <p class="text-xs text-gray-400">${grupo.length} atleta${grupo.length > 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-3 py-3">${barra(mediaGrupo(grupo,'distanciaTotal'), maxDist, '#1e40af', 'm')}</td>
+          <td class="px-3 py-3">${barra(mediaGrupo(grupo,'distanciaAltaVelocidade'), maxHSR, '#1d4ed8', 'm')}</td>
+          <td class="px-3 py-3">${barra(mediaGrupo(grupo,'distanciaPorMin'), maxVel, '#2563eb', 'm/min')}</td>
+          <td class="px-3 py-3">${barra(mediaGrupo(grupo,'altaDistMMin'), maxDistSprint, '#3b82f6', 'm/min')}</td>
+          <td class="px-3 py-3">${cargaMedia !== null
+            ? barra(cargaMedia, maxCarga, '#60a5fa', cargaLabel)
+            : '<span class="text-gray-300 text-sm">—</span>'}</td>
+        `;
+        tbodyPos.appendChild(tr);
+      }
+
+      // Pendentes
+      if (pendentes.length) {
+        secPend.style.display = 'block';
+        for (const a of pendentes) {
+          const el = document.createElement('div');
+          el.className = 'px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-center gap-2';
+          el.innerHTML = `
+            <svg class="text-amber-400 flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            ${a.nomeOriginalArquivo}
+          `;
+          bodyPend.appendChild(el);
+        }
+      } else {
+        secPend.style.display = 'none';
+      }
+    }
+
+    // ── Barra de progresso inline ───────────────────────────────
+    function barra(valor, max, cor, unidade = '') {
+      if (valor === null || valor === undefined || isNaN(valor)) {
+        return '<span class="text-gray-300 text-sm">—</span>';
+      }
+      const pct  = Math.min(100, Math.max(0, (valor / max) * 100)).toFixed(0);
+      const disp = fmtN(valor, 1) + (unidade ? '\u202F' + unidade : '');
+      return `
+        <div class="bar-cell">
+          <div class="bar-fill" style="background:${cor}; width:${pct}%;"></div>
+          <span class="bar-label">${disp}</span>
+        </div>
+      `;
+    }
+
+    // ── Modal de detalhe ────────────────────────────────────────
+    function abrirModal(a, nome, pos) {
+      document.getElementById('modalNome').textContent = pos ? `${nome} · ${pos}` : nome;
+      document.getElementById('modalSessao').textContent =
+        visualizacao === 'semana'
+          ? `Acumulado da semana de ${fmtData(sessaoId)}`
+          : `Sessão de ${fmtData(sessaoId)}`;
+
+      // ── Badges IGP / ISP / PSE ──────────────────────────────
+      const badgesEl = document.getElementById('modalBadges');
+      badgesEl.innerHTML = '';
+      if (a.atletaId) {
+        const dm = dmDiaMap[a.atletaId];
+        const igpVal = dm ? calcIGPdm(dm) : null;
+        const igpCls = classifyIGP(igpVal);
+        const ispVal = dm ? calcISP(a.atletaId, dm) : null;
+        const ispCls = classifyISP(ispVal);
+        const pse    = dm?.post?.pse ?? null;
+
+        function badge(label, value, cls) {
+          if (value == null || cls == null) return '';
+          const span = document.createElement('span');
+          span.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:${cls.bg};color:${cls.cor};border:1px solid ${cls.cor}33;`;
+          span.innerHTML = `<span style="font-size:9px;opacity:.7;font-weight:600;">${label}</span> ${value}`;
+          return span;
+        }
+
+        if (igpCls) {
+          const b = badge('IGP', `${igpVal} · ${igpCls.label}`, igpCls);
+          if (b) badgesEl.appendChild(b);
+        }
+        if (ispCls) {
+          const b = badge('ISP', ispCls.label, ispCls);
+          if (b) badgesEl.appendChild(b);
+        }
+        if (pse != null) {
+          const pseEl = document.createElement('span');
+          pseEl.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;';
+          pseEl.innerHTML = `<span style="font-size:9px;opacity:.7;font-weight:600;">PSE</span> ${pse}`;
+          badgesEl.appendChild(pseEl);
+        }
+      }
+
+      // Média do atleta nos últimos 6 jogos para um getter
+      function refJogo6(getter) {
+        if (!a.atletaId) return null;
+        const sessJogos = todasSessoes
+          .filter(s => isJogoSessao(s))
+          .sort((x, y) => y.id.localeCompare(x.id))
+          .slice(0, 6);
+        const vals = sessJogos
+          .map(s => {
+            const ad = (s.gps?.porAtleta || []).find(x => x.atletaId === a.atletaId);
+            return ad ? getter(ad) : null;
+          })
+          .filter(v => v !== null && !isNaN(v) && v > 0);
+        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+      }
+
+      function mminVal(ad) {
+        if (ad.duracaoMin && ad.duracaoMin > 0 && ad.distanciaTotal)
+          return ad.distanciaTotal / ad.duracaoMin;
+        return ad.distanciaPorMin ?? null;
+      }
+
+      function semCor(pct) {
+        if (pct === null) return '#94a3b8';
+        if (pct > 100) return '#14532d';
+        if (pct >= 85) return '#16a34a';
+        if (pct >= 65) return '#f59e0b';
+        return '#dc2626';
+      }
+
+      function miniBar(pct, cor) {
+        const over = pct > 100;
+        const fillW = Math.min(pct, 120); // cap visual at 120%
+        return `<div style="position:relative;height:9px;border-radius:5px;background:#e5e7eb;overflow:visible;margin-top:5px;">
+          <div style="position:absolute;right:0;top:-3px;width:1.5px;height:15px;background:#94a3b8;z-index:3;border-radius:1px;"></div>
+          ${over
+            ? `<div style="position:absolute;left:0;top:0;height:100%;width:100%;background:${cor};border-radius:5px 0 0 5px;z-index:1;"></div>
+               <div style="position:absolute;left:100%;top:0;height:100%;width:${fillW - 100}%;background:${cor}99;border-radius:0 5px 5px 0;z-index:2;"></div>`
+            : `<div style="position:absolute;left:0;top:0;height:100%;width:${fillW}%;background:${cor};border-radius:5px;z-index:1;"></div>`
+          }
+        </div>`;
+      }
+
+      const campos = [
+        { label: 'Distância Total',  raw: jogVal(a,'distanciaTotal'),          dec: 0, unit: 'm',     getter: x => x.distanciaTotal },
+        { label: 'HSR (Alta Vel.)',  raw: jogVal(a,'distanciaAltaVelocidade'), dec: 0, unit: 'm',     getter: x => x.distanciaAltaVelocidade },
+        { label: 'M/min',            raw: jogVal(a,'distanciaPorMin'),         dec: 1, unit: 'm/min', getter: x => x.distanciaPorMin },
+        { label: 'HSR M/min',       raw: jogVal(a,'altaDistMMin'),            dec: 1, unit: 'm/min', getter: x => x.altaDistMMin },
+        { label: 'Duração',          raw: visualizacao === 'jogos' && (a._sessoes||0) > 0 ? a.duracaoMin / a._sessoes : a.duracaoMin, dec: 0, unit: 'min', getter: x => x.duracaoMin },
+      ];
+
+      if (a.cargaExterna) {
+        const tipoLabel = {
+          'playerload':         'PlayerLoad',
+          'training_load_score':'Training Load Score',
+          'cardio_load':        'Cardio Load',
+        }[a.cargaExterna.tipo] || a.cargaExterna.tipo;
+        const tipo = a.cargaExterna.tipo;
+        campos.push({ label: tipoLabel, raw: a.cargaExterna.valor, dec: 1, unit: '', getter: x => x.cargaExterna?.tipo === tipo ? x.cargaExterna.valor : null });
+      }
+
+      const body = document.getElementById('modalBody');
+      body.innerHTML = '';
+
+      for (const c of campos) {
+        const isNull = c.raw === null || c.raw === undefined || isNaN(c.raw);
+        const valStr = isNull ? '—' : fmtN(c.raw, c.dec);
+        const ref = (c.getter && !isNull) ? refJogo6(c.getter) : null;
+        const pct = (ref && !isNull) ? Math.round(c.raw / ref * 100) : null;
+        const cor = semCor(pct);
+
+        const div = document.createElement('div');
+        div.className = 'py-2.5 px-3 border border-gray-100 rounded-xl bg-gray-50';
+        div.innerHTML = `
+          <div class="flex items-baseline justify-between">
+            <span class="text-sm text-gray-500">${c.label}</span>
+            <div class="text-right ml-4">
+              <span class="text-sm font-semibold ${isNull ? 'text-gray-300' : 'text-gray-900'}">
+                ${valStr}${c.unit && !isNull ? '\u202F' + c.unit : ''}
+              </span>
+              ${ref !== null ? `<p class="text-xs text-gray-400 mt-0.5">ref\u00A0${fmtN(ref, c.dec)}${c.unit ? '\u202F' + c.unit : ''}</p>` : ''}
+            </div>
+          </div>
+          ${pct !== null ? `
+            <div style="max-width:160px;">
+              ${miniBar(pct, cor)}
+              <div style="text-align:right;margin-top:2px;">
+                <span style="font-size:10px;font-weight:700;color:${cor};">${pct}% do jogo</span>
+              </div>
+            </div>
+          ` : ''}
+        `;
+        body.appendChild(div);
+      }
+
+      // Nota sobre referência
+      if (a.atletaId) {
+        const nota = document.createElement('p');
+        nota.className = 'modal-nota text-xs text-gray-400 mt-3 text-center';
+        nota.textContent = 'Referência: média individual nos últimos 6 jogos';
+        body.appendChild(nota);
+      }
+
+      // Aba Evolução
+      if (a.atletaId) construirEvoModal(a.atletaId);
+      else document.getElementById('modalEvo').innerHTML = '';
+
+      // Reset para aba Resumo
+      switchModalTab('resumo');
+      document.getElementById('atletaModal').classList.add('open');
+    }
+
+    function fecharModal() {
+      document.getElementById('atletaModal').classList.remove('open');
+    }
+
+    window.switchModalTab = function(tab) {
+      document.getElementById('modalBody').style.display = tab === 'resumo' ? '' : 'none';
+      document.getElementById('modalEvo').style.display  = tab === 'evo'    ? '' : 'none';
+      document.getElementById('tabResumo').className = tab === 'resumo'
+        ? 'px-4 py-2 text-xs font-semibold border-b-2 border-blue-500 text-blue-600 -mb-px transition-all'
+        : 'px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition-all';
+      document.getElementById('tabEvo').className = tab === 'evo'
+        ? 'px-4 py-2 text-xs font-semibold border-b-2 border-blue-500 text-blue-600 -mb-px transition-all'
+        : 'px-4 py-2 text-xs font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition-all';
+    };
+
+    function _evoSvg(pontos, refVal, w, h) {
+      const BLUE = '#3b82f6', ORANGE = '#f59e0b';
+      const vals = pontos.map(p => p.v).filter(v => v !== null && v > 0);
+      if (!vals.length) return '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:12px 0;">Sem dados</p>';
+
+      const maxV = Math.max(refVal || 0, ...vals) * 1.18 || 1;
+      const PL=32, PR=8, PT=6, PB=20;
+      const CW=w-PL-PR, CH=h-PT-PB;
+      const n=pontos.length, gap=CW/n, bw=Math.max(3, Math.floor(gap*0.72));
+
+      let rects='', xlabels='', grid='';
+      const DIAS=['D','S','T','Q','Q','S','S'];
+
+      [0, 0.5, 1].forEach(t => {
+        const v = t * maxV;
+        const yg = (PT + CH - (v/maxV)*CH).toFixed(1);
+        grid += `<line x1="${PL}" y1="${yg}" x2="${PL+CW}" y2="${yg}" stroke="#f1f5f9" stroke-width="1"/>`;
+        grid += `<text x="${PL-4}" y="${(parseFloat(yg)+3).toFixed(1)}" text-anchor="end" fill="#94a3b8" font-size="8">${fmtN(v,0)}</text>`;
+      });
+
+      pontos.forEach((p, i) => {
+        const v = p.v ?? 0;
+        const bh = Math.max(0, (v/maxV)*CH);
+        const x = (PL + i*gap + (gap-bw)/2).toFixed(1);
+        const y = (PT + CH - bh).toFixed(1);
+        rects += `<rect x="${x}" y="${y}" width="${bw}" height="${bh.toFixed(1)}" fill="${p.isJogo ? ORANGE : BLUE}" rx="2" opacity="${p.isJogo ? 1 : 0.7}"/>`;
+        const dt = new Date(p.date + 'T12:00:00Z');
+        xlabels += `<text x="${(parseFloat(x)+bw/2).toFixed(1)}" y="${h-3}" text-anchor="middle" fill="${p.isJogo ? ORANGE : '#94a3b8'}" font-size="8" font-weight="${p.isJogo ? '700' : '400'}">${DIAS[dt.getUTCDay()]}</text>`;
+      });
+
+      let refLine = '';
+      if (refVal !== null) {
+        const yRef = (PT + CH - (refVal/maxV)*CH).toFixed(1);
+        refLine = `<line x1="${PL}" y1="${yRef}" x2="${PL+CW}" y2="${yRef}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85"/>
+                   <text x="${(PL+CW).toFixed(1)}" y="${(parseFloat(yRef)-3).toFixed(1)}" text-anchor="end" fill="#ef4444" font-size="7.5" font-weight="600">— 6j</text>`;
+      }
+
+      return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;display:block;overflow:visible;">${grid}${rects}${refLine}${xlabels}</svg>`;
+    }
+
+    function construirEvoModal(atletaId) {
+      const evoEl = document.getElementById('modalEvo');
+      evoEl.innerHTML = '';
+
+      // Últimas 14 sessões onde o atleta participou
+      const todasComAtleta = todasSessoes
+        .filter(s => (s.gps?.porAtleta || []).some(x => x.atletaId === atletaId))
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const ultimas14 = todasComAtleta.slice(-14);
+
+      // Últimos 6 jogos deste atleta
+      const ultimos6J = todasSessoes
+        .filter(s => isJogoSessao(s) && (s.gps?.porAtleta || []).some(x => x.atletaId === atletaId))
+        .sort((a, b) => b.id.localeCompare(a.id))
+        .slice(0, 6);
+
+      const aVal = (s, campo) => {
+        const ad = (s.gps?.porAtleta || []).find(x => x.atletaId === atletaId);
+        if (!ad) return null;
+        if (campo === 'cargaExterna') return ad.cargaExterna?.valor ?? null;
+        return ad[campo] ?? null;
+      };
+
+      const ref6 = (campo) => {
+        const vals = ultimos6J.map(s => aVal(s, campo)).filter(v => v !== null && v > 0);
+        return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : null;
+      };
+
+      const pontos = (campo) => ultimas14.map(s => ({
+        date: s.id,
+        v: aVal(s, campo),
+        isJogo: isJogoSessao(s),
+      }));
+
+      const indicadores = [
+        { label: 'Dist. Total',    campo: 'distanciaTotal',          unit: 'm',     dec: 0 },
+        { label: 'HSR (Alta Vel.)',campo: 'distanciaAltaVelocidade', unit: 'm',     dec: 0 },
+        { label: 'M/min',          campo: 'distanciaPorMin',         unit: 'm/min', dec: 1 },
+        { label: 'HSR M/min',      campo: 'altaDistMMin',            unit: 'm/min', dec: 1 },
+        { label: 'Duração',        campo: 'duracaoMin',              unit: 'min',   dec: 0 },
+        { label: 'Carga Externa',  campo: 'cargaExterna',            unit: '',      dec: 1 },
+      ];
+
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:12px;';
+
+      for (const ind of indicadores) {
+        const pts = pontos(ind.campo);
+        const r6  = ref6(ind.campo);
+        const refStr = r6 !== null ? `ref ${fmtN(r6, ind.dec)}${ind.unit ? '\u202F'+ind.unit : ''}` : '';
+
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:700;color:#374151;">${ind.label}</span>
+            ${refStr ? `<span style="font-size:10px;color:#ef4444;">${refStr}</span>` : ''}
+          </div>
+          ${_evoSvg(pts, r6, 320, 90)}
+        `;
+        grid.appendChild(card);
+      }
+
+      // Legenda
+      const legenda = document.createElement('div');
+      legenda.style.cssText = 'display:flex;gap:14px;align-items:center;margin-top:10px;justify-content:center;';
+      legenda.innerHTML = `
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#64748b;">
+          <span style="width:10px;height:10px;background:#3b82f6;border-radius:2px;display:inline-block;"></span>Treino
+        </span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#64748b;">
+          <span style="width:10px;height:10px;background:#f59e0b;border-radius:2px;display:inline-block;"></span>Jogo
+        </span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#ef4444;">
+          <span style="width:20px;height:2px;background:#ef4444;border-radius:1px;display:inline-block;border-top:2px dashed #ef4444;"></span>Média 6 jogos
+        </span>
+      `;
+
+      evoEl.appendChild(grid);
+      evoEl.appendChild(legenda);
+    }
+
+    // ── Utilitários ─────────────────────────────────────────────
+    function semanaInicio(dateStr) {
+      const d = new Date(dateStr + 'T12:00:00Z');
+      const day = d.getUTCDay(); // 0=Dom
+      const diff = day === 0 ? -6 : 1 - day;
+      const monday = new Date(d);
+      monday.setUTCDate(d.getUTCDate() + diff);
+      return monday.toISOString().split('T')[0];
+    }
+
+    function semanaFim(inicio) {
+      const d = new Date(inicio + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() + 6);
+      return d.toISOString().split('T')[0];
+    }
+
+    function fmtN(v, decimais = 0) {
+      if (v === null || v === undefined || isNaN(v)) return '—';
+      return Number(v).toLocaleString('pt-BR', {
+        minimumFractionDigits: decimais,
+        maximumFractionDigits: decimais,
+      });
+    }
+
+    function fmtData(d) {
+      const [y, m, dd] = d.split('-');
+      return `${dd}/${m}/${y}`;
+    }
+
+    function fmtDiaSemana(d) {
+      const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      const dt = new Date(d + 'T12:00:00Z');
+      return dias[dt.getUTCDay()];
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  RELATÓRIO GPS
+    // ══════════════════════════════════════════════════════
+
+    function abrirModalRelatorio() {
+      const escopo = atletaFiltro
+        ? `Atleta: ${atletasMap[atletaFiltro]?.nome || atletaFiltro}`
+        : grupoFiltroMain
+          ? `Grupo: ${grupoFiltroMain}`
+          : 'Elenco completo';
+      document.getElementById('relatorioEscopo').textContent = escopo;
+      document.getElementById('relatorioStatus').classList.add('hidden');
+      document.getElementById('relatorioModal').classList.add('open');
+    }
+
+    // ── Classificação por minutagem (média últimos 6 jogos) ───────
+    function classificarAtletas() {
+      const GRUPOS = { Titular: '≥ 60 min', Rotação: '30–59 min', Impacto: '< 30 min' };
+      const result = {};
+      for (const [atletaId] of Object.entries(atletasMap)) {
+        // Últimas 6 partidas onde o atleta jogou
+        const jogos = scoutPartidas
+          .filter(p => {
+            const ps = p.playedSeconds[atletaId];
+            if (!ps) return false;
+            const seg = typeof ps === 'object' ? (ps.seconds ?? 0) : ps;
+            return seg > 0;
+          })
+          .slice(0, 6);
+
+        if (!jogos.length) continue;
+
+        const durSecs = jogos.map(p => {
+          const ps = p.playedSeconds[atletaId];
+          const raw = typeof ps === 'object' ? (ps.seconds ?? 0) : (ps ?? 0);
+          return Math.min(raw, p.duracaoSegundos || 5400);
+        });
+        const avgMin = durSecs.reduce((a, b) => a + b, 0) / durSecs.length / 60;
+
+        result[atletaId] = {
+          avgMin: Math.round(avgMin),
+          nJogos: jogos.length,
+          grupo: avgMin >= 60 ? 'Titular' : avgMin >= 30 ? 'Rotação' : 'Impacto',
+        };
+      }
+      return result;
+    }
+
+    // ── Médias de referência por grupo nos jogos (GPS) ────────────
+    function calcularRefJogosPorGrupo(classificacao) {
+      const CAMPOS = ['distanciaTotal','distanciaAltaVelocidade','distanciaPorMin','altaDistMMin','cargaExterna'];
+      const grupos = { Titular: [], Rotação: [], Impacto: [] };
+
+      // Pega sessões GPS que são jogos
+      const sessoesJogo = todasSessoes.filter(s => isJogoSessao(s));
+
+      // Busca duração do jogo no scout para calcular /min
+      const scoutByData = Object.fromEntries(scoutPartidas.map(p => [p.data, p]));
+
+      for (const sessao of sessoesJogo) {
+        const scout = scoutByData[sessao.id];
+        for (const a of (sessao.gps?.porAtleta || [])) {
+          if (!a.atletaId || !classificacao[a.atletaId]) continue;
+          const { grupo } = classificacao[a.atletaId];
+
+          // Minutos neste jogo específico (do scout, se disponível; senão duracaoMin do GPS)
+          let minNessaPartida = a.duracaoMin ?? null;
+          if (scout?.playedSeconds?.[a.atletaId]) {
+            const ps = scout.playedSeconds[a.atletaId];
+            const raw = typeof ps === 'object' ? (ps.seconds ?? 0) : (ps ?? 0);
+            minNessaPartida = Math.min(raw, scout.duracaoSegundos || 5400) / 60;
+          }
+
+          grupos[grupo].push({ a, minNessaPartida });
+        }
+      }
+
+      const mediaGrupo = {};
+      for (const [grupo, entradas] of Object.entries(grupos)) {
+        if (!entradas.length) { mediaGrupo[grupo] = null; continue; }
+        const med = {};
+        for (const campo of CAMPOS) {
+          const vals = entradas
+            .map(({ a }) => campo === 'cargaExterna' ? (a.cargaExterna?.valor ?? null) : (a[campo] ?? null))
+            .filter(v => v !== null);
+          med[campo] = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+
+          // /min
+          if (campo !== 'velocidadeMax' && campo !== 'cargaExterna') {
+            const valsMin = entradas
+              .map(({ a, minNessaPartida }) => {
+                const v = campo === 'cargaExterna' ? (a.cargaExterna?.valor ?? null) : (a[campo] ?? null);
+                return (v !== null && minNessaPartida && minNessaPartida > 0) ? v / minNessaPartida : null;
+              })
+              .filter(v => v !== null);
+            med[campo + 'PerMin'] = valsMin.length ? valsMin.reduce((s, v) => s + v, 0) / valsMin.length : null;
+          }
+        }
+        med.nEntradas = entradas.length;
+        mediaGrupo[grupo] = med;
+      }
+      return mediaGrupo;
+    }
+
+    // ── Dados a exportar segundo o tipo selecionado ────────────────
+    function dadosParaRelatorio(tipo) {
+      if (tipo === 'sessao') {
+        const sessao = todasSessoes.find(s => s.id === sessaoId);
+        return { dados: sessao?.gps?.porAtleta || [], label: `Sessão de ${fmtData(sessaoId)}` };
+      }
+      if (tipo === 'semana') {
+        return { dados: acumularSemana(sessaoId), label: `Semana de ${fmtData(semanaInicio(sessaoId))}` };
+      }
+      if (tipo === 'jogos' || tipo === 'grupos') {
+        return { dados: acumularJogos(), label: 'Jogos Acumulados' };
+      }
+      return { dados: [], label: '' };
+    }
+
+    // ── Seta de comparação ────────────────────────────────────────
+    function seta(val, ref) {
+      if (val === null || ref === null || ref === 0) return '';
+      const pct = ((val - ref) / ref) * 100;
+      const abs = Math.abs(pct).toFixed(0);
+      return pct >= 5
+        ? `<span style="color:#16a34a;font-weight:700;">↑ ${abs}%</span>`
+        : pct <= -5
+          ? `<span style="color:#dc2626;font-weight:700;">↓ ${abs}%</span>`
+          : `<span style="color:#64748b;">≈ ${abs}%</span>`;
+    }
+
+    // ── Variável para reter as páginas para exportação ─────────────
+    let _pdfPageHtmls = [];
+
+    // ── Utilitário: SVG bar chart vertical ─────────────────────────
+    // diaRef: data da sessão selecionada (barra azul com contorno)
+    // Cores: treino=azul, jogo=laranja, diaRef=azul+stroke
+    function _svgBar(pontos, mediaRef, w, h, diaRef) {
+      const BLUE = '#2563eb', ORANGE = '#f59e0b';
+      if (!pontos || !pontos.length) return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><text x="${w/2}" y="${h/2}" text-anchor="middle" fill="#94a3b8" font-size="10">Sem dados</text></svg>`;
+      const maxV = Math.max(mediaRef||0, ...pontos.map(p=>p.v||0)) * 1.18 || 1;
+      const PL=42, PR=8, PT=6, PB=22;
+      const CW=w-PL-PR, CH=h-PT-PB;
+      const n=pontos.length, gap=CW/n, bw=Math.max(2,Math.floor(gap*0.72));
+      let rects='',xlabels='',grid='';
+      [0,0.5,1].forEach(t=>{
+        const v=t*maxV, yg=(PT+CH-(v/maxV)*CH).toFixed(1);
+        grid+=`<line x1="${PL}" y1="${yg}" x2="${PL+CW}" y2="${yg}" stroke="#e2e8f0" stroke-width="0.7"/>`;
+        grid+=`<text x="${PL-4}" y="${(parseFloat(yg)+3.5).toFixed(1)}" text-anchor="end" fill="#94a3b8" font-size="8">${fmtN(v,0)}</text>`;
+      });
+      pontos.forEach((p,i)=>{
+        const v=p.v??0, bh=Math.max(0,(v/maxV)*CH);
+        const x=(PL+i*gap+(gap-bw)/2).toFixed(1), y=(PT+CH-bh).toFixed(1);
+        if(p.isJogo){
+          rects+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh.toFixed(1)}" fill="${ORANGE}" rx="2"/>`;
+        } else if(diaRef && p.date===diaRef){
+          rects+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh.toFixed(1)}" fill="${BLUE}" stroke="#1e293b" stroke-width="1.5" rx="2"/>`;
+        } else {
+          rects+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh.toFixed(1)}" fill="${BLUE}" rx="2" opacity="0.65"/>`;
+        }
+        if(n<=14||i%Math.ceil(n/10)===0||i===n-1){
+          const [,m,d]=p.date.split('-');
+          xlabels+=`<text x="${(parseFloat(x)+bw/2).toFixed(1)}" y="${h-3}" text-anchor="middle" fill="#94a3b8" font-size="7">${d}/${m}</text>`;
+        }
+      });
+      const yRef=mediaRef!=null?(PT+CH-(mediaRef/maxV)*CH):null;
+      const refLine=yRef!=null?`<line x1="${PL}" y1="${yRef.toFixed(1)}" x2="${PL+CW}" y2="${yRef.toFixed(1)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/><text x="${(PL+CW).toFixed(1)}" y="${(yRef-3).toFixed(1)}" text-anchor="end" fill="#ef4444" font-size="7" font-weight="600">— Jogo</text>`:'';
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">${grid}${rects}${refLine}${xlabels}</svg>`;
+    }
+
+    // ── Utilitário: barra horizontal ───────────────────────────────
+    function _barH(valor, max, cor, unit, sublabel) {
+      if(valor===null||valor===undefined) return `<div style="height:22px;font-size:9px;color:#94a3b8;line-height:22px;padding:0 2px;">—</div>`;
+      const pct=max>0?Math.min(100,(valor/max)*100).toFixed(1):0;
+      return `<div style="margin-bottom:5px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
+          <span style="font-size:9px;color:#64748b;">${sublabel}</span>
+          <span style="font-size:10px;font-weight:700;">${fmtN(valor,0)}${unit?' '+unit:''}</span>
+        </div>
+        <div style="background:#e2e8f0;border-radius:2px;height:7px;overflow:hidden;">
+          <div style="background:${cor};width:${pct}%;height:100%;border-radius:2px;"></div>
+        </div>
+      </div>`;
+    }
+
+    // ── Mini-cabeçalho para páginas 2+ ────────────────────────────
+    function _miniHeader(nomeClube, sessaoId, hoje, subtitulo) {
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:12px;border-bottom:1.5px solid #0891b2;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#0891b2;font-weight:700;">GPS · Sessão ${fmtData(sessaoId)}</span>
+          <span style="font-size:11px;font-weight:700;color:#1e293b;">${nomeClube.charAt(0).toUpperCase()+nomeClube.slice(1)}</span>
+          <span style="font-size:10px;color:#64748b;font-weight:600;">${subtitulo}</span>
+        </div>
+        <span style="font-size:9px;color:#94a3b8;">${hoje}</span>
+      </div>`;
+    }
+
+    // ── PAGE_W / PAGE_H — retrato A4 (794×1050px) ─────────────────
+    const REL_PW = 794, REL_PH = 1050, REL_PAD = 24, REL_PAD_H = 24;
+    const REL_IW = REL_PW - REL_PAD_H * 2; // 746px
+    // Célula do grid: (746 - 2 gaps×10) / 3 = 242px; SVG = célula - padding card (10px×2)
+    const REL_CELL = Math.floor((REL_IW - 20) / 3); // 242px
+    const REL_CW   = REL_CELL - 20;                 // 222px — espaço real para o SVG
+    const REL_CH_GRP = 108; // altura chart grupos
+    const REL_CH_IND = 100; // altura chart individual
+    const PAGE_DIV_STYLE = `width:${REL_PW}px;min-height:${REL_PH}px;background:#fff;overflow:hidden;padding:${REL_PAD}px ${REL_PAD_H}px;font-family:'Helvetica Neue',Arial,sans-serif;color:#1e293b;box-sizing:border-box;`;
+
+    // ── Abrir preview ──────────────────────────────────────────────
+    async function gerarPDFRelatorio() {
+      const tipo = document.querySelector('.rel-tipo-btn.ativo')?.dataset.tipo || 'sessao';
+      const grupoFiltro = document.querySelector('.rel-grupo-btn.ativo')?.dataset.grupo || '';
+      const status = document.getElementById('relatorioStatus');
+      const btnGerar = document.getElementById('btnGerarPDF');
+
+      // Abre a aba imediatamente (mesma chamada síncrona do clique — evita bloqueio de popup)
+      const win = window.open('', '_blank');
+      if (!win) { alert('Permita pop-ups no navegador para visualizar o relatório.'); return; }
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gerando relatório…</title><style>body{font-family:'Helvetica Neue',Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8fafc;color:#64748b;}</style></head><body><div style="text-align:center"><div style="font-size:28px;margin-bottom:10px;">⏳</div><p style="font-size:14px;">Gerando relatório GPS…</p></div></body></html>`);
+
+      status.classList.remove('hidden');
+      btnGerar.disabled = true;
+
+      try {
+        const nomeClube = (JSON.parse(localStorage.getItem('userContext')||'{}').clubId||'').replace(/_/g,' ');
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const classificacao = classificarAtletas();
+        const GRUPO_LABEL = { Titular:'A', Rotação:'B', Impacto:'C' };
+        const COR_GRUPO   = { A:'#0891b2', B:'#7c3aed', C:'#ea580c' };
+        const GRUPOS = ['A','B','C'];
+
+        if (tipo === 'sessao') {
+          // ── 1. Dados base ──────────────────────────────────────────
+          const sessaoDia = todasSessoes.find(s => s.id === sessaoId);
+          let dadosDia = (sessaoDia?.gps?.porAtleta||[]).filter(a=>a.atletaId);
+          if(grupoFiltro) dadosDia = dadosDia.filter(a=>planningGruposAtleta[a.atletaId]===grupoFiltro);
+
+          // ── 2. Últimos 6 jogos ─────────────────────────────────────
+          const ultimos6J = todasSessoes
+            .filter(s=>isJogoSessao(s))
+            .sort((a,b)=>b.id.localeCompare(a.id)).slice(0,6);
+
+          // ── 3. Últimas 14 sessões (treinos + jogos) ────────────────
+          const ult14Sess = todasSessoes
+            .filter(s=>s.id<=sessaoId)
+            .sort((a,b)=>b.id.localeCompare(a.id)).slice(0,14).reverse();
+
+          // ── 4. Acumulado semanal ───────────────────────────────────
+          const iniSem = semanaInicio(sessaoId);
+          const acumSem = {};
+          todasSessoes.filter(s=>s.id>=iniSem&&s.id<=sessaoId).forEach(s=>{
+            (s.gps?.porAtleta||[]).forEach(a=>{
+              if(!a.atletaId) return;
+              if(!acumSem[a.atletaId]) acumSem[a.atletaId]={distanciaTotal:0,distanciaAltaVelocidade:0,aceleracoes:0};
+              acumSem[a.atletaId].distanciaTotal+=a.distanciaTotal||0;
+              acumSem[a.atletaId].distanciaAltaVelocidade+=a.distanciaAltaVelocidade||0;
+              acumSem[a.atletaId].aceleracoes+=a.aceleracoes||0;
+            });
+          });
+          const semVals = Object.values(acumSem);
+
+          // ── 5. Grupos ──────────────────────────────────────────────
+          const aPorG = {A:[],B:[],C:[]};
+          for(const [id,cl] of Object.entries(classificacao)){
+            const g=GRUPO_LABEL[cl.grupo]; if(g) aPorG[g].push(id);
+          }
+
+          // ── 6. Helpers ─────────────────────────────────────────────
+          function gv(a,campo){ // get value (trata mmin)
+            if(campo==='mmin') {
+              // prefer stored value from import; fall back to calculated
+              if(a.distanciaPorMin!=null&&a.distanciaPorMin>0) return a.distanciaPorMin;
+              return (a.distanciaTotal&&a.duracaoMin)?a.distanciaTotal/a.duracaoMin:null;
+            }
+            return a[campo]??null;
+          }
+          function med(lista,campo){
+            const v=lista.map(a=>gv(a,campo)).filter(v=>v!==null&&!isNaN(v));
+            return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;
+          }
+          function medJogo6A(atletaId,campo){ // média do atleta nos 6 jogos
+            const v=ultimos6J.map(s=>{const a=(s.gps?.porAtleta||[]).find(x=>x.atletaId===atletaId);return a?gv(a,campo):null;}).filter(v=>v!==null);
+            return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;
+          }
+          function medJogo6G(g,campo){ // média do grupo nos 6 jogos
+            const ids=aPorG[g],v=[];
+            for(const s of ultimos6J) for(const a of(s.gps?.porAtleta||[])) if(ids.includes(a.atletaId)){const x=gv(a,campo);if(x!==null)v.push(x);}
+            return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;
+          }
+          function medJogo6Eq(campo){ // média da equipe nos 6 jogos (média de sessões)
+            const v=ultimos6J.map(s=>{const lst=(s.gps?.porAtleta||[]).filter(a=>a.atletaId);const x=lst.map(a=>gv(a,campo)).filter(v=>v!==null);return x.length?x.reduce((s,v)=>s+v,0)/x.length:null;}).filter(v=>v!==null);
+            return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;
+          }
+          function pontosSessao(campo){ // evolução da equipe nas 14 sessões
+            return ult14Sess.map(s=>({date:s.id,v:(()=>{const lst=(s.gps?.porAtleta||[]).filter(a=>a.atletaId);const x=lst.map(a=>gv(a,campo)).filter(v=>v!==null);return x.length?x.reduce((s,v)=>s+v,0)/x.length:null;})(),isJogo:isJogoSessao(s)}));
+          }
+          function pctVal(v,ref){return(v!==null&&v!==undefined&&ref&&ref>0)?Math.round(v/ref*100):null;}
+          function semaforo(p){
+            if(p===null||p===undefined||isNaN(p)) return{cor:'#94a3b8',bg:'#f1f5f9'};
+            if(p>115) return{cor:'#b45309',bg:'#fef9c3'};
+            if(p>100) return{cor:'#14532d',bg:'#dcfce7'};
+            if(p>=85) return{cor:'#16a34a',bg:'#f0fdf4'};
+            if(p>=65) return{cor:'#f59e0b',bg:'#fffbeb'};
+            return{cor:'#dc2626',bg:'#fef2f2'};
+          }
+
+          // ── 7. Cards resumo ────────────────────────────────────────
+          const DIA={dist:med(dadosDia,'distanciaTotal'),hsr:med(dadosDia,'distanciaAltaVelocidade'),acel:med(dadosDia,'aceleracoes')};
+          const SEM={dist:med(semVals,'distanciaTotal'),hsr:med(semVals,'distanciaAltaVelocidade'),acel:med(semVals,'aceleracoes')};
+
+          // ── 8. Evolução grupo (14 sessões) ─────────────────────────
+          const ptsDist=pontosSessao('distanciaTotal');
+          const ptsHSR=pontosSessao('distanciaAltaVelocidade');
+          const ptsAcel=pontosSessao('aceleracoes');
+          const refDistEq=medJogo6Eq('distanciaTotal');
+          const refHSREq=medJogo6Eq('distanciaAltaVelocidade');
+          const refAcelEq=medJogo6Eq('aceleracoes');
+
+          // ── 9. IV/II por grupo ─────────────────────────────────────
+          const indices={};
+          for(const g of GRUPOS){
+            const diaG=dadosDia.filter(a=>aPorG[g].includes(a.atletaId));
+            const IV=pctVal(med(diaG,'distanciaTotal'),medJogo6G(g,'distanciaTotal'));
+            const pM=pctVal(med(diaG,'mmin'),medJogo6G(g,'mmin'));
+            const pH=pctVal(med(diaG,'distanciaAltaVelocidade'),medJogo6G(g,'distanciaAltaVelocidade'));
+            const IIparts=[pM,pH].filter(v=>v!==null);
+            const II=IIparts.length?Math.round(IIparts.reduce((s,v)=>s+v,0)/IIparts.length):null;
+            indices[g]={IV,II,n:aPorG[g].length};
+          }
+
+          // ── 10. Tabela "Quem está batendo a meta" ──────────────────
+          const POS_ORDER=['Lateral','Zagueiro','Volante','Meia','Ponta','Centro-Avante'];
+          const tabelaMeta=dadosDia
+            .filter(a=>atletasMap[a.atletaId]?.posicao!=='Goleiro')
+            .map(a=>{
+              const rD=medJogo6A(a.atletaId,'distanciaTotal'),rH=medJogo6A(a.atletaId,'distanciaAltaVelocidade');
+              const rM=medJogo6A(a.atletaId,'mmin'),rA=medJogo6A(a.atletaId,'aceleracoes');
+              const mmin=gv(a,'mmin');
+              const pD=pctVal(a.distanciaTotal,rD),pH=pctVal(a.distanciaAltaVelocidade,rH);
+              const pM=pctVal(mmin,rM),pA=pctVal(a.aceleracoes,rA);
+              const vals=[pD,pH,pM,pA].filter(v=>v!==null);
+              const geral=vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length):null;
+              const nome=atletasMap[a.atletaId]?.nome||a.atletaId;
+              const pos=atletasMap[a.atletaId]?.posicao||'';
+              const gr=GRUPO_LABEL[classificacao[a.atletaId]?.grupo]||'—';
+              return{nome,pos,gr,pD,pH,pM,pA,geral};
+            }).sort((a,b)=>{
+              const oa=POS_ORDER.indexOf(a.pos),ob=POS_ORDER.indexOf(b.pos);
+              if(oa!==ob) return(oa===-1?99:oa)-(ob===-1?99:ob);
+              return(b.geral??-1)-(a.geral??-1);
+            });
+
+          // ── 11. Atletas para evolução individual ───────────────────
+          const lim3sem=(()=>{const d=new Date(sessaoId+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-20);return d.toISOString().split('T')[0];})();
+          const sess3sem=todasSessoes.filter(s=>s.id>=lim3sem&&s.id<=sessaoId).sort((a,b)=>a.id.localeCompare(b.id));
+          function pontosAtletaEvo(atletaId,campo){
+            return sess3sem.map(s=>({date:s.id,v:(()=>{const a=(s.gps?.porAtleta||[]).find(x=>x.atletaId===atletaId);return a?gv(a,campo):null;})(),isJogo:isJogoSessao(s)}));
+          }
+          const atletasInd=[...new Set(sess3sem.flatMap(s=>(s.gps?.porAtleta||[]).map(a=>a.atletaId).filter(Boolean)))]
+            .map(id=>({id,nome:atletasMap[id]?.nome||id,pos:atletasMap[id]?.posicao||'',gr:GRUPO_LABEL[classificacao[id]?.grupo]||'—'}))
+            .filter(atl=>!grupoFiltro||planningGruposAtleta[atl.id]===grupoFiltro)
+            .sort((a,b)=>(a.gr||'Z').localeCompare(b.gr||'Z')||a.nome.localeCompare(b.nome,'pt-BR'));
+
+          // Chart dims
+          const CW3=Math.floor((REL_IW-20)/3)-20;  // para gráficos individuais (3 colunas)
+          const CW_EVO=REL_IW-20;                   // para evolução do grupo (largura total)
+          const CH_EVO=100, CH_IND=100;
+          const labelPeriodo=`Semana de ${fmtData(iniSem)} → ${fmtData(sessaoId)}`;
+
+          // ── PÁGINA 1: Header + Cards + Evolução ───────────────────
+          const p1=`<div class="rel-page" style="${PAGE_DIV_STYLE}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0891b2;">
+              <div>
+                <p style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#0891b2;font-weight:700;margin:0 0 3px;">Relatório GPS · Sessão</p>
+                <h1 style="font-size:20px;font-weight:800;margin:0 0 3px;color:#1e293b;">${nomeClube.charAt(0).toUpperCase()+nomeClube.slice(1)}</h1>
+                <p style="font-size:12px;color:#64748b;margin:0;">Sessão de ${fmtData(sessaoId)}</p>
+              </div>
+              <div style="text-align:right;">
+                <p style="font-size:9px;color:#94a3b8;margin:0 0 2px;">Gerado em ${hoje}</p>
+                <p style="font-size:9px;color:#94a3b8;margin:0;">${labelPeriodo}</p>
+              </div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 10px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0;">Resumo da Sessão</p>
+              <p style="font-size:9px;color:#94a3b8;margin:0;">Média do grupo · ${dadosDia.length} atleta(s)</p>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+              ${[{label:'Dist. Total',dia:DIA.dist,sem:SEM.dist,unit:'m',cor:'#1e40af'},{label:'HSR',dia:DIA.hsr,sem:SEM.hsr,unit:'m',cor:'#7c3aed'},{label:'Acelerações',dia:DIA.acel,sem:SEM.acel,unit:'',cor:'#0891b2'}].map(c=>`
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+                  <p style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px;">${c.label}</p>
+                  <p style="font-size:9px;color:#94a3b8;margin:0 0 2px;">Dia</p>
+                  <p style="font-size:24px;font-weight:800;color:${c.cor};margin:0 0 10px;line-height:1;">${fmtN(c.dia,0)}${c.unit?`<span style="font-size:11px;color:#94a3b8;font-weight:400;margin-left:3px;">${c.unit}</span>`:''}</p>
+                  <div style="border-top:1px solid #e2e8f0;padding-top:8px;">
+                    <p style="font-size:9px;color:#94a3b8;margin:0 0 2px;">Semana acum.</p>
+                    <p style="font-size:17px;font-weight:700;color:#374151;margin:0;line-height:1;">${fmtN(c.sem,0)}${c.unit?`<span style="font-size:10px;color:#94a3b8;font-weight:400;margin-left:2px;">${c.unit}</span>`:''}</p>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0;">Evolução do Grupo · Últimas ${ult14Sess.length} sessões</p>
+              <div style="display:flex;gap:12px;align-items:center;">
+                <span style="font-size:8px;color:#64748b;display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:8px;height:8px;background:#2563eb;border-radius:1px;"></span>treino</span>
+                <span style="font-size:8px;color:#f59e0b;display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:1px;"></span>jogo</span>
+                <span style="font-size:8px;color:#ef4444;">— ref. (últ. 6 jogos)</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${[{label:'Distância Total (m)',pts:ptsDist,ref:refDistEq},{label:'HSR — Alta Velocidade (m)',pts:ptsHSR,ref:refHSREq},{label:'Acelerações',pts:ptsAcel,ref:refAcelEq}].map(ch=>`
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;">
+                  <p style="font-size:9px;font-weight:700;color:#374151;margin:0 0 4px;">${ch.label}</p>
+                  ${_svgBar(ch.pts,ch.ref,CW_EVO,CH_EVO,sessaoId)}
+                </div>`).join('')}
+            </div>
+
+            ${(()=>{
+              const pD=pctVal(DIA.dist,refDistEq),pH=pctVal(DIA.hsr,refHSREq),pA=pctVal(DIA.acel,refAcelEq);
+              function fraseDist(p){
+                if(p===null) return null;
+                if(p>100) return `O volume alcançou <strong>${p}%</strong> da referência de jogo — carga física acima do padrão competitivo.`;
+                if(p>=85) return `O volume da sessão atingiu <strong>${p}%</strong> da referência de jogo, dentro da zona-alvo de trabalho.`;
+                if(p>=65) return `O volume ficou em <strong>${p}%</strong> da referência de jogo — levemente abaixo da zona-alvo.`;
+                return `O volume da sessão foi de apenas <strong>${p}%</strong> da referência — sessão de baixa carga física.`;
+              }
+              function fraseHSR(p){
+                if(p===null) return null;
+                if(p>110) return `A distância em alta velocidade (HSR) atingiu <strong>${p}%</strong> — exposição acima do padrão competitivo.`;
+                if(p>=85) return `A demanda de alta velocidade (HSR) foi de <strong>${p}%</strong>, alinhada com o padrão competitivo.`;
+                if(p>=65) return `A demanda de alta velocidade (HSR) ficou em <strong>${p}%</strong> — intensidade moderada.`;
+                return `O componente de alta velocidade (HSR) foi baixo (<strong>${p}%</strong>) — sessão de baixa intensidade.`;
+              }
+              function fraseAcel(p){
+                if(p===null) return null;
+                if(p>110) return `As acelerações ultrapassaram a referência de jogo (<strong>${p}%</strong>) — carga mecânica neuromuscular elevada.`;
+                if(p>=85) return `As acelerações corresponderam a <strong>${p}%</strong> da referência — carga neuromuscular dentro do esperado.`;
+                if(p>=65) return `As acelerações ficaram em <strong>${p}%</strong> da referência de jogo.`;
+                return `A carga de acelerações foi reduzida (<strong>${p}%</strong>), preservando o sistema neuromuscular.`;
+              }
+              const metricas=[
+                {label:'VOLUME',unit:'Dist. Total',pct:pD},
+                {label:'HSR',unit:'Alta Velocidade',pct:pH},
+                {label:'ACEL.',unit:'Acelerações',pct:pA},
+              ];
+              const frases=[fraseDist(pD),fraseHSR(pH),fraseAcel(pA)].filter(Boolean);
+              if(!frases.length) return '';
+              return `
+              <div style="margin-top:14px;background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);border:1px solid #bae6fd;border-radius:12px;padding:14px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #bae6fd;">
+                  <div style="width:28px;height:28px;border-radius:8px;background:#0891b2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                  </div>
+                  <div>
+                    <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#0369a1;margin:0;">Análise da Sessão</p>
+                    <p style="font-size:8px;color:#0891b2;margin:0;">Comparativo vs. média dos últimos 6 jogos</p>
+                  </div>
+                  <div style="margin-left:auto;display:flex;gap:6px;">
+                    ${metricas.filter(m=>m.pct!==null).map(m=>{const s=semaforo(m.pct);return`<div style="text-align:center;background:#fff;border:1px solid ${s.cor}44;border-radius:8px;padding:5px 10px;min-width:52px;">
+                      <p style="font-size:7px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:0 0 1px;">${m.label}</p>
+                      <p style="font-size:14px;font-weight:800;color:${s.cor};margin:0;line-height:1;">${m.pct}%</p>
+                    </div>`;}).join('')}
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  ${frases.map(f=>`<div style="display:flex;gap:8px;align-items:flex-start;">
+                    <span style="width:5px;height:5px;border-radius:50%;background:#0891b2;flex-shrink:0;margin-top:5px;"></span>
+                    <p style="font-size:9.5px;color:#1e293b;margin:0;line-height:1.55;">${f}</p>
+                  </div>`).join('')}
+                </div>
+              </div>`;
+            })()}
+          </div>`;
+
+          // ── PÁGINA 2: Índices + Tabela Meta ────────────────────────
+          function celPct(v){
+            if(v===null||v===undefined) return`<td style="padding:5px 8px;text-align:center;font-size:11px;color:#94a3b8;">—</td>`;
+            const s=semaforo(v);
+            return`<td style="padding:5px 8px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:4px;min-width:44px;padding:3px 7px;border-radius:5px;font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.cor}33;"><span style="width:6px;height:6px;border-radius:50%;background:${s.cor};flex-shrink:0;"></span>${v}%</span></td>`;
+          }
+          const p2=`<div class="rel-page" style="${PAGE_DIV_STYLE}">
+            ${_miniHeader(nomeClube,sessaoId,hoje,'Índices e Metas')}
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0 0 4px;">Índices Compostos
+              <span style="font-size:9px;color:#94a3b8;font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px;">Referência: média do grupo nos últimos 6 jogos</span>
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;">
+                <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#0891b2;margin:0 0 2px;">VOLUME</p>
+                <p style="font-size:9px;color:#64748b;margin:0;">% da distância total de treino em relação à distância média nos jogos. Indica a carga mecânica acumulada na sessão.</p>
+                <p style="font-size:8px;color:#94a3b8;margin:4px 0 0;"><strong>Indicador:</strong> Dist. Total treino ÷ Dist. Total jogo × 100</p>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;">
+                <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;margin:0 0 2px;">INTENSIDADE</p>
+                <p style="font-size:9px;color:#64748b;margin:0;">Média do % de m/min e HSR do treino em relação aos jogos. Reflete a qualidade e o esforço de alta velocidade da sessão.</p>
+                <p style="font-size:8px;color:#94a3b8;margin:4px 0 0;"><strong>Indicadores:</strong> m/min e Dist. Alta Velocidade (HSR)</p>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+              ${GRUPOS.map(g=>{
+                const idx=indices[g],cor=COR_GRUPO[g];
+                const sIV=semaforo(idx.IV),sII=semaforo(idx.II);
+                return`<div style="border:1.5px solid ${cor}44;border-radius:10px;padding:14px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
+                    <span style="background:${cor};color:#fff;font-size:12px;font-weight:800;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${g}</span>
+                    <div><p style="font-size:11px;font-weight:700;color:#1e293b;margin:0;">Grupo ${g}</p><p style="font-size:9px;color:#94a3b8;margin:0;">${idx.n} atleta(s)</p></div>
+                  </div>
+                  <div style="margin-bottom:12px;">
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px;">
+                      <span style="font-size:8px;font-weight:800;text-transform:uppercase;color:#0891b2;letter-spacing:.5px;">VOLUME</span>
+                      <span style="font-size:22px;font-weight:800;color:${sIV.cor};line-height:1;">${idx.IV!==null?idx.IV+'%':'—'}</span>
+                    </div>
+                    <p style="font-size:8px;color:#94a3b8;margin:0;">Dist. Total treino vs jogo</p>
+                  </div>
+                  <div style="border-top:1px solid #f1f5f9;padding-top:12px;">
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px;">
+                      <span style="font-size:8px;font-weight:800;text-transform:uppercase;color:#7c3aed;letter-spacing:.5px;">INTENSIDADE</span>
+                      <span style="font-size:22px;font-weight:800;color:${sII.cor};line-height:1;">${idx.II!==null?idx.II+'%':'—'}</span>
+                    </div>
+                    <p style="font-size:8px;color:#94a3b8;margin:0;">m/min + HSR vs jogo</p>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;">
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0;">Quem está batendo a meta</p>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span style="font-size:8px;background:#fef9c3;color:#b45309;border:1px solid #b4530933;padding:2px 7px;border-radius:4px;font-weight:700;">&gt;115%</span>
+                <span style="font-size:8px;background:#dcfce7;color:#14532d;border:1px solid #14532d33;padding:2px 7px;border-radius:4px;font-weight:700;">101–115%</span>
+                <span style="font-size:8px;background:#f0fdf4;color:#16a34a;border:1px solid #16a34a44;padding:2px 7px;border-radius:4px;font-weight:700;">85–100%</span>
+                <span style="font-size:8px;background:#fffbeb;color:#f59e0b;border:1px solid #f59e0b44;padding:2px 7px;border-radius:4px;font-weight:700;">65–84%</span>
+                <span style="font-size:8px;background:#fef2f2;color:#dc2626;border:1px solid #dc262644;padding:2px 7px;border-radius:4px;font-weight:700;">&lt;65%</span>
+              </div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+              <thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">Atleta</th>
+                <th style="padding:6px 8px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">Dist. Total</th>
+                <th style="padding:6px 8px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">HSR</th>
+                <th style="padding:6px 8px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">M/min</th>
+                <th style="padding:6px 8px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">Acelerações</th>
+                <th style="padding:6px 8px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700;">Geral</th>
+              </tr></thead>
+              <tbody>${tabelaMeta.length?tabelaMeta.map(a=>{
+                const sg=semaforo(a.geral);
+                const ns=a.nome.split(' ');const nomeShort=ns.length>2?ns[0]+' '+ns[ns.length-1]:a.nome;
+                return`<tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:5px 8px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <span style="background:${COR_GRUPO[a.gr]||'#94a3b8'}22;color:${COR_GRUPO[a.gr]||'#94a3b8'};font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;">${a.gr}</span>
+                      ${a.pos?`<span style="font-size:9px;color:#94a3b8;">${a.pos}</span>`:''}
+                      <span style="font-size:11px;font-weight:600;color:#1e293b;">${nomeShort}</span>
+                    </div>
+                  </td>
+                  ${celPct(a.pD)}${celPct(a.pH)}${celPct(a.pM)}${celPct(a.pA)}
+                  <td style="padding:5px 8px;text-align:center;"><span style="display:inline-block;min-width:36px;padding:3px 7px;border-radius:5px;font-size:12px;font-weight:800;color:${sg.cor};background:${sg.bg};">${a.geral!==null?a.geral+'%':'—'}</span></td>
+                </tr>`;
+              }).join(''):'<tr><td colspan="6" style="padding:16px;text-align:center;color:#94a3b8;font-size:11px;">Nenhum atleta com dados</td></tr>'}
+              </tbody>
+            </table>
+            <p style="font-size:8px;color:#94a3b8;margin:10px 0 0;">% = valor da sessão ÷ média pessoal em jogos (últimos 6) × 100 &nbsp;·&nbsp; — = sem referência suficiente</p>
+
+            ${(()=>{
+              const vermelhos=tabelaMeta.filter(a=>a.geral!==null&&a.geral<65);
+              if(!vermelhos.length) return `<div style="margin-top:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+                <span style="width:10px;height:10px;border-radius:50%;background:#16a34a;flex-shrink:0;"></span>
+                <p style="font-size:9px;color:#15803d;margin:0;font-weight:600;">Nenhum atleta com carga abaixo de 65% da referência nesta sessão.</p>
+              </div>`;
+              const listaV=vermelhos.map(a=>{
+                const ns=a.nome.split(' ');const nm=ns.length>2?ns[0]+' '+ns[ns.length-1]:a.nome;
+                const motivos=[];
+                if(a.pD!==null&&a.pD<65) motivos.push(`volume (${a.pD}%)`);
+                if(a.pH!==null&&a.pH<65) motivos.push(`HSR (${a.pH}%)`);
+                if(a.pM!==null&&a.pM<65) motivos.push(`m/min (${a.pM}%)`);
+                if(a.pA!==null&&a.pA<65) motivos.push(`acelerações (${a.pA}%)`);
+                return{nm,pos:a.pos,gr:a.gr,geral:a.geral,motivos};
+              });
+              return `<div style="margin-top:12px;background:#fff8f8;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #fecaca;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0;"></span>
+                  <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#dc2626;margin:0;">Atenção · Atletas com carga &lt;65%</p>
+                  <span style="margin-left:auto;font-size:8px;color:#dc2626;background:#fef2f2;border:1px solid #dc262633;padding:2px 8px;border-radius:99px;font-weight:700;">${vermelhos.length} atleta${vermelhos.length>1?'s':''}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  ${listaV.map(a=>`<div style="display:flex;gap:8px;align-items:baseline;">
+                    <span style="font-size:10px;font-weight:700;color:#1e293b;flex-shrink:0;">${a.nm}</span>
+                    ${a.pos?`<span style="font-size:8px;color:#94a3b8;flex-shrink:0;">${a.pos}</span>`:''}
+                    <span style="font-size:9px;color:#dc2626;font-weight:700;flex-shrink:0;">${a.geral}%</span>
+                    ${a.motivos.length?`<span style="font-size:9px;color:#64748b;">· abaixo da meta em ${a.motivos.join(', ')}</span>`:''}
+                  </div>`).join('')}
+                </div>
+              </div>`;
+            })()}
+
+            ${(()=>{
+              const amarelos=tabelaMeta.filter(a=>a.geral!==null&&a.geral>115);
+              if(!amarelos.length) return '';
+              const listaA=amarelos.map(a=>{
+                const ns=a.nome.split(' ');const nm=ns.length>2?ns[0]+' '+ns[ns.length-1]:a.nome;
+                const motivos=[];
+                if(a.pD!==null&&a.pD>115) motivos.push(`volume (${a.pD}%)`);
+                if(a.pH!==null&&a.pH>115) motivos.push(`HSR (${a.pH}%)`);
+                if(a.pM!==null&&a.pM>115) motivos.push(`m/min (${a.pM}%)`);
+                if(a.pA!==null&&a.pA>115) motivos.push(`acelerações (${a.pA}%)`);
+                return{nm,pos:a.pos,geral:a.geral,motivos};
+              });
+              return `<div style="margin-top:10px;background:#fffdf0;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #fde68a;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#b45309;flex-shrink:0;"></span>
+                  <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#b45309;margin:0;">Sobrecarga · Atletas com carga &gt;115%</p>
+                  <span style="margin-left:auto;font-size:8px;color:#b45309;background:#fef9c3;border:1px solid #b4530933;padding:2px 8px;border-radius:99px;font-weight:700;">${amarelos.length} atleta${amarelos.length>1?'s':''}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  ${listaA.map(a=>`<div style="display:flex;gap:8px;align-items:baseline;">
+                    <span style="font-size:10px;font-weight:700;color:#1e293b;flex-shrink:0;">${a.nm}</span>
+                    ${a.pos?`<span style="font-size:8px;color:#94a3b8;flex-shrink:0;">${a.pos}</span>`:''}
+                    <span style="font-size:9px;color:#b45309;font-weight:700;flex-shrink:0;">${a.geral}%</span>
+                    ${a.motivos.length?`<span style="font-size:9px;color:#64748b;">· acima do limite em ${a.motivos.join(', ')}</span>`:''}
+                  </div>`).join('')}
+                </div>
+              </div>`;
+            })()}
+          </div>`;
+
+          // ── PÁGINAS 3+: Evolução individual ────────────────────────
+          const IND_CAMPOS=[{label:'Dist. Total (m)',campo:'distanciaTotal'},{label:'HSR (m)',campo:'distanciaAltaVelocidade'},{label:'Acelerações',campo:'aceleracoes'}];
+          const ATLETAS_POR_PAG=5;
+          const pagesAtletas=[];
+          for(let i=0;i<atletasInd.length;i+=ATLETAS_POR_PAG){
+            const chunk=atletasInd.slice(i,i+ATLETAS_POR_PAG);
+            const nPag=Math.ceil(atletasInd.length/ATLETAS_POR_PAG),iPag=Math.ceil((i+1)/ATLETAS_POR_PAG);
+            pagesAtletas.push(`<div class="rel-page" style="${PAGE_DIV_STYLE}">
+              ${_miniHeader(nomeClube,sessaoId,hoje,`Evolução Individual — Últimas 3 Semanas (${iPag}/${nPag})`)}
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                ${chunk.map(atl=>{
+                  const corG=COR_GRUPO[atl.gr]||'#94a3b8';
+                  const dmAtl=dmDiaMap[atl.id];
+                  const igpAtl=dmAtl?calcIGPdm(dmAtl):null;
+                  const igpClsAtl=classifyIGP(igpAtl);
+                  return`<div style="border-left:3px solid ${corG};padding-left:10px;">
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+                      <span style="background:${corG};color:#fff;font-size:9px;font-weight:800;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">${atl.gr}</span>
+                      ${atl.pos?`<span style="font-size:9px;color:#94a3b8;background:#f1f5f9;padding:1px 6px;border-radius:99px;">${atl.pos}</span>`:''}
+                      <span style="font-size:11px;font-weight:700;color:#1e293b;">${atl.nome}</span>
+                      ${igpClsAtl?`<span style="margin-left:auto;font-size:8px;font-weight:800;padding:2px 7px;border-radius:99px;background:${igpClsAtl.bg};color:${igpClsAtl.cor};border:1px solid ${igpClsAtl.cor}33;">IGP ${igpAtl} · ${igpClsAtl.label}</span>`:''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                      ${IND_CAMPOS.map(ch=>`
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;">
+                          <p style="font-size:9px;font-weight:700;color:#374151;margin:0 0 3px;">${ch.label}</p>
+                          ${_svgBar(pontosAtletaEvo(atl.id,ch.campo),medJogo6A(atl.id,ch.campo),CW3,CH_IND,sessaoId)}
+                        </div>`).join('')}
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`);
+          }
+
+          _pdfPageHtmls = [p1, p2, ...pagesAtletas];
+
+        } else {
+
+          // ── RELATÓRIO DE JOGOS ────────────────────────────────────
+          const GRUPO_ORDEM = ['Titular','Rotação','Impacto'];
+          const refJogos = calcularRefJogosPorGrupo(classificacao);
+          const { dados: dadosBrutos, label: labelTipo } = dadosParaRelatorio('jogos');
+          let dados = dadosBrutos.filter(a=>a.atletaId);
+          if(grupoFiltroMain)dados=dados.filter(a=>planningGruposAtleta[a.atletaId]===grupoFiltroMain);
+          if(atletaFiltro)dados=dados.filter(a=>a.atletaId===atletaFiltro);
+          if(grupoFiltro)dados=dados.filter(a=>planningGruposAtleta[a.atletaId]===grupoFiltro);
+
+          const mediaLocal=(campo)=>{const vals=dados.map(a=>campo==='cargaExterna'?(a.cargaExterna?.valor??null):(a[campo]??null)).filter(v=>v!==null);return vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:null;};
+          const refGeralJogo=(campo)=>{const ids=dados.map(a=>a.atletaId).filter(Boolean);const sjs=todasSessoes.filter(s=>isJogoSessao(s));const vals=[];for(const s of sjs)for(const a of(s.gps?.porAtleta||[]))if(ids.includes(a.atletaId)){const v=campo==='cargaExterna'?(a.cargaExterna?.valor??null):(a[campo]??null);if(v!==null)vals.push(v);}return vals.length?vals.reduce((x,y)=>x+y,0)/vals.length:null;};
+
+          const mediaDist=mediaLocal('distanciaTotal'),mediaHSR=mediaLocal('distanciaAltaVelocidade'),mediaVel=mediaLocal('distanciaPorMin'),mediaSprint=mediaLocal('altaDistMMin');
+          const refDist=refGeralJogo('distanciaTotal'),refHSR=refGeralJogo('distanciaAltaVelocidade'),refVel=refGeralJogo('distanciaPorMin'),refSprint=refGeralJogo('altaDistMMin');
+
+          const linhasRef=GRUPO_ORDEM.map(g=>{const r=refJogos[g];if(!r)return'';const gl=GRUPO_LABEL[g],cor=COR_GRUPO[gl];return`<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 8px;font-weight:700;color:${cor};">Grupo ${gl}</td><td style="padding:6px 8px;text-align:center;color:#64748b;font-size:11px;">${r.nEntradas} obs.</td><td style="padding:6px 8px;text-align:right;">${fmtN(r.distanciaTotal,0)} m</td><td style="padding:6px 8px;text-align:right;color:#64748b;font-size:11px;">${fmtN(r.distanciaTotalPerMin,1)}/min</td><td style="padding:6px 8px;text-align:right;">${fmtN(r.distanciaAltaVelocidade,0)} m</td><td style="padding:6px 8px;text-align:right;color:#64748b;font-size:11px;">${fmtN(r.distanciaAltaVelocidadePerMin,1)}/min</td><td style="padding:6px 8px;text-align:right;">${fmtN(r.velocidadeMax,1)} km/h</td><td style="padding:6px 8px;text-align:right;">${fmtN(r.distanciaEmSprint,0)} m</td><td style="padding:6px 8px;text-align:right;color:#64748b;font-size:11px;">${fmtN(r.distanciaEmSprintPerMin,1)}/min</td></tr>`;}).join('');
+          const dadosOrd=[...dados].sort((a,b)=>(b.distanciaTotal||0)-(a.distanciaTotal||0));
+          const linhasAtletas=dadosOrd.map(a=>{const nome=atletasMap[a.atletaId]?.nome||a.nomeOriginalArquivo||'—';const pos=atletasMap[a.atletaId]?.posicao;const cl=classificacao[a.atletaId];const grupo=cl?.grupo||'—';const gl=GRUPO_LABEL[grupo]||'—';const avgMin=cl?.avgMin??null;const ref=refJogos[grupo];const cor=COR_GRUPO[gl]||'#94a3b8';const min=a.duracaoMin||null;const porMin=(v)=>(v!==null&&min)?fmtN(v/min,1):'—';return`<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 8px;font-weight:600;font-size:12px;">${pos?`<span style="font-size:9px;color:#94a3b8;font-weight:400;margin-right:4px;">${pos}</span>`:''}${nome}</td><td style="padding:5px 8px;text-align:center;"><span style="background:${cor}22;color:${cor};padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Grupo ${gl}</span></td><td style="padding:5px 8px;text-align:center;font-size:11px;color:#64748b;">${avgMin!==null?avgMin+' min':'—'}</td><td style="padding:5px 8px;text-align:right;font-size:12px;">${fmtN(a.distanciaTotal,0)}</td><td style="padding:5px 8px;text-align:right;font-size:11px;color:#64748b;">${porMin(a.distanciaTotal)}</td><td style="padding:5px 8px;text-align:center;font-size:11px;">${seta(a.distanciaTotal,ref?.distanciaTotal)}</td><td style="padding:5px 8px;text-align:right;font-size:12px;">${fmtN(a.distanciaAltaVelocidade,0)}</td><td style="padding:5px 8px;text-align:right;font-size:11px;color:#64748b;">${porMin(a.distanciaAltaVelocidade)}</td><td style="padding:5px 8px;text-align:center;font-size:11px;">${seta(a.distanciaAltaVelocidade,ref?.distanciaAltaVelocidade)}</td><td style="padding:5px 8px;text-align:right;font-size:12px;">${fmtN(a.distanciaPorMin,1)}</td><td style="padding:5px 8px;text-align:center;font-size:11px;">${seta(a.distanciaPorMin,ref?.distanciaPorMin)}</td><td style="padding:5px 8px;text-align:right;font-size:12px;">${fmtN(a.altaDistMMin,1)}</td><td style="padding:5px 8px;text-align:right;font-size:11px;color:#64748b;">${fmtN(a.altaDistMMin,1)}</td><td style="padding:5px 8px;text-align:center;font-size:11px;">${seta(a.altaDistMMin,ref?.altaDistMMin)}</td></tr>`;}).join('');
+
+          const jogoHtml=`<div class="rel-page" style="${PAGE_DIV_STYLE}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid #0891b2;">
+              <div><p style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#0891b2;font-weight:700;margin:0 0 2px;">Relatório GPS · Jogos</p><h1 style="font-size:18px;font-weight:800;margin:0 0 2px;">${nomeClube.charAt(0).toUpperCase()+nomeClube.slice(1)}</h1><p style="font-size:12px;color:#64748b;margin:0;">${labelTipo}</p></div>
+              <div style="text-align:right;"><p style="font-size:10px;color:#94a3b8;margin:0;">Gerado em ${hoje}</p><p style="font-size:10px;color:#94a3b8;margin:2px 0 0;">${dados.length} atleta(s)</p></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+              ${[{label:'Dist. Média',val:mediaDist,ref:refDist,unit:'m',dec:0},{label:'HSR Médio',val:mediaHSR,ref:refHSR,unit:'m',dec:0},{label:'Dist. Total M/min',val:mediaVel,ref:refVel,unit:'m/min',dec:1},{label:'Dist. Alta M/min',val:mediaSprint,ref:refSprint,unit:'m/min',dec:1}].map(c=>`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px;"><p style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">${c.label}</p><p style="font-size:20px;font-weight:800;margin:0 0 2px;">${fmtN(c.val,c.dec)}<span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:2px;">${c.unit}</span></p><p style="font-size:10px;margin:0;color:#94a3b8;">vs. jogos ${seta(c.val,c.ref)||'—'}</p></div>`).join('')}
+            </div>
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0 0 6px;">Referência por grupo — médias nos jogos</p>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;"><thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;"><th style="padding:6px 8px;text-align:left;">Grupo</th><th style="padding:6px 8px;text-align:center;color:#64748b;">Obs.</th><th style="padding:6px 8px;text-align:right;">Dist. Total</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th><th style="padding:6px 8px;text-align:right;">HSR</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th><th style="padding:6px 8px;text-align:right;">Dist. Total M/min</th><th style="padding:6px 8px;text-align:right;">Dist. Alta M/min</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th></tr></thead><tbody>${linhasRef||'<tr><td colspan="9" style="padding:10px;text-align:center;color:#94a3b8;">Nenhum jogo com GPS</td></tr>'}</tbody></table>
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0 0 6px;">Atletas — ${labelTipo}</p>
+            <table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;"><th style="padding:6px 8px;text-align:left;">Atleta</th><th style="padding:6px 8px;text-align:center;">Grupo</th><th style="padding:6px 8px;text-align:center;color:#64748b;">Min. méd.</th><th style="padding:6px 8px;text-align:right;">Dist.</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th><th style="padding:6px 8px;text-align:center;color:#64748b;">↕</th><th style="padding:6px 8px;text-align:right;">HSR</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th><th style="padding:6px 8px;text-align:center;color:#64748b;">↕</th><th style="padding:6px 8px;text-align:right;">T.M/min</th><th style="padding:6px 8px;text-align:center;color:#64748b;">↕</th><th style="padding:6px 8px;text-align:right;">Alta M/min</th><th style="padding:6px 8px;text-align:right;color:#64748b;">/min</th><th style="padding:6px 8px;text-align:center;color:#64748b;">↕</th></tr></thead><tbody>${linhasAtletas||'<tr><td colspan="14" style="padding:10px;text-align:center;color:#94a3b8;">Nenhum atleta</td></tr>'}</tbody></table>
+            <div style="margin-top:12px;display:flex;gap:14px;">${['A','B','C'].map(g=>`<span style="font-size:9px;color:${COR_GRUPO[g]};font-weight:700;">● Grupo ${g}</span>`).join('')}<span style="font-size:9px;color:#94a3b8;margin-left:auto;">↑↓ = vs. média do grupo nos jogos · Ciente IE · ${hoje}</span></div>
+          </div>`;
+          _pdfPageHtmls = [jogoHtml];
+        }
+
+        // ── Abrir nova janela com preview e botão de impressão ───────
+        const winHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório GPS — ${nomeClube.charAt(0).toUpperCase()+nomeClube.slice(1)}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#64748b; font-family:'Helvetica Neue',Arial,sans-serif; padding-top:52px; }
+    .print-bar {
+      position:fixed; top:0; left:0; right:0; height:44px;
+      background:#1e293b; padding:0 20px;
+      display:flex; align-items:center; justify-content:space-between; z-index:100;
+    }
+    .print-bar span { color:#fff; font-size:13px; font-weight:700; }
+    .print-bar button {
+      background:#0891b2; color:#fff; border:none;
+      padding:8px 20px; border-radius:8px;
+      font-size:13px; font-weight:700; cursor:pointer;
+    }
+    .page-wrap {
+      width:${REL_PW}px; background:#fff;
+      margin:10px auto; box-shadow:0 4px 24px rgba(0,0,0,.4); border-radius:4px; overflow:hidden;
+    }
+    @media print {
+      .print-bar { display:none !important; }
+      body { background:#fff; padding-top:0; }
+      .page-wrap { box-shadow:none; margin:0; border-radius:0; page-break-after:always; }
+      @page { size:A4 portrait; margin:0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar">
+    <span>Preview — Relatório GPS</span>
+    <button onclick="window.print()">↓ Salvar / Imprimir PDF</button>
+  </div>
+  ${_pdfPageHtmls.map(p=>`<div class="page-wrap">${p}</div>`).join('\n')}
+</body>
+</html>`;
+
+        win.document.open();
+        win.document.write(winHtml);
+        win.document.close();
+
+        document.getElementById('relatorioModal').classList.remove('open');
+
+      } catch(err) {
+        win.close();
+        console.error('Erro ao gerar relatório GPS:', err);
+        alert('Erro ao gerar. Verifique o console.');
+      } finally {
+        status.classList.add('hidden');
+        btnGerar.disabled = false;
+      }
+    }
+
+    init();
+  </script>
+
+  <script src="/components/layout.js"></script>
+</body>
+</html>

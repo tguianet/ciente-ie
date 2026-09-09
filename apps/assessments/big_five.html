@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Avaliação Psicológica – Big Five</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+  <div class="flex-1 p-6">
+
+<header class="text-center mb-4 pl-14 md:pl-0">
+  <h1 class="text-2xl font-bold">Avaliação Psicológica – Big Five (BFI-44)</h1>
+  <p class="text-gray-600">Marque de 1 a 5 conforme sua concordância</p>
+  <p class="text-sm text-gray-500">
+    1 = Discordo totalmente · 2 = Discordo · 3 = Neutro · 4 = Concordo · 5 = Concordo totalmente
+  </p>
+</header>
+
+<main class="max-w-4xl mx-auto">
+  <section id="inicio">
+    <h2 class="font-semibold mb-2">Selecione o atleta</h2>
+    <div id="status" class="text-sm text-gray-600 mb-3"></div>
+    <div id="listaAtletas" class="space-y-2"></div>
+  </section>
+
+  <section id="avaliacao" class="hidden">
+    <button id="voltar" class="text-blue-600 mb-3">← Voltar</button>
+    <h2 id="titulo" class="font-bold mb-3"></h2>
+
+    <form id="form" class="bg-white p-4 rounded shadow space-y-6">
+      <div id="perguntas" class="space-y-6"></div>
+      <button class="bg-blue-600 text-white w-full py-2 rounded">
+        Enviar Questionário
+      </button>
+    </form>
+  </section>
+</main>
+
+<script type="module">
+import { db, auth } from "/core/firebase.js";
+import {
+  collection, getDocs, addDoc, query, where,
+  getDoc, doc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+const perguntas = [
+  "É conversador, comunicativo.",
+  "Tende a ser crítico com os outros.",
+  "É minucioso e detalhista no trabalho.",
+  "É depressivo, triste.",
+  "É original, tem novas ideias.",
+  "É reservado.",
+  "É prestativo e ajuda os outros.",
+  "Pode ser um tanto descuidado.",
+  "É relaxado, controla bem o estresse.",
+  "É curioso sobre muitas coisas.",
+  "É cheio de energia.",
+  "Começa discussões com os outros.",
+  "É um trabalhador de confiança.",
+  "Fica tenso com frequência.",
+  "É engenhoso, analítico.",
+  "Gera entusiasmo.",
+  "Tem capacidade de perdoar.",
+  "Tende a ser desorganizado.",
+  "Preocupa-se muito com tudo.",
+  "É imaginativo.",
+  "Tende a ser quieto.",
+  "É geralmente confiável.",
+  "Tende a ser preguiçoso.",
+  "É emocionalmente estável.",
+  "É inventivo, criativo.",
+  "É assertivo.",
+  "Às vezes é frio e distante.",
+  "Insiste até concluir o trabalho.",
+  "É temperamental.",
+  "Valoriza o artístico.",
+  "É tímido e inibido.",
+  "É amável.",
+  "Faz as coisas com eficiência.",
+  "Mantém-se calmo sob tensão.",
+  "Prefere trabalho rotineiro.",
+  "É sociável.",
+  "É rude às vezes.",
+  "Faz planos e segue-os.",
+  "Fica nervoso facilmente.",
+  "Gosta de refletir.",
+  "Tem poucos interesses artísticos.",
+  "Gosta de cooperar.",
+  "É facilmente distraído.",
+  "É sofisticado em artes, música ou literatura."
+];
+
+const idx = {
+  ext:[0,10,15,20,25,35],
+  ama:[1,6,16,26,31,41],
+  con:[2,12,22,28,33,38],
+  est:[3,13,18,23,29,39],
+  abe:[4,9,14,19,24,30,34,40,42,43]
+};
+
+const $ = (id)=>document.getElementById(id);
+let atletaSelecionado = null;
+let currentUserData = null;
+
+function faixa(v){
+  if (v <= 2.8) return "baixa";
+  if (v < 4.0) return "moderada";
+  return "alta";
+}
+
+async function resolveUserData() {
+  // 1. Tenta localStorage (salvo no login — mais rápido e confiável)
+  try {
+    const ctx = JSON.parse(localStorage.getItem("userContext"));
+    if (ctx?.clubId) return ctx;
+  } catch(e) {}
+
+  // 2. Fallback: aguarda Auth e busca no Firestore
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, async u => {
+      unsub();
+      if (!u) { reject(new Error("não autenticado")); return; }
+      const snap = await getDoc(doc(db, "users", u.uid));
+      if (!snap.exists()) { reject(new Error("sem perfil")); return; }
+      resolve(snap.data());
+    });
+  }).catch(() => {
+    window.location.href = "/login.html";
+    return null;
+  });
+}
+
+function extrairNome(d){
+  return (d?.nome ?? d?.name ?? d?.atleta ?? "").toString().trim();
+}
+function extrairClubId(d){
+  return (d?.clubId ?? d?.club_id ?? d?.clubeId ?? d?.club ?? null);
+}
+
+/* INIT */
+currentUserData = await resolveUserData();
+if (!currentUserData?.clubId) { $("status").innerText = "Erro: usuário sem clubId."; }
+
+/* LISTA ATLETAS */
+$("status").innerText = "Carregando atletas…";
+const snap = await getDocs(query(
+  collection(db,"athletes"),
+  where("clubId","==",currentUserData.clubId),
+  where("ativo","!=",false)
+));
+
+const atletas = snap.docs.map(docu=>{
+  const d = docu.data();
+  return {
+    id: docu.id,
+    nome: extrairNome(d),
+    clubId: extrairClubId(d)
+  };
+}).filter(a=>a.nome);
+
+atletas.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+
+$("status").innerText = `Atletas: ${atletas.length}`;
+$("listaAtletas").innerHTML = atletas.map(a=>{
+  const ok = a.clubId && currentUserData?.clubId && a.clubId === currentUserData.clubId;
+  const badge = !a.clubId
+    ? `<span class="text-xs text-orange-600 ml-2">sem clubId</span>`
+    : (!ok ? `<span class="text-xs text-red-600 ml-2">outro clube</span>` : "");
+
+  return `
+    <div class="bg-white p-3 rounded shadow flex justify-between items-center">
+      <div>
+        <span class="font-medium">${a.nome}</span>${badge}
+      </div>
+      <button class="${ok?"text-blue-600":"text-gray-400"}" ${ok?"":"disabled"}
+        data-id="${a.id}" data-nome="${a.nome}" data-clubid="${a.clubId ?? ""}">
+        Avaliar
+      </button>
+    </div>
+  `;
+}).join("");
+
+document.querySelectorAll("button[data-id]").forEach(btn=>{
+  btn.onclick=()=>{
+    atletaSelecionado = {
+      id: btn.dataset.id,
+      nome: btn.dataset.nome,
+      clubId: btn.dataset.clubid || null
+    };
+
+    $("titulo").innerText = "Big Five – " + atletaSelecionado.nome;
+    $("inicio").classList.add("hidden");
+    $("avaliacao").classList.remove("hidden");
+  };
+});
+
+/* RENDER QUESTIONÁRIO */
+const container = $("perguntas");
+container.innerHTML = "";
+
+perguntas.forEach((q,i)=>{
+  container.innerHTML += `
+    <div class="bg-gray-50 p-4 rounded border">
+      <p class="font-semibold mb-2">${i+1}. ${q}</p>
+
+      <div class="grid grid-cols-5 text-center text-xs font-semibold text-gray-600 mb-2">
+        <span>1<br><small>Discordo<br>Totalmente</small></span>
+        <span>2<br><small>Discordo</small></span>
+        <span>3<br><small>Neutro</small></span>
+        <span>4<br><small>Concordo</small></span>
+        <span>5<br><small>Concordo<br>Totalmente</small></span>
+      </div>
+
+      <div class="flex justify-between">
+        ${[1,2,3,4,5].map(n=>`
+          <label class="flex flex-col items-center">
+            <input type="radio" name="q${i}" value="${n}" required>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+});
+
+$("voltar").onclick = ()=>location.reload();
+
+/* SALVAR */
+$("form").onsubmit = async (e)=>{
+  e.preventDefault();
+  if(!atletaSelecionado) return alert("Selecione um atleta.");
+
+  if(!atletaSelecionado.clubId) return alert("Atleta sem clubId. Corrija no cadastro.");
+  if(atletaSelecionado.clubId !== currentUserData.clubId) return alert("Atleta não pertence ao seu clube.");
+
+  const respostas = [];
+  for(let i=0;i<perguntas.length;i++){
+    const el = document.querySelector(`input[name="q${i}"]:checked`);
+    if(!el) return alert(`Você deixou a pergunta ${i+1} sem resposta.`);
+    respostas.push(+el.value);
+  }
+
+  const media = (arr)=>arr.reduce((a,b)=>a+b,0)/arr.length;
+
+  const tracos = {
+    extroversao: media(idx.ext.map(i=>respostas[i])),
+    amabilidade: media(idx.ama.map(i=>respostas[i])),
+    conscienciosidade: media(idx.con.map(i=>respostas[i])),
+    estabilidade_emocional: media(idx.est.map(i=>respostas[i])),
+    abertura_experiencias: media(idx.abe.map(i=>respostas[i]))
+  };
+
+  const date = new Date().toLocaleDateString('en-CA');
+
+  // ✅ salva na coleção já existente/liberada no seu projeto
+  await addDoc(collection(db, "assessments_functional"), {
+  athleteId: atletaSelecionado.id,
+  clubId: currentUserData.clubId,
+  date: new Date().toLocaleDateString('en-CA'),
+  tipo: "psicologica",
+
+  instrumento: "BFI-44",
+  respostas,
+
+  dados: {
+    extroversao: tracos.extroversao,
+    amabilidade: tracos.amabilidade,
+    conscienciosidade: tracos.conscienciosidade,
+    estabilidade_emocional: tracos.estabilidade_emocional,
+    abertura_experiencias: tracos.abertura_experiencias
+  },
+
+  classificacao: {
+    extroversao: faixa(tracos.extroversao),
+    amabilidade: faixa(tracos.amabilidade),
+    conscienciosidade: faixa(tracos.conscienciosidade),
+    estabilidade_emocional: faixa(tracos.estabilidade_emocional),
+    abertura_experiencias: faixa(tracos.abertura_experiencias)
+  },
+
+  meta: {
+    createdAt: serverTimestamp(),
+    origem: "avaliacao_psicologica"
+  }
+});
+
+  alert("✅ Big Five salvo com sucesso!");
+  location.reload();
+};
+</script>
+
+</div>
+  <script src="/components/layout.js"></script>
+
+</body>
+</html>

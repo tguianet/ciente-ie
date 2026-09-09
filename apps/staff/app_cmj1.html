@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CMJ Teste</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#020617; color:#fff; font-family:monospace; height:100dvh; overflow:hidden; }
+  #video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; }
+  #canvas { position:fixed; inset:0; width:100%; height:100%; }
+  #ui {
+    position:fixed; bottom:0; left:0; right:0; padding:16px;
+    background:linear-gradient(transparent, rgba(2,6,23,0.92));
+    display:flex; flex-direction:column; align-items:center; gap:12px; z-index:10;
+  }
+  #result { font-size:64px; font-weight:bold; color:#00ff87; text-shadow:0 0 30px rgba(0,255,135,0.5); line-height:1; }
+  #result span { font-size:18px; color:#888; display:block; text-align:center; }
+  #status { font-size:13px; color:#aaa; letter-spacing:0.05em; text-align:center; max-width:300px; line-height:1.5; }
+  #btn {
+    width:70px; height:70px; border-radius:50%;
+    border:2px solid #00ff87; background:rgba(0,255,135,0.1);
+    color:#00ff87; font-size:11px; font-weight:bold;
+    letter-spacing:0.05em; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  #btn.armed { border-color:#00d4ff; color:#00d4ff; background:rgba(0,212,255,0.15); }
+  #btn.detecting { border-color:#ff3d5a; color:#ff3d5a; background:rgba(255,61,90,0.12); }
+  #btn-calib { display:none !important; }
+  #log {
+    position:fixed; top:12px; left:12px;
+    font-size:11px; color:rgba(255,255,255,0.4); line-height:1.6; z-index:10;
+  }
+  #history { display:flex; gap:8px; align-items:flex-end; height:36px; }
+  .hbar { width:18px; background:rgba(0,255,135,0.2); border-radius:3px 3px 0 0; min-height:4px; }
+  .hbar.last { background:#00ff87; }
+
+  /* quality card */
+  #quality-card {
+    position:fixed; top:12px; right:12px; z-index:10;
+    background:rgba(2,6,23,0.75); border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; padding:10px 14px; min-width:100px;
+    backdrop-filter:blur(4px); display:none; flex-direction:column; gap:3px;
+  }
+  #quality-card.show { display:flex; }
+  #q-title { font-size:9px; color:rgba(255,255,255,0.35); letter-spacing:0.1em; text-align:center; }
+  #q-score { font-size:28px; font-weight:bold; text-align:center; line-height:1.1; }
+  #q-score.alta  { color:#00ff87; text-shadow:0 0 12px rgba(0,255,135,0.5); }
+  #q-score.media { color:#ffd600; text-shadow:0 0 12px rgba(255,214,0,0.5); }
+  #q-score.baixa { color:#ff3d5a; text-shadow:0 0 12px rgba(255,61,90,0.5); }
+  #q-label { font-size:10px; text-align:center; letter-spacing:0.08em; text-transform:uppercase; }
+  #q-label.alta  { color:#00ff87; }
+  #q-label.media { color:#ffd600; }
+  #q-label.baixa { color:#ff3d5a; }
+  #q-desc { font-size:9px; color:rgba(255,255,255,0.4); text-align:center; line-height:1.5; margin-top:3px; }
+
+  /* atleta modal */
+  #atleta-modal {
+    position:fixed; inset:0; z-index:50; display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(2,6,23,0.97); padding:24px; gap:14px;
+  }
+  #atleta-modal.show { display:flex; }
+  #atleta-modal h2 { font-size:16px; color:#ffd600; letter-spacing:0.08em; }
+  #atleta-search {
+    width:100%; max-width:320px; padding:10px 14px; border-radius:8px;
+    border:1px solid #333; background:#0d1424; color:#fff;
+    font-family:monospace; font-size:13px; outline:none;
+  }
+  #atleta-list {
+    width:100%; max-width:320px; max-height:300px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .atleta-item {
+    padding:10px 14px; border-radius:8px; border:1px solid #1e2a3a;
+    background:#0a1020; cursor:pointer; display:flex;
+    justify-content:space-between; align-items:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .atleta-item:active, .atleta-item.selected { border-color:#00ff87; background:#001a0d; }
+  .atleta-nome { font-size:13px; color:#eee; }
+  .atleta-cat  { font-size:10px; color:#555; }
+  #btn-atleta-ok {
+    padding:14px 40px; border-radius:8px; border:none;
+    background:#00ff87; color:#000; font-family:monospace;
+    font-size:13px; font-weight:bold; cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #btn-atleta-ok:disabled { background:#333; color:#555; cursor:default; }
+
+  /* save button */
+  #btn-save {
+    display:none; padding:10px 24px; border-radius:20px;
+    border:1px solid rgba(0,255,135,0.6); background:transparent;
+    color:#00ff87; font-family:monospace; font-size:12px;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  #btn-discard {
+    display:none; padding:6px 16px; border-radius:20px;
+    border:1px solid rgba(255,61,90,0.5); background:transparent;
+    color:#ff3d5a; font-family:monospace; font-size:11px;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  #save-status { font-size:11px; min-height:14px; text-align:center; }
+  #atleta-nome-display {
+    font-size:11px; color:#64748b; letter-spacing:0.04em;
+    cursor:pointer; text-decoration:underline;
+  }
+
+  /* painel lateral de saltos */
+  #jump-panel {
+    position:fixed; top:100px; left:10px; z-index:10;
+    display:flex; flex-direction:column; gap:4px;
+    background:rgba(2,6,23,0.65); border-radius:10px;
+    padding:10px 12px; backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,0.07);
+  }
+  #jump-panel-title {
+    font-size:9px; color:rgba(255,255,255,0.35); letter-spacing:0.1em;
+    text-align:center; margin-bottom:4px; font-family:monospace;
+  }
+  .jump-row { display:flex; align-items:baseline; gap:6px; font-family:monospace; }
+  .jump-num { font-size:11px; color:rgba(255,255,255,0.3); width:13px; text-align:right; }
+  .jump-val { font-size:28px; font-weight:bold; line-height:1.1; min-width:62px; }
+  .jump-val.done  { color:#00ff87; text-shadow:0 0 16px rgba(0,255,135,0.6); }
+  .jump-val.best  { color:#ffd600; text-shadow:0 0 16px rgba(255,214,0,0.7); }
+  .jump-val.wait  { color:rgba(255,255,255,0.18); font-size:20px; }
+  .jump-unit { font-size:11px; color:rgba(255,255,255,0.35); }
+  .jump-star { font-size:10px; color:#ffd600; display:none; margin-left:1px; }
+  .jump-star.show { display:inline; }
+</style>
+</head>
+<body>
+
+<div id="atleta-modal" class="show">
+  <h2>SELECIONAR ATLETA</h2>
+  <input id="atleta-search" type="text" placeholder="Buscar pelo nome..." autocomplete="off">
+  <div id="atleta-list"><span style="color:#555;font-size:12px">Carregando atletas...</span></div>
+  <button id="btn-atleta-ok" disabled>INICIAR TESTE</button>
+</div>
+
+<video id="video" playsinline autoplay muted></video>
+<canvas id="canvas"></canvas>
+
+<div id="log">
+  <div id="log-pose">pose: -</div>
+  <div id="log-fps">fps: -</div>
+  <div id="log-pes">pes: -</div>
+  <div id="log-phase">fase: carregando</div>
+  <div id="log-calib">calib: aguardando</div>
+</div>
+
+<!-- quality card top-right -->
+<div id="quality-card">
+  <div id="q-title">QUALIDADE</div>
+  <div id="q-score">--</div>
+  <div id="q-label">--</div>
+  <div id="q-desc"></div>
+</div>
+
+<!-- painel lateral: 3 saltos -->
+<div id="jump-panel">
+  <div id="jump-panel-title">SALTOS</div>
+  <div class="jump-row"><span class="jump-num">1</span><span class="jump-val wait" id="jv1">—</span><span class="jump-unit">cm</span><span class="jump-star" id="js1">★</span></div>
+  <div class="jump-row"><span class="jump-num">2</span><span class="jump-val wait" id="jv2">—</span><span class="jump-unit">cm</span><span class="jump-star" id="js2">★</span></div>
+  <div class="jump-row"><span class="jump-num">3</span><span class="jump-val wait" id="jv3">—</span><span class="jump-unit">cm</span><span class="jump-star" id="js3">★</span></div>
+</div>
+
+<div id="ui">
+  <div id="status">Aguarde o carregamento...</div>
+  <button id="btn-save">💾 SALVAR MELHOR</button>
+  <div id="save-status"></div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <button id="btn">MEDIR</button>
+  </div>
+  <button id="btn-discard">✕ Descartar último salto</button>
+  <div id="atleta-nome-display">— sem atleta selecionado —</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script>
+const video   = document.getElementById('video');
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const btn     = document.getElementById('btn');
+const status  = document.getElementById('status');
+const logPose = document.getElementById('log-pose');
+const logFps  = document.getElementById('log-fps');
+const logPes  = document.getElementById('log-pes');
+const logPhase= document.getElementById('log-phase');
+const logCalib= document.getElementById('log-calib');
+
+// estado
+let phase    = 'loading';
+let baseline = null;
+let peakY    = null;
+let buf      = [];
+let landingN = 0;
+let landingStart = null;
+let jumpStart= 0;
+let lastT    = 0;
+let fps      = 0;
+let results  = [];   // [{cm, flightMs, quality}]
+let pxPerCm  = null;
+let calibByHeight = false;
+
+// dados de qualidade coletados durante armed/detecting
+let visibilityFrames = [];
+let footYDuringArmed = [];
+let hipYPostBaseline = [];   // quadril só após baseline estável (contra-movimento)
+let trackingLostDuringJump = false;
+let lastQuality = null;
+let fpsBuffer   = [];        // últimos N fps para média durante o salto
+let baselineReady = false;   // flag: baseline estabilizou neste ciclo
+
+// descida pré-salto
+let descentStart = null;     // timestamp quando quadril começa a descer
+let descentEnd   = null;     // timestamp quando quadril atinge ponto mais baixo (= decolagem)
+let hipBaselineY = null;     // referência Y do quadril no baseline
+
+const L_ANKLE=27, R_ANKLE=28, L_SHOULDER=11, R_SHOULDER=12;
+const L_HIP=23, R_HIP=24;
+const BUF_N = 35; // baseline mais estável
+
+// ── QUALIDADE ─────────────────────────────────────────────────────────────────
+
+function stdDev(arr) {
+  if (arr.length < 2) return 0;
+  const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
+  const sq = arr.map(v=>(v-mean)**2);
+  return Math.sqrt(sq.reduce((a,b)=>a+b,0)/sq.length);
+}
+
+function detectCounterMovement(hipArr) {
+  // quadril desce (Y aumenta) após o baseline estar estável — dados já filtrados
+  if (hipArr.length < 4) return false;
+  const refFrames = Math.min(5, Math.floor(hipArr.length * 0.3));
+  const ref = hipArr.slice(0, refFrames);
+  const refMean = ref.reduce((a,b)=>a+b,0)/ref.length;
+  const thr = pxPerCm ? pxPerCm*2 : 15; // ~2cm de descida
+  return hipArr.some(y => y > refMean + thr);
+}
+
+function scoreQuality({ flightMs, cm, hasCounterMovement, avgVisibility, footStd, trackingLoss, avgFps }) {
+  let score = 100;
+  const issues = [];
+
+  // FPS — verificação primária (tempo de voo é ruído abaixo de 12fps)
+  if (avgFps < 12) {
+    return { score: 0, label: 'baixa', issues: ['FPS insuficiente (' + Math.round(avgFps) + ')'] };
+  }
+  if (avgFps < 20) { score -= 20; issues.push('FPS baixo (' + Math.round(avgFps) + ')'); }
+
+  // Visibilidade dos pontos de referência
+  if (avgVisibility < 0.55) { score -= 35; issues.push('Visibilidade muito baixa'); }
+  else if (avgVisibility < 0.7) { score -= 15; issues.push('Visibilidade parcial'); }
+
+  // Estabilidade do baseline (footStd em pixels → cm)
+  const footStdCm = pxPerCm ? footStd / pxPerCm : footStd / 5;
+  if (footStdCm > 2.5) { score -= 25; issues.push('Baseline instável'); }
+  else if (footStdCm > 1.2) { score -= 10; }
+
+  // Contra-movimento presente
+  if (!hasCounterMovement) { score -= 15; issues.push('Sem contra-movimento'); }
+
+  // Tempo de voo (fisiologicamente plausível)
+  if (flightMs < 150) { score -= 35; issues.push('Tempo de voo muito curto'); }
+  else if (flightMs < 200) { score -= 15; }
+  else if (flightMs > 900) { score -= 20; issues.push('Tempo de voo suspeito'); }
+
+  // Altura em cm (fisiologicamente plausível: 5-90cm)
+  if (cm == null || cm < 5) { score -= 30; issues.push('Altura inválida'); }
+  else if (cm > 90) { score -= 20; issues.push('Altura improvável'); }
+
+  // Perda de rastreamento durante o salto
+  if (trackingLoss) { score -= 25; issues.push('Perda de rastreamento'); }
+
+  score = Math.max(0, Math.min(100, score));
+  const label = score >= 70 ? 'alta' : score >= 45 ? 'média' : 'baixa';
+  return { score, label, issues };
+}
+
+function updateQualityCard(quality) {
+  const card = document.getElementById('quality-card');
+  const qScore = document.getElementById('q-score');
+  const qLabel = document.getElementById('q-label');
+  const qDesc  = document.getElementById('q-desc');
+
+  if (!quality) { card.classList.remove('show'); return; }
+
+  card.classList.add('show');
+  qScore.textContent = quality.score + '%';
+  qScore.className = quality.label;
+  qLabel.textContent = quality.label;
+  qLabel.className = quality.label;
+  qDesc.textContent = quality.issues.length ? quality.issues.join(' · ') : 'Salto válido';
+}
+
+// ── RASTREAMENTO DE POSIÇÃO ───────────────────────────────────────────────────
+
+function getTrackY(lm) {
+  const la = lm[L_ANKLE], ra = lm[R_ANKLE];
+  const ly = (la && la.visibility > 0.3) ? la.y : null;
+  const ry = (ra && ra.visibility > 0.3) ? ra.y : null;
+  if (ly == null && ry == null) {
+    const lh = lm[L_HIP], rh = lm[R_HIP];
+    if (lh && rh) return ((lh.y + rh.y) / 2) * canvas.height;
+    return canvas.height * 0.8;
+  }
+  const y = (ly != null && ry != null) ? (ly + ry) / 2 : (ly ?? ry);
+  return y * canvas.height;
+}
+
+function getTrackX(lm) {
+  const la = lm[L_ANKLE], ra = lm[R_ANKLE];
+  const lx = (la && la.visibility > 0.3) ? la.x : null;
+  const rx = (ra && ra.visibility > 0.3) ? ra.x : null;
+  if (lx == null && rx == null) return canvas.width * 0.5;
+  const x = (lx != null && rx != null) ? (lx + rx) / 2 : (lx ?? rx);
+  return x * canvas.width;
+}
+
+function getHipY(lm) {
+  const lh = lm[L_HIP], rh = lm[R_HIP];
+  if (!lh || !rh) return null;
+  if (lh.visibility < 0.4 || rh.visibility < 0.4) return null;
+  return ((lh.y + rh.y) / 2) * canvas.height;
+}
+
+function getAnkleVisibility(lm) {
+  const la = lm[L_ANKLE], ra = lm[R_ANKLE];
+  const lv = la ? (la.visibility || 0) : 0;
+  const rv = ra ? (ra.visibility || 0) : 0;
+  return (lv + rv) / 2;
+}
+
+// px/cm usando estatura real do atleta (ombro→tornozelo = ~77% da altura)
+function calcPxPerCmPorAltura(lm) {
+  const H = canvas.height;
+  const lSh = lm[L_SHOULDER], rSh = lm[R_SHOULDER];
+  const lAn = lm[L_ANKLE],    rAn = lm[R_ANKLE];
+  if (!lSh || !rSh || !lAn || !rAn) return null;
+  if (lSh.visibility < 0.5 || rSh.visibility < 0.5) return null;
+  if (lAn.visibility < 0.5 || rAn.visibility < 0.5) return null;
+  const shoulderY = ((lSh.y + rSh.y) / 2) * H;
+  const ankleY    = ((lAn.y + rAn.y) / 2) * H;
+  const spanPx    = ankleY - shoulderY;
+  if (spanPx <= 10) return null;
+  return (spanPx / 0.77) / window._estaturaAtleta;
+}
+
+// px/cm estimado por proporção corporal (fallback)
+function estimatePxPerCm(lm) {
+  const H = canvas.height;
+  const lSh = lm[L_SHOULDER], rSh = lm[R_SHOULDER];
+  const lAn = lm[L_ANKLE],    rAn = lm[R_ANKLE];
+  if (!lSh || !rSh || !lAn || !rAn) return 0;
+  const shoulderY = ((lSh.y + rSh.y) / 2) * H;
+  const ankleY    = ((lAn.y + rAn.y) / 2) * H;
+  const spanPx    = ankleY - shoulderY;
+  if (spanPx <= 10) return 0;
+  return (spanPx / 0.77) / 175;
+}
+
+function setPhase(p) {
+  phase = p;
+  logPhase.textContent = 'fase: ' + p;
+  btn.className = p==='armed'?'armed':p==='detecting'?'detecting':'';
+  const msgs = {
+    ready: 'Pressione MEDIR e fique em pe no quadro.',
+    armed: 'Pronto - pode saltar!',
+    detecting: 'Saltando...',
+    loading: 'Carregando...',
+  };
+  status.textContent = msgs[p] || '';
+  // desativa smooth durante o salto para menor latência
+  if (window._pose) {
+    window._pose.setOptions({ smoothLandmarks: p !== 'detecting' });
+  }
+}
+
+function onResults(res) {
+  const now = performance.now();
+  fps = lastT ? Math.round(1000/(now-lastT)) : 0;
+  lastT = now;
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (fps > 0) { fpsBuffer.push(fps); if (fpsBuffer.length > 30) fpsBuffer.shift(); }
+  const avgFpsNow = fpsBuffer.length ? fpsBuffer.reduce((a,b)=>a+b,0)/fpsBuffer.length : 0;
+  logFps.textContent = 'fps: ' + fps + (avgFpsNow > 0 ? ' (avg ' + Math.round(avgFpsNow) + ')' : '');
+
+  if (phase === 'ready') drawGuide();
+
+  if (!res.poseLandmarks) {
+    logPose.textContent = 'pose: nao detectada';
+    if (phase === 'detecting') trackingLostDuringJump = true;
+    if (phase === 'armed') status.textContent = 'Posicione-se no quadro...';
+    return;
+  }
+
+  const lm = res.poseLandmarks;
+  logPose.textContent = 'pose: ok';
+  const hy = getTrackY(lm);
+  const hx = getTrackX(lm);
+  const hipY = getHipY(lm);
+  logPes.textContent = 'pes: ' + Math.round(hy) + 'px';
+
+  // calibração px/cm
+  if (window._estaturaAtleta) {
+    const px = calcPxPerCmPorAltura(lm);
+    if (px && px > 0.05) {
+      pxPerCm = pxPerCm ? pxPerCm * 0.85 + px * 0.15 : px;
+      calibByHeight = true;
+      logCalib.textContent = 'altura: ' + window._estaturaAtleta + 'cm · ' + pxPerCm.toFixed(2) + 'px/cm';
+    }
+  } else {
+    const visOmbro = Math.max(lm[L_SHOULDER].visibility || 0, lm[R_SHOULDER].visibility || 0);
+    const visPe    = Math.max(lm[L_ANKLE].visibility    || 0, lm[R_ANKLE].visibility    || 0);
+    if (visOmbro > 0.5 && visPe > 0.5) {
+      const est = estimatePxPerCm(lm);
+      if (est > 0.05) {
+        pxPerCm = est;
+        logCalib.textContent = 'calib: estimada (' + pxPerCm.toFixed(2) + 'px/cm)';
+      }
+    }
+  }
+
+  drawSkeleton(lm);
+  drawFeet(hx, hy);
+
+  if (baseline && (phase==='armed'||phase==='detecting')) {
+    ctx.save(); ctx.setLineDash([6,8]); ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,baseline); ctx.lineTo(canvas.width,baseline); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  if (phase === 'armed') {
+    buf.push(hy);
+    footYDuringArmed.push(hy);
+    visibilityFrames.push(getAnkleVisibility(lm));
+    if (buf.length > BUF_N) buf.shift();
+
+    if (buf.length === BUF_N) {
+      baseline = buf.reduce((a,b)=>a+b,0)/BUF_N;
+      // quadril: só coleta após baseline estável
+      if (hipY != null) {
+        hipYPostBaseline.push(hipY);
+        // rastrear descida do quadril para calcular descentMs
+        if (hipBaselineY === null) {
+          hipBaselineY = hipY;
+        } else {
+          const hipThr = pxPerCm ? pxPerCm * 2 : 10;
+          // quadril descendo (Y aumenta) = início da descida
+          if (descentStart === null && hipY > hipBaselineY + hipThr) {
+            descentStart = now;
+          }
+          // quadril subindo de volta (Y diminui após ter descido) = fim da descida (decolagem)
+          if (descentStart !== null && descentEnd === null) {
+            const prevHip = hipYPostBaseline[hipYPostBaseline.length - 2];
+            if (prevHip != null && hipY < prevHip - hipThr * 0.5) {
+              descentEnd = now;
+            }
+          }
+        }
+      }
+
+      const thr = pxPerCm ? pxPerCm*4 : 25;
+      if (hy < baseline - thr) {
+        // se descentEnd não foi capturado ainda, usa o momento da decolagem
+        if (descentStart !== null && descentEnd === null) descentEnd = now;
+        peakY = hy; jumpStart = now;
+        trackingLostDuringJump = false;
+        setPhase('detecting'); landingN=0;
+      } else {
+        status.textContent = 'Pronto - pode saltar!';
+      }
+    } else {
+      status.textContent = 'Calibrando (' + buf.length + '/' + BUF_N + ')...';
+    }
+  }
+
+  if (phase === 'detecting') {
+    if (!res.poseLandmarks) trackingLostDuringJump = true;
+    if (hy < peakY) peakY = hy;
+    const thr = pxPerCm ? pxPerCm*4 : 25;
+    if (hy > baseline - thr) {
+      if (landingStart === null) landingStart = now;
+      if (++landingN > 4) {
+        const flightMs = landingStart - jumpStart;
+        const cm = (flightMs > 80 && flightMs < 1500)
+          ? Math.round(980 * Math.pow(flightMs / 1000, 2) / 8 * 10) / 10
+          : null;
+        const dPx = baseline - peakY;
+        const descentMs = (descentStart !== null && descentEnd !== null && descentEnd > descentStart)
+          ? Math.round(descentEnd - descentStart)
+          : null;
+
+        // calcular qualidade
+        const avgVis  = visibilityFrames.length
+          ? visibilityFrames.reduce((a,b)=>a+b,0)/visibilityFrames.length : 0;
+        const fStd    = stdDev(footYDuringArmed);
+        const hasCM   = detectCounterMovement(hipYPostBaseline);
+        const avgFps  = fpsBuffer.length ? fpsBuffer.reduce((a,b)=>a+b,0)/fpsBuffer.length : 0;
+        const quality = scoreQuality({
+          flightMs, cm,
+          hasCounterMovement: hasCM,
+          avgVisibility: avgVis,
+          footStd: fStd,
+          trackingLoss: trackingLostDuringJump,
+          avgFps,
+        });
+
+        showResult(cm, dPx, flightMs, quality, descentMs);
+        buf=[]; baseline=null; peakY=null; landingN=0; landingStart=null;
+        visibilityFrames=[]; footYDuringArmed=[]; hipYPostBaseline=[];
+        descentStart=null; descentEnd=null; hipBaselineY=null;
+        setPhase('ready');
+      }
+    } else { landingN=0; landingStart=null; }
+    if (peakY && baseline) drawArrow(hx, peakY, baseline);
+  }
+}
+
+const MAX_JUMPS = 3;
+const QUALITY_MIN_SCORE = 45; // saltos abaixo são descartados automaticamente
+
+// ── IQS — Índice de Qualidade do Salto ────────────────────────────────────────
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function calcularIQS(res) {
+  const alturas = res.map(r => r.cm).filter(v => v > 0);
+  if (!alturas.length) return null;
+
+  const melhorAltura  = Math.max(...alturas);
+  const mediaAltura   = alturas.reduce((a,b) => a+b, 0) / alturas.length;
+  const melhorSalto   = res.reduce((a,b) => b.cm > a.cm ? b : a, res[0]);
+
+  // altura score: melhor salto relativo à média (quanto acima da média própria)
+  const alturaRef   = mediaAltura > 0 ? mediaAltura : melhorAltura;
+  const alturaScore = clamp((melhorAltura / alturaRef) * 100, 0, 100);
+
+  // descida score: quão rápida e controlada foi a descida (450ms = ref neutra)
+  const descidaRef = 450;
+  const descentMs  = melhorSalto.descentMs;
+  let descidaScore = 70; // default se não capturado
+  if (descentMs != null && descentMs > 0) {
+    // descida mais rápida que ref = melhor (pré-ativação maior)
+    // descida muito lenta = pior
+    const variacaoDescida = (descentMs - descidaRef) / descidaRef;
+    descidaScore = clamp(100 - variacaoDescida * 80, 0, 100);
+  }
+
+  // consistência: variação entre os 3 saltos
+  const variacaoSaltos  = (melhorAltura - Math.min(...alturas)) / melhorAltura;
+  const consistenciaScore = clamp(100 - variacaoSaltos * 200, 0, 100);
+
+  const iqs = Math.round(
+    alturaScore      * 0.40 +
+    descidaScore     * 0.30 +
+    consistenciaScore * 0.30
+  );
+
+  let classificacao = 'Reduzido';
+  if (iqs >= 85)      classificacao = 'Excelente';
+  else if (iqs >= 70) classificacao = 'Bom';
+  else if (iqs >= 55) classificacao = 'Atenção';
+
+  return {
+    iqs,
+    classificacao,
+    melhorAltura:    Number(melhorAltura.toFixed(1)),
+    mediaAltura:     Number(mediaAltura.toFixed(1)),
+    tempoDescida:    descentMs || null,
+    consistencia:    Math.round(consistenciaScore),
+    alturaScore:     Math.round(alturaScore),
+    descidaScore:    Math.round(descidaScore),
+    consistenciaScore: Math.round(consistenciaScore)
+  };
+}
+
+function showResult(cm, dPx, flightMs, quality, descentMs) {
+  lastQuality = quality;
+  updateQualityCard(quality);
+
+  const btnSave    = document.getElementById('btn-save');
+  const btnDiscard = document.getElementById('btn-discard');
+
+  // Auto-descarte de saltos de qualidade muito baixa
+  if (quality.score < QUALITY_MIN_SCORE) {
+    status.textContent = 'Salto descartado (qualidade ' + quality.score + '%) · ' + (quality.issues[0] || '') + ' · Tente novamente.';
+    btnDiscard.style.display = results.length > 0 ? 'block' : 'none';
+    return;
+  }
+
+  if (cm != null && cm > 0 && !isNaN(cm)) {
+    results.push({ cm, flightMs, descentMs: descentMs || null, quality });
+  }
+  updateJumpPanel();
+
+  const src = calibByHeight ? 'altura' : 'estimado';
+
+  if (results.length >= MAX_JUMPS) {
+    const best = results.reduce((b,r)=>r.cm>b.cm?r:b);
+    const iqs  = calcularIQS(results);
+    window._cmjResults = results.slice(); // expõe para salvarCMJ
+    btnSave.style.display = 'block';
+    btnSave.disabled = false;
+    btnSave.textContent = '💾 SALVAR  ' + best.cm.toFixed(1) + ' cm';
+    document.getElementById('save-status').textContent = '';
+    btn.disabled = true;
+    btn.style.opacity = '0.35';
+    const iqsLabel = iqs ? ' · IQS ' + iqs.iqs + ' (' + iqs.classificacao + ')' : '';
+    status.textContent = 'Protocolo completo! Melhor: ' + best.cm.toFixed(1) + ' cm [' + src + ']' + iqsLabel;
+    btnDiscard.style.display = 'block';
+  } else {
+    if (cm != null && cm > 0 && !isNaN(cm)) {
+      status.textContent = 'Salto ' + results.length + ': ' + cm.toFixed(1) + ' cm · Pressione MEDIR para o próximo.';
+    } else {
+      status.textContent = 'Salto não medido · Pressione MEDIR para tentar novamente.';
+    }
+    btnDiscard.style.display = results.length > 0 ? 'block' : 'none';
+  }
+}
+
+function updateJumpPanel() {
+  const best = results.length ? results.reduce((b,r)=>r.cm>b.cm?r:b) : null;
+  for (let i = 0; i < MAX_JUMPS; i++) {
+    const valEl  = document.getElementById('jv' + (i+1));
+    const starEl = document.getElementById('js' + (i+1));
+    if (i < results.length) {
+      const r = results[i];
+      valEl.textContent = r.cm.toFixed(1);
+      valEl.className = 'jump-val ' + (r === best ? 'best' : 'done');
+      if (starEl) starEl.className = 'jump-star' + (r === best ? ' show' : '');
+    } else {
+      valEl.textContent = '—';
+      valEl.className = 'jump-val wait';
+      if (starEl) starEl.className = 'jump-star';
+    }
+  }
+}
+
+btn.addEventListener('click', () => {
+  if (phase !== 'ready') return;
+  buf = [];
+  baseline = null;
+  peakY = null;
+  landingN = 0;
+  landingStart = null;
+  visibilityFrames = [];
+  footYDuringArmed = [];
+  hipYPostBaseline = [];
+  trackingLostDuringJump = false;
+  descentStart = null;
+  descentEnd   = null;
+  hipBaselineY = null;
+  if (!pxPerCm) {
+    status.textContent = 'Sem calibração — resultado em pixels. Posicione-se no quadro.';
+  }
+  setPhase('armed');
+});
+
+document.getElementById('btn-discard').addEventListener('click', () => {
+  if (!results.length) return;
+  results.pop();
+  updateJumpPanel();
+  const btnSave    = document.getElementById('btn-save');
+  const btnDiscard = document.getElementById('btn-discard');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btnSave.style.display = 'none';
+  document.getElementById('save-status').textContent = '';
+  btnDiscard.style.display = results.length > 0 ? 'block' : 'none';
+  status.textContent = results.length > 0
+    ? 'Salto ' + results.length + ' mantido · Pressione MEDIR para repetir.'
+    : 'Salto descartado · Pressione MEDIR para iniciar.';
+  if (results.length === 0) updateQualityCard(null);
+  if (phase !== 'ready') setPhase('ready');
+});
+
+window.resetCMJProtocol = function resetCMJProtocol() {
+  results = [];
+  window._cmjResults = [];
+  updateJumpPanel();
+  updateQualityCard(null);
+  lastQuality = null;
+  const btnSave    = document.getElementById('btn-save');
+  const btnDiscard = document.getElementById('btn-discard');
+  btnSave.style.display = 'none';
+  btnDiscard.style.display = 'none';
+  document.getElementById('save-status').textContent = '';
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  calibByHeight = false;
+  visibilityFrames = []; footYDuringArmed = []; hipYPostBaseline = [];
+  descentStart = null; descentEnd = null; hipBaselineY = null;
+  fpsBuffer = [];
+};
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  if (!results.length) return;
+  const best = results.reduce((b,r)=>r.cm>b.cm?r:b);
+  if (typeof window.salvarCMJ === 'function') window.salvarCMJ(best);
+});
+
+// ── DESENHOS ──────────────────────────────────────────────────────────────────
+
+function drawGuide() {
+  const W = canvas.width, H = canvas.height;
+  const zoneW  = W * 0.32;
+  const zoneH  = H * 0.82;
+  const zoneX  = (W - zoneW) / 2;
+  const zoneY  = H * 0.05;
+
+  ctx.save();
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = 'rgba(0,255,135,0.45)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, zoneX, zoneY, zoneW, zoneH, 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(0,255,135,0.04)';
+  roundRect(ctx, zoneX, zoneY, zoneW, zoneH, 10);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(0,255,135,0.75)';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('POSICIONE AQUI', W / 2, zoneY - 5);
+
+  const fY    = zoneY + zoneH;
+  const fW    = zoneW * 0.22;
+  const fH    = H * 0.018;
+  const fGap  = zoneW * 0.08;
+  const fLx   = W / 2 - fGap / 2 - fW;
+  const fRx   = W / 2 + fGap / 2;
+
+  ctx.fillStyle = 'rgba(0,255,135,0.55)';
+  roundRect(ctx, fLx, fY - fH, fW, fH, 3); ctx.fill();
+  roundRect(ctx, fRx, fY - fH, fW, fH, 3); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0,255,135,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(W / 2, fY - fH - 22);
+  ctx.lineTo(W / 2, fY - fH - 6);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(0,255,135,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(W / 2, fY - fH - 2);
+  ctx.lineTo(W / 2 - 5, fY - fH - 10);
+  ctx.lineTo(W / 2 + 5, fY - fH - 10);
+  ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.arcTo(x + w, y,     x + w, y + r,     r);
+  c.lineTo(x + w, y + h - r);
+  c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);
+  c.arcTo(x,     y + h, x,     y + h - r, r);
+  c.lineTo(x,     y + r);
+  c.arcTo(x,     y,     x + r, y,         r);
+  c.closePath();
+}
+
+function drawSkeleton(lm) {
+  const segs=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+  ctx.save(); ctx.strokeStyle='rgba(0,255,135,0.5)'; ctx.lineWidth=2; ctx.lineCap='round';
+  for (const [a,b] of segs) {
+    const pa=lm[a],pb=lm[b];
+    if (!pa||!pb||pa.visibility<.4||pb.visibility<.4) continue;
+    ctx.beginPath(); ctx.moveTo(pa.x*canvas.width,pa.y*canvas.height);
+    ctx.lineTo(pb.x*canvas.width,pb.y*canvas.height); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawFeet(x, y) {
+  ctx.save();
+  ctx.strokeStyle = phase==='detecting'?'#00d4ff':'#00ff87'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-16,y); ctx.lineTo(x+16,y); ctx.moveTo(x,y-16); ctx.lineTo(x,y+16); ctx.stroke();
+  if (baseline && pxPerCm) {
+    const d = baseline - y;
+    if (d > 5) {
+      ctx.fillStyle='#00d4ff'; ctx.font='bold 14px monospace'; ctx.textAlign='left';
+      ctx.fillText('up ' + (d/pxPerCm).toFixed(1) + 'cm', x+18, y+5);
+    }
+  }
+  ctx.restore();
+}
+
+function drawArrow(x, peakY, baseY) {
+  ctx.save();
+  ctx.strokeStyle='rgba(0,212,255,0.7)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(x-30,baseY); ctx.lineTo(x-30,peakY); ctx.stroke();
+  ctx.fillStyle='#00d4ff'; ctx.beginPath();
+  ctx.moveTo(x-30,peakY); ctx.lineTo(x-38,peakY+14); ctx.lineTo(x-22,peakY+14); ctx.closePath(); ctx.fill();
+  if (pxPerCm) {
+    ctx.fillStyle='#fff'; ctx.font='bold 15px monospace'; ctx.textAlign='center';
+    ctx.fillText(((baseY-peakY)/pxPerCm).toFixed(1)+'cm', x-30, (peakY+baseY)/2);
+  }
+  ctx.restore();
+}
+
+// ── CÂMERA + MEDIAPIPE ────────────────────────────────────────────────────────
+
+async function init() {
+  status.textContent = '1/3 Iniciando camera...';
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60, min: 30 } },
+      audio: false
+    });
+  } catch(e1) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch(e2) {
+      status.textContent = 'Erro: camera nao disponivel. ' + e2.message;
+      return;
+    }
+  }
+  video.srcObject = stream;
+  await new Promise(r => { video.onloadedmetadata = r; });
+  await video.play();
+  video.style.opacity = '1';
+  window._videoTrack = stream.getVideoTracks()[0];
+  status.textContent = '2/3 Camera ok. Carregando modelo de pose...';
+
+  let poseReady = false;
+  const timeoutId = setTimeout(() => {
+    if (!poseReady) {
+      status.textContent = 'Erro: modelo demorou demais. Verifique sua conexao e recarregue.';
+    }
+  }, 20000);
+
+  const pose = new Pose({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+  });
+  window._pose = pose;
+  pose.setOptions({
+    modelComplexity: 0,
+    smoothLandmarks: true,
+    minDetectionConfidence: .55,
+    minTrackingConfidence: .55
+  });
+  pose.onResults(res => {
+    if (!poseReady) {
+      poseReady = true;
+      clearTimeout(timeoutId);
+      setTimeout(() => setPhase('ready'), 300);
+    }
+    onResults(res);
+  });
+
+  status.textContent = '2/3 Baixando modelo... (10-20s na primeira vez)';
+  try { await pose.initialize(); } catch(e) { /* ok se nao existir */ }
+  status.textContent = '3/3 Processando frames...';
+
+  async function loop() {
+    if (video.readyState >= 2) {
+      try { await pose.send({ image: video }); } catch(e) {}
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+</script>
+
+<script type="module">
+import { auth, db } from '../core/firebase.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+import { collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+import { upsertDailyMetrics } from '../core/dailyMetrics.service.js';
+
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = '/login.html'; return; }
+  await carregarAtletas();
+});
+
+let atletaSelecionado = null;
+
+async function buscarEstatura(athleteId) {
+  try {
+    const clubId = JSON.parse(localStorage.getItem('userContext') || '{}').clubId || '';
+    if (!clubId) return null;
+    const snap = await getDocs(query(
+      collection(db, 'assessments_functional'),
+      where('clubId', '==', clubId),
+      where('athleteId', '==', athleteId),
+      where('tipo', '==', 'fisica'),
+      orderBy('date', 'desc'),
+      limit(1)
+    ));
+    if (snap.empty) return null;
+    const est = snap.docs[0].data()?.dados?.antropometria?.estatura_cm;
+    return (est && est > 100 && est < 250) ? parseFloat(est) : null;
+  } catch(e) {
+    console.warn('buscarEstatura:', e);
+    return null;
+  }
+}
+
+async function carregarAtletas() {
+  const clubId = JSON.parse(localStorage.getItem('userContext') || '{}').clubId || '';
+  const listEl = document.getElementById('atleta-list');
+  if (!clubId) { listEl.innerHTML = '<span style="color:#f87171;font-size:12px">clubId não encontrado.</span>'; return; }
+
+  const snap = await getDocs(query(
+    collection(db, 'athletes'),
+    where('clubId', '==', clubId),
+    orderBy('nome')
+  ));
+  const atletas = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.ativo !== false);
+
+  const searchEl = document.getElementById('atleta-search');
+
+  function render(filtro = '') {
+    const lista = filtro
+      ? atletas.filter(a => a.nome.toLowerCase().includes(filtro.toLowerCase()))
+      : atletas;
+    listEl.innerHTML = lista.length
+      ? lista.map(a => `
+          <div class="atleta-item" data-id="${a.id}" data-nome="${a.nome}" data-cat="${a.categoria || ''}">
+            <span class="atleta-nome">${a.nome}</span>
+            <span class="atleta-cat">${a.categoria || ''}</span>
+          </div>`).join('')
+      : '<span style="color:#555;font-size:12px">Nenhum atleta encontrado.</span>';
+
+    listEl.querySelectorAll('.atleta-item').forEach(el => {
+      el.addEventListener('pointerdown', () => {
+        listEl.querySelectorAll('.atleta-item').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        atletaSelecionado = { athleteId: el.dataset.id, nome: el.dataset.nome, categoria: el.dataset.cat };
+        document.getElementById('btn-atleta-ok').disabled = false;
+      });
+    });
+  }
+
+  searchEl.addEventListener('input', () => render(searchEl.value));
+  render();
+}
+
+document.getElementById('btn-atleta-ok').addEventListener('click', async () => {
+  if (!atletaSelecionado) return;
+  const existing = JSON.parse(localStorage.getItem('athleteContext') || '{}');
+  localStorage.setItem('athleteContext', JSON.stringify({ ...existing, ...atletaSelecionado }));
+  document.getElementById('atleta-nome-display').textContent = atletaSelecionado.nome;
+  document.getElementById('atleta-modal').classList.remove('show');
+
+  buscarEstatura(atletaSelecionado.athleteId).then(est => {
+    window._estaturaAtleta = est || null;
+    if (est) {
+      document.getElementById('log-calib').textContent = 'altura: ' + est + ' cm (pronto)';
+    }
+  });
+
+  if (!window._cameraStarted) {
+    window._cameraStarted = true;
+    init().catch(e => { document.getElementById('status').textContent = 'Erro: ' + e.message; console.error(e); });
+  }
+});
+
+document.getElementById('atleta-nome-display').addEventListener('click', () => {
+  atletaSelecionado = null;
+  document.getElementById('btn-atleta-ok').disabled = true;
+  document.getElementById('atleta-search').value = '';
+  document.getElementById('atleta-list').querySelectorAll('.atleta-item')
+    .forEach(e => e.classList.remove('selected'));
+  document.getElementById('atleta-modal').classList.add('show');
+});
+
+/* ── Salvar ── */
+window.salvarCMJ = async function(best) {
+  // best = { cm, flightMs, descentMs, quality }
+  const btnSave    = document.getElementById('btn-save');
+  const saveStatus = document.getElementById('save-status');
+  try {
+    const ctx = JSON.parse(localStorage.getItem('athleteContext') || '{}');
+    if (!ctx.athleteId) {
+      saveStatus.textContent = 'Selecione um atleta primeiro.';
+      saveStatus.style.color = '#f87171';
+      return;
+    }
+    btnSave.disabled = true;
+    btnSave.textContent = '⏳ Salvando...';
+    const date = new Date().toLocaleDateString('en-CA');
+
+    // calcular IQS com todos os saltos do protocolo
+    const iqs = (typeof calcularIQS === 'function' && window._cmjResults && window._cmjResults.length)
+      ? calcularIQS(window._cmjResults)
+      : null;
+
+    const saltosSalvar = (window._cmjResults || []).map(r => ({
+      altura:       Number(r.cm.toFixed(1)),
+      tempoVoo:     r.flightMs ? Math.round(r.flightMs) : null,
+      tempoDescida: r.descentMs || null,
+    }));
+
+    await upsertDailyMetrics({
+      athleteId: ctx.athleteId,
+      date,
+      block: 'pre',
+      data: {
+        salto: parseFloat(best.cm.toFixed(1)),   // mantém compatibilidade com dashboard
+        cmj: iqs ? {
+          iqs:          iqs.iqs,
+          melhorAltura: iqs.melhorAltura,
+          mediaAltura:  iqs.mediaAltura,
+          tempoDescida: iqs.tempoDescida,
+          consistencia: iqs.consistencia,
+          classificacao: iqs.classificacao,
+          saltos:       saltosSalvar,
+        } : null,
+      }
+    });
+    btnSave.textContent = '✓ Salvo';
+    const iqsInfo = iqs ? ' · IQS ' + iqs.iqs : '';
+    saveStatus.textContent = ctx.nome + ' · ' + best.cm.toFixed(1) + ' cm' + iqsInfo;
+    saveStatus.style.color = '#00ff87';
+    setTimeout(() => {
+      window.resetCMJProtocol && window.resetCMJProtocol();
+      btnSave.style.display = 'none';
+      saveStatus.textContent = '';
+      atletaSelecionado = null;
+      document.getElementById('btn-atleta-ok').disabled = true;
+      document.getElementById('atleta-search').value = '';
+      document.getElementById('atleta-list').querySelectorAll('.atleta-item')
+        .forEach(e => e.classList.remove('selected'));
+      document.getElementById('atleta-modal').classList.add('show');
+    }, 1200);
+  } catch(e) {
+    console.warn('Erro ao salvar CMJ:', e);
+    btnSave.disabled = false;
+    btnSave.textContent = '💾 SALVAR MELHOR';
+    saveStatus.textContent = '✗ Erro ao salvar';
+    saveStatus.style.color = '#f87171';
+  }
+};
+</script>
+</body>
+</html>

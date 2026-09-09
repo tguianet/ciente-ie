@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<title>Prontidão (Pré)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f7fafd;padding:20px}
+.container{max-width:540px;margin:auto;background:#fff;border-radius:16px;box-shadow:0 2px 8px #0001;padding:20px}
+h1{color:#2563eb;margin:0 0 10px}
+label{font-weight:bold;margin-top:14px;display:block}
+.escala{display:flex;gap:6px;margin-top:6px}
+.escala input{display:none}
+.escala label{flex:1;text-align:center;padding:14px 0;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;transition:transform .1s;min-height:44px;display:flex;align-items:center;justify-content:center;}
+.escala input:checked + label{outline:3px solid #2563eb;transform:scale(1.05)}
+.e1{background:#10b981}.e2{background:#4ade80}.e3{background:#a3e635}
+.e4{background:#fde047;color:#333}.e5{background:#fdba74;color:#333}
+.e6{background:#f87171}.e7{background:#dc2626}
+.legend{font-size:.9em;color:#374151;margin-top:4px;font-weight:500}
+.row{display:flex;gap:10px;margin-top:12px}
+.row>div{flex:1}
+input[type="number"],input[type="date"]{width:100%;padding:8px;margin-top:4px;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;font-size:14px}
+button.salvar{width:100%;padding:12px;margin-top:18px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-weight:bold;cursor:pointer;font-size:15px}
+button.voltar{width:100%;padding:10px;background:#e5e7eb;color:#111;border:none;border-radius:10px;margin-bottom:12px;cursor:pointer;font-weight:bold}
+
+/* MAPA */
+.body-map-section{margin-top:16px}
+.map-hint{font-size:.78em;color:#9ca3af;margin:3px 0 8px}
+.maps-row{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+.map-box{text-align:center}
+.map-box h4{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;margin-bottom:3px;font-weight:600}
+.map-box svg{width:100%;height:auto;max-width:75px}
+
+.muscle{fill:#eef1f6;stroke:#c8d0de;stroke-width:1.8;cursor:pointer;transition:fill .18s,stroke .18s}
+.muscle:hover{fill:#dde3ee;stroke:#94a3b8}
+.muscle.selected{fill:#ef4444;stroke:#b91c1c;filter:drop-shadow(0 0 5px rgba(239,68,68,.3))}
+.body-ol{fill:none;stroke:#e2e8f0;stroke-width:1;pointer-events:none}
+.face{fill:none;stroke:#c8d0de;stroke-width:.8;pointer-events:none}
+
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;min-height:20px}
+.tag{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px}
+.tag button{all:unset;cursor:pointer;color:#ef4444;font-size:10px}
+.no-tag{color:#9ca3af;font-size:11px}
+.map-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sem-dor-label{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7280;cursor:pointer;white-space:nowrap;margin-top:14px}
+.sem-dor-label input{accent-color:#2563eb;width:13px;height:13px;cursor:pointer}
+.sem-dor-label.ativo{color:#2563eb}
+</style>
+</head>
+<body>
+<div class="container">
+
+<button class="voltar" onclick="window.location.href='selecionar_atleta.html'">← Voltar</button>
+
+<!-- Header do atleta -->
+<div id="atletaHeader" style="display:flex;align-items:center;gap:12px;padding:10px 0 14px;border-bottom:1px solid #e5e7eb;margin-bottom:14px;">
+  <div id="atletaFoto" style="width:52px;height:52px;border-radius:50%;background:#1e3a5f;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;"></div>
+  <div>
+    <p id="atletaNomePre" style="font-size:16px;font-weight:800;color:#111827;margin:0;"></p>
+    <p id="atletaSubPre"  style="font-size:11px;color:#6b7280;margin:2px 0 0;text-transform:uppercase;"></p>
+  </div>
+  <h1 style="margin-left:auto;font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.05em;">Pré-treino</h1>
+</div>
+
+<label>Data</label>
+<input type="date" id="prontidao-data">
+
+<form id="formProntidao">
+
+<label>Sono</label>
+<div class="escala" onchange="showLegenda('sono')">
+  <input id="sono1" type="radio" name="sono" value="1"><label class="e1" for="sono1">1</label>
+  <input id="sono2" type="radio" name="sono" value="2"><label class="e2" for="sono2">2</label>
+  <input id="sono3" type="radio" name="sono" value="3"><label class="e3" for="sono3">3</label>
+  <input id="sono4" type="radio" name="sono" value="4"><label class="e4" for="sono4">4</label>
+  <input id="sono5" type="radio" name="sono" value="5"><label class="e5" for="sono5">5</label>
+  <input id="sono6" type="radio" name="sono" value="6"><label class="e6" for="sono6">6</label>
+  <input id="sono7" type="radio" name="sono" value="7"><label class="e7" for="sono7">7</label>
+</div>
+<div id="legenda-sono" class="legend"></div>
+
+<label>Estresse</label>
+<div class="escala" onchange="showLegenda('estresse')">
+  <input id="est1" type="radio" name="estresse" value="1"><label class="e1" for="est1">1</label>
+  <input id="est2" type="radio" name="estresse" value="2"><label class="e2" for="est2">2</label>
+  <input id="est3" type="radio" name="estresse" value="3"><label class="e3" for="est3">3</label>
+  <input id="est4" type="radio" name="estresse" value="4"><label class="e4" for="est4">4</label>
+  <input id="est5" type="radio" name="estresse" value="5"><label class="e5" for="est5">5</label>
+  <input id="est6" type="radio" name="estresse" value="6"><label class="e6" for="est6">6</label>
+  <input id="est7" type="radio" name="estresse" value="7"><label class="e7" for="est7">7</label>
+</div>
+<div id="legenda-estresse" class="legend"></div>
+
+<label>Fadiga</label>
+<div class="escala" onchange="showLegenda('fadiga')">
+  <input id="fad1" type="radio" name="fadiga" value="1"><label class="e1" for="fad1">1</label>
+  <input id="fad2" type="radio" name="fadiga" value="2"><label class="e2" for="fad2">2</label>
+  <input id="fad3" type="radio" name="fadiga" value="3"><label class="e3" for="fad3">3</label>
+  <input id="fad4" type="radio" name="fadiga" value="4"><label class="e4" for="fad4">4</label>
+  <input id="fad5" type="radio" name="fadiga" value="5"><label class="e5" for="fad5">5</label>
+  <input id="fad6" type="radio" name="fadiga" value="6"><label class="e6" for="fad6">6</label>
+  <input id="fad7" type="radio" name="fadiga" value="7"><label class="e7" for="fad7">7</label>
+</div>
+<div id="legenda-fadiga" class="legend"></div>
+
+<label>Dor Muscular</label>
+<div class="escala" onchange="showLegenda('dor')">
+  <input id="dor1" type="radio" name="dor" value="1"><label class="e1" for="dor1">1</label>
+  <input id="dor2" type="radio" name="dor" value="2"><label class="e2" for="dor2">2</label>
+  <input id="dor3" type="radio" name="dor" value="3"><label class="e3" for="dor3">3</label>
+  <input id="dor4" type="radio" name="dor" value="4"><label class="e4" for="dor4">4</label>
+  <input id="dor5" type="radio" name="dor" value="5"><label class="e5" for="dor5">5</label>
+  <input id="dor6" type="radio" name="dor" value="6"><label class="e6" for="dor6">6</label>
+  <input id="dor7" type="radio" name="dor" value="7"><label class="e7" for="dor7">7</label>
+</div>
+<div id="legenda-dor" class="legend"></div>
+
+<label>Humor (Estado Emocional)</label>
+<div class="escala" onchange="showLegenda('humor')">
+  <input id="hum1" type="radio" name="humor" value="1"><label class="e1" for="hum1">1</label>
+  <input id="hum2" type="radio" name="humor" value="2"><label class="e2" for="hum2">2</label>
+  <input id="hum3" type="radio" name="humor" value="3"><label class="e3" for="hum3">3</label>
+  <input id="hum4" type="radio" name="humor" value="4"><label class="e4" for="hum4">4</label>
+  <input id="hum5" type="radio" name="humor" value="5"><label class="e5" for="hum5">5</label>
+  <input id="hum6" type="radio" name="humor" value="6"><label class="e6" for="hum6">6</label>
+  <input id="hum7" type="radio" name="humor" value="7"><label class="e7" for="hum7">7</label>
+</div>
+<div id="legenda-humor" class="legend"></div>
+
+<!-- MAPA CORPORAL -->
+<div class="body-map-section">
+  <div class="map-header">
+    <label style="margin-top:14px">Localização da Dor</label>
+    <label class="sem-dor-label" id="semDorLabel">
+      <input type="checkbox" id="semDor" onchange="toggleSemDor(this)"> Sem dor localizada
+    </label>
+  </div>
+  <p class="map-hint">Toque nas regiões onde sente dor</p>
+
+  <div class="maps-row">
+
+    <!-- FRENTE: viewBox recortado x=15..185, y=15..540 → corpo inteiro mas estreito -->
+    <div class="map-box">
+      <h4>Frente</h4>
+      <svg viewBox="15 15 170 525" xmlns="http://www.w3.org/2000/svg">
+        <path class="body-ol" d="M100,20 Q120,20 125,45 Q125,70 100,75 Q75,70 75,45 Q80,20 100,20"/>
+        <path class="face" d="M92,45 Q100,48 108,45 M95,38 L96,38 M104,38 L105,38"/>
+        <!-- peito -->
+        <path class="muscle" d="M100,85 L140,90 Q145,120 135,155 L100,160 Z" data-name="Peitoral Dir."/>
+        <path class="muscle" d="M100,85 L60,90 Q55,120 65,155 L100,160 Z" data-name="Peitoral Esq."/>
+        <!-- ombros -->
+        <path class="muscle" d="M140,90 Q155,95 160,120 L145,130 Z" data-name="Ombro Dir."/>
+        <path class="muscle" d="M60,90 Q45,95 40,120 L55,130 Z" data-name="Ombro Esq."/>
+        <!-- braços -->
+        <path class="muscle" d="M145,130 L160,120 L170,190 L155,200 Z" data-name="Braço Dir."/>
+        <path class="muscle" d="M55,130 L40,120 L30,190 L45,200 Z" data-name="Braço Esq."/>
+        <!-- antebraços -->
+        <path class="muscle" d="M155,200 L170,190 L175,270 L160,275 Z" data-name="Antebraço Dir."/>
+        <path class="muscle" d="M45,200 L30,190 L25,270 L40,275 Z" data-name="Antebraço Esq."/>
+        <!-- abdômen -->
+        <path class="muscle" d="M75,165 L125,165 L130,250 L70,250 Z" data-name="Abdômen"/>
+        <!-- quadríceps -->
+        <path class="muscle" d="M105,270 L143,270 L138,400 L105,400 Z" data-name="Quadríceps Dir."/>
+        <path class="muscle" d="M95,270 L57,270 L62,400 L95,400 Z" data-name="Quadríceps Esq."/>
+        <!-- adutores (afunila no final) -->
+        <path class="muscle" d="M106,275 L127,275 L114,395 L106,395 Z" data-name="Adutor Dir."/>
+        <path class="muscle" d="M94,275 L73,275 L86,395 L94,395 Z" data-name="Adutor Esq."/>
+        <!-- canela -->
+        <path class="muscle" d="M108,415 L138,415 L133,530 L113,530 Z" data-name="Canela Dir."/>
+        <path class="muscle" d="M92,415 L62,415 L67,530 L87,530 Z" data-name="Canela Esq."/>
+      </svg>
+    </div>
+
+    <!-- COSTAS -->
+    <div class="map-box">
+      <h4>Costas</h4>
+      <svg viewBox="15 15 170 525" xmlns="http://www.w3.org/2000/svg">
+        <path class="body-ol" d="M100,20 Q120,20 125,45 Q125,70 100,75 Q75,70 75,45 Q80,20 100,20"/>
+        <!-- costas sup -->
+        <path class="muscle" d="M100,85 L145,95 Q150,130 135,175 L100,185 Z" data-name="Costas Dir."/>
+        <path class="muscle" d="M100,85 L55,95 Q50,130 65,175 L100,185 Z" data-name="Costas Esq."/>
+        <!-- ombros -->
+        <path class="muscle" d="M140,90 Q155,95 160,120 L145,130 Z" data-name="Ombro Dir."/>
+        <path class="muscle" d="M60,90 Q45,95 40,120 L55,130 Z" data-name="Ombro Esq."/>
+        <!-- braços -->
+        <path class="muscle" d="M145,130 L160,120 L170,190 L155,200 Z" data-name="Braço Dir."/>
+        <path class="muscle" d="M55,130 L40,120 L30,190 L45,200 Z" data-name="Braço Esq."/>
+        <!-- antebraços -->
+        <path class="muscle" d="M155,200 L170,190 L175,270 L160,275 Z" data-name="Antebraço Dir."/>
+        <path class="muscle" d="M45,200 L30,190 L25,270 L40,275 Z" data-name="Antebraço Esq."/>
+        <!-- lombar -->
+        <path class="muscle" d="M75,190 L125,190 L130,255 L70,255 Z" data-name="Lombar"/>
+        <!-- glúteos -->
+        <path class="muscle" d="M102,260 L143,260 Q153,298 133,328 L102,328 Z" data-name="Glúteo Dir."/>
+        <path class="muscle" d="M98,260 L57,260 Q47,298 67,328 L98,328 Z" data-name="Glúteo Esq."/>
+        <!-- abdutores (faixa lateral, inicia dentro do glúteo) -->
+        <path class="muscle" d="M143,260 L148,260 L153,328 L148,400 L143,400 Z" data-name="Abdutor Dir."/>
+        <path class="muscle" d="M57,260 L52,260 L47,328 L52,400 L57,400 Z" data-name="Abdutor Esq."/>
+        <!-- isquiotibiais -->
+        <path class="muscle" d="M105,333 L143,330 L138,400 L105,400 Z" data-name="Isquiotibial Dir."/>
+        <path class="muscle" d="M95,333 L57,330 L62,400 L95,400 Z" data-name="Isquiotibial Esq."/>
+        <!-- panturrilha -->
+        <path class="muscle" d="M108,415 L138,415 L133,530 L113,530 Z" data-name="Panturrilha Dir."/>
+        <path class="muscle" d="M92,415 L62,415 L67,530 L87,530 Z" data-name="Panturrilha Esq."/>
+      </svg>
+    </div>
+
+  </div>
+
+  <div class="tags" id="tags">
+    <span class="no-tag">Nenhuma região selecionada</span>
+  </div>
+</div>
+
+<!-- PESO + SALTO -->
+<div class="row">
+  <div>
+    <label>Peso (kg)</label>
+    <input type="number" id="pesoPreTreino" placeholder="Ex: 78.5" step="0.1" min="30" max="150">
+  </div>
+  <div>
+    <label>Salto (cm)</label>
+    <input type="number" id="salto" placeholder="0">
+  </div>
+</div>
+
+<button type="submit" class="salvar">Salvar Prontidão</button>
+</form>
+</div>
+
+<script type="module" src="./coleta_pre.js"></script>
+<script>
+const legendas={
+  sono:["Muito bom","Bom","Leve","Regular","Ruim","Muito ruim","Péssimo"],
+  estresse:["Muito baixo","Baixo","Leve","Moderado","Alto","Muito alto","Extremo"],
+  fadiga:["Muito leve","Leve","Pouco cansado","Moderado","Cansado","Muito cansado","Exausto"],
+  dor:["Sem dor","Muito leve","Leve","Moderada","Alta","Muito alta","Extrema"],
+  humor:["Excelente","Muito bom","Bom","Regular","Ruim","Muito ruim","Péssimo"]
+};
+function showLegenda(t){
+  const v=document.querySelector('input[name="'+t+'"]:checked')?.value;
+  if(v) document.getElementById('legenda-'+t).innerText=v+' - '+legendas[t][v-1];
+}
+document.getElementById("prontidao-data").value=new Date().toLocaleDateString('en-CA');
+
+const sel=new Set();
+document.querySelectorAll('.muscle').forEach(m=>{
+  m.addEventListener('click',()=>{
+    const n=m.getAttribute('data-name');
+    if(sel.has(n)){
+      sel.delete(n);
+      document.querySelectorAll('[data-name="'+n+'"]').forEach(e=>e.classList.remove('selected'));
+    } else {
+      sel.add(n);
+      document.querySelectorAll('[data-name="'+n+'"]').forEach(e=>e.classList.add('selected'));
+    }
+    renderTags();
+  });
+});
+function renderTags(){
+  const c=document.getElementById('tags');
+  c.innerHTML='';
+  if(!sel.size){c.innerHTML='<span class="no-tag">Nenhuma região selecionada</span>';return;}
+  sel.forEach(n=>{
+    const d=document.createElement('div');d.className='tag';
+    d.innerHTML=n+' <button type="button" onclick="rem(\''+n+'\')">&#x2715;</button>';
+    c.appendChild(d);
+  });
+}
+function toggleSemDor(cb){
+  const label=document.getElementById('semDorLabel');
+  if(cb.checked){
+    sel.clear();
+    document.querySelectorAll('.muscle').forEach(e=>e.classList.remove('selected'));
+    renderTags();
+    label.classList.add('ativo');
+    document.querySelectorAll('.muscle').forEach(e=>e.style.pointerEvents='none');
+  } else {
+    label.classList.remove('ativo');
+    document.querySelectorAll('.muscle').forEach(e=>e.style.pointerEvents='');
+  }
+}
+
+function rem(n){
+  sel.delete(n);
+  document.querySelectorAll('[data-name="'+n+'"]').forEach(e=>e.classList.remove('selected'));
+  renderTags();
+}
+window.getSelectedRegions=()=>Array.from(sel);
+window.getSemDorLocalizada=()=>document.getElementById('semDor').checked;
+</script>
+</body>
+</html>

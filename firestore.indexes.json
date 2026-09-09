@@ -1,0 +1,54 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "daily_metrics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubId", "order": "ASCENDING" },
+        { "fieldPath": "date",   "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_metrics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubId",   "order": "ASCENDING" },
+        { "fieldPath": "teamId",   "order": "ASCENDING" },
+        { "fieldPath": "date",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "athletes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubId", "order": "ASCENDING" },
+        { "fieldPath": "ativo",  "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scout_partidas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubId",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assessments_medical",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clubId", "order": "ASCENDING" },
+        { "fieldPath": "data",   "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "historico",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "clubId",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

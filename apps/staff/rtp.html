@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <title>RTP — Protocolo de Retorno</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+    <!-- CABEÇALHO -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">Protocolo RTP</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Return to Play — Retorno Progressivo ao Esporte</p>
+    </div>
+
+    <!-- PROTOCOLO: FASES -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+        <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Como funciona o protocolo</h2>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-gray-600 mb-5 leading-relaxed">
+          O protocolo Ciente IE organiza o retorno ao esporte em <strong>6 fases progressivas</strong>, baseadas em critérios objetivos de prontidão.
+          A progressão é automática quando os indicadores são atingidos — exceto a entrada em transição (F0 → F1) e a liberação final (F4 → Liberado),
+          que dependem de decisão clínica.
+        </p>
+
+        <!-- Fluxo visual -->
+        <div class="flex flex-wrap items-center gap-2 mb-6 text-xs font-bold">
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#b91c1c;">F0 · Afastado</div>
+          <span class="text-gray-400">→</span>
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#b45309;">F1 · Recondicionamento</div>
+          <span class="text-gray-400">→</span>
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#7c3aed;">F2 · Treino Adaptado</div>
+          <span class="text-gray-400">→</span>
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#0369a1;">F3 · Treino Coletivo</div>
+          <span class="text-gray-400">→</span>
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#15803d;">F4 · Apto</div>
+          <span class="text-gray-400">→</span>
+          <div class="px-3 py-1.5 rounded-lg text-white" style="background:#064e3b;">Liberado</div>
+        </div>
+
+        <!-- Tabela de fases -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide w-36">Fase</th>
+                <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Critérios de progressão</th>
+                <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide w-48">Responsável</th>
+                <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Atividades Sugeridas</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#b91c1c;">
+                    F0 · Afastado
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">Decisão clínica de afastamento — atleta sem condições de participar de qualquer atividade física</td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Médico / Fisioterapeuta</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Repouso, crioterapia, eletroterapia, mobilização passiva</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#b45309;">
+                    F1 · Recondicionamento
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">Avaliação clínica do médico ou fisioterapeuta autoriza o início da transição</td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Médico / Fisioterapeuta</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Trabalho em academia, corrida em linha reta, fortalecimento segmentar, propriocepção</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#7c3aed;">
+                    F2 · Treino Adaptado
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                  <div class="space-y-0.5">
+                    <div>IH (Subjetivo) <span class="font-semibold text-gray-800">≥ 60</span></div>
+                    <div>INM (Neuromuscular) <span class="font-semibold text-gray-800">≥ 50</span></div>
+                    <div>CMJ coletado após início da transição</div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Fisioterapeuta / Prep. Físico</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Treino físico individualizado, exercícios com bola sem contato, mudanças de direção controladas</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#0369a1;">
+                    F3 · Treino Coletivo
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                  <div class="space-y-0.5">
+                    <div>INM (Neuromuscular) <span class="font-semibold text-gray-800">≥ 60</span></div>
+                    <div>IA (Autonômico) <span class="font-semibold text-gray-800">≥ 50</span></div>
+                    <div>Teste físico específico de velocidade ou força</div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Prep. Físico / Fisioterapeuta</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Treino coletivo com restrições — sem contato físico intenso, sem disputas de bola no ar, jogo reduzido de baixa pressão</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#15803d;">
+                    F4 · Apto
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                  <div class="space-y-0.5">
+                    <div>IGP (Global) <span class="font-semibold text-gray-800">≥ 70</span></div>
+                    <div>Todos os sistemas <span class="font-semibold text-gray-800">≥ 60</span></div>
+                    <div>Dor (pré-treino) <span class="font-semibold text-gray-800">&lt; 4</span></div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Prep. Físico / Fisioterapeuta</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Treino coletivo sem restrições</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white" style="background:#064e3b;">
+                    Liberado
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">Liberação clínica pelo médico ou fisioterapeuta (status → Liberado)</td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-semibold text-gray-700">Médico / Fisioterapeuta</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">Disponível para jogo, sem restrições</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Nota de progressão -->
+        <div class="mt-4 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-700 leading-relaxed">
+          <strong>Progressão automática:</strong> F1 → F2 → F3 são calculadas diariamente com base nos indicadores do dia. A fase nunca regride automaticamente — o sistema preserva a melhor fase já atingida como piso histórico.
+          A entrada em transição (F0 → F1) e a liberação final (F4 → Liberado) são <strong>ações manuais</strong> realizadas na tela de Ocorrências.
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA DE ATLETAS EM TRANSIÇÃO -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-orange-100 bg-orange-50 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-orange-800 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-orange-500 inline-block animate-pulse"></span>
+          Atletas em Transição
+        </h2>
+        <span id="badgeTransicao" class="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">—</span>
+      </div>
+
+      <div id="tabelaTransicaoWrap" class="overflow-x-auto">
+        <div id="loadingTransicao" class="py-10 text-center text-gray-400 text-sm">Carregando...</div>
+        <div id="msgSemTransicao" class="py-10 text-center text-gray-400 text-sm" style="display:none;">Nenhum atleta em transição no momento.</div>
+        <table id="tabelaTransicao" class="w-full text-sm" style="display:none;">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Atleta</th>
+              <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Lesão / Região</th>
+              <th class="text-center px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Fase RTP</th>
+              <th class="text-center px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Dias em transição</th>
+              <th class="text-center px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Dor (hoje)</th>
+              <th class="text-center px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">CMJ</th>
+              <th class="text-center px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">HRV</th>
+              <th class="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Bloqueando progressão</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTransicao" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- fim flex-1 -->
+
+  <script type="module">
+  import { db, auth } from "../core/firebase.js";
+  import {
+    collection, getDocs, query, where, doc, getDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+  let CLUB_ID = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "/login.html"; return; }
+    try {
+      const ctx = JSON.parse(localStorage.getItem("userContext") || "{}");
+      CLUB_ID = ctx?.clubId ?? null;
+      if (!CLUB_ID) {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        CLUB_ID = snap.exists() ? snap.data().clubId : null;
+      }
+      if (!CLUB_ID) return;
+      await init();
+    } catch(e) { console.error(e); }
+  });
+
+  async function init() {
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    // Carrega atletas, registros médicos, progresso RTP e métricas de hoje em paralelo
+    const [atletasSnap, medSnap, rtpSnap, metricsSnap] = await Promise.all([
+      getDocs(query(collection(db, "athletes"), where("clubId", "==", CLUB_ID))),
+      getDocs(query(collection(db, "assessments_medical"), where("clubId", "==", CLUB_ID))),
+      getDocs(query(collection(db, "rtp_progress"), where("clubId", "==", CLUB_ID))),
+      getDocs(query(collection(db, "daily_metrics"), where("clubId", "==", CLUB_ID), where("date", "==", hoje))),
+    ]);
+
+    const atletas   = Object.fromEntries(atletasSnap.docs.map(d => [d.id, d.data()]));
+    const rtpMap    = Object.fromEntries(rtpSnap.docs.map(d => [d.data().athleteId, d.data().fase ?? 0]));
+    const metricsMap = Object.fromEntries(metricsSnap.docs.map(d => [d.data().athleteId, d.data()]));
+
+    // Identifica o registro de lesão mais recente em status "transição" por atleta
+    const medDocs = medSnap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    const porAtleta = {};
+    for (const r of medDocs) {
+      const st = (r.dados?.status || r.dados?.statusAtual || r.status || r.statusAtual || "").toLowerCase();
+      if (!st.includes("transi")) continue;
+      const aid = r.athleteId;
+      const data = r.data || r.date || "";
+      if (!porAtleta[aid] || data > (porAtleta[aid].data || porAtleta[aid].date || "")) {
+        porAtleta[aid] = r;
+      }
+    }
+
+    const emTransicao = Object.entries(porAtleta)
+      .map(([athleteId, reg]) => ({ athleteId, reg }))
+      .sort((a, b) => {
+        const fA = rtpMap[a.athleteId] ?? 1;
+        const fB = rtpMap[b.athleteId] ?? 1;
+        if (fA !== fB) return fA - fB;
+        return (atletas[a.athleteId]?.nome || "").localeCompare(atletas[b.athleteId]?.nome || "", "pt-BR");
+      });
+
+    document.getElementById("loadingTransicao").style.display = "none";
+    document.getElementById("badgeTransicao").textContent = emTransicao.length;
+
+    if (!emTransicao.length) {
+      document.getElementById("msgSemTransicao").style.display = "block";
+      return;
+    }
+
+    document.getElementById("tabelaTransicao").style.display = "table";
+
+    const tbody = document.getElementById("tbodyTransicao");
+    tbody.innerHTML = emTransicao.map(({ athleteId, reg }, i) => {
+      const atleta  = atletas[athleteId] || {};
+      const nome    = atleta.nome || athleteId;
+      const pos     = atleta.posicao || "—";
+      const d       = reg.dados || reg;
+      const tipoLes = (d.tipoLesao || "—");
+      const regiao  = (d.regiaoAnatomica || d.regiao || "");
+      const lesaoStr = regiao ? `${tipoLes} · ${regiao}` : tipoLes;
+      const dataTransicao = reg.data || reg.date || "";
+      const diasEmTrans = dataTransicao
+        ? Math.floor((Date.now() - new Date(dataTransicao + "T12:00:00")) / 86400000)
+        : null;
+
+      const fase    = rtpMap[athleteId] ?? 1;
+      const FASES   = {
+        0: { label: "F0 · Afastado",          cor: "#b91c1c", bg: "#fee2e2" },
+        1: { label: "F1 · Recondicionamento", cor: "#b45309", bg: "#fef9c3" },
+        2: { label: "F2 · Treino Adaptado",   cor: "#7c3aed", bg: "#ede9fe" },
+        3: { label: "F3 · Treino Coletivo",   cor: "#0369a1", bg: "#e0f2fe" },
+        4: { label: "F4 · Apto",              cor: "#15803d", bg: "#dcfce7" },
+      };
+      const faseObj = FASES[fase] ?? FASES[1];
+      const faseTag = `<span style="display:inline-block;white-space:nowrap;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;background:${faseObj.bg};color:${faseObj.cor};">${faseObj.label}</span>`;
+
+      // Indicadores de hoje
+      const dm    = metricsMap[athleteId];
+      const dor   = dm?.pre?.dor   ?? null;
+      const salto = dm?.pre?.salto ?? null;
+      const lnRR  = dm?.hrv?.lnRR  ?? null;
+
+      const dorHtml = dor != null
+        ? `<span style="font-weight:700;color:${dor >= 4 ? '#b91c1c' : '#15803d'}">${dor}/7</span>`
+        : `<span class="text-gray-300">—</span>`;
+
+      const cmjHtml = salto != null
+        ? `<span class="font-semibold text-gray-700">${salto} cm</span>`
+        : `<span class="text-gray-300">—</span>`;
+
+      const hrvHtml = lnRR != null
+        ? `<span class="font-semibold text-gray-700">${lnRR.toFixed(2)}</span>`
+        : `<span class="text-gray-300">—</span>`;
+
+      // O que está bloqueando a progressão para a próxima fase
+      const bloqueios = [];
+      if (fase === 1) {
+        if (dm == null) bloqueios.push("Sem dados hoje");
+        else {
+          // precisaria calcular IH e INM — simplificamos mostrando os campos brutos
+          if (!dm.pre?.hooper) bloqueios.push("Hooper não coletado");
+          if (salto == null)   bloqueios.push("CMJ não coletado");
+        }
+      } else if (fase === 2) {
+        if (dor != null && dor >= 4) bloqueios.push(`Dor ${dor}/7 (requer < 4)`);
+        if (dm == null) bloqueios.push("Sem dados hoje");
+      } else if (fase === 3) {
+        if (dor != null && dor >= 4) bloqueios.push(`Dor ${dor}/7 (requer < 4)`);
+        bloqueios.push("Aguarda liberação clínica");
+      }
+
+      const bloqHtml = bloqueios.length
+        ? bloqueios.map(b => `<span class="inline-block text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5 mr-1">${b}</span>`).join("")
+        : `<span class="text-xs text-green-600 font-semibold">Critérios atingidos</span>`;
+
+      const fotoUrl = atleta.fotoUrl || '';
+      const avatarRtp = fotoUrl
+        ? `<img src="${fotoUrl}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" alt="" />`
+        : `<div style="width:34px;height:34px;border-radius:50%;background:#1e40af;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${nome.charAt(0).toUpperCase()}</div>`;
+      const bg = i % 2 === 0 ? "" : "bg-gray-50";
+      return `<tr class="${bg} hover:bg-blue-50 transition-colors">
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-3">
+            ${avatarRtp}
+            <div>
+              <div class="font-semibold text-gray-900">${nome}</div>
+              <div class="text-xs text-gray-400">${pos}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-gray-600 text-sm">${lesaoStr}</td>
+        <td class="px-4 py-3 text-center">${faseTag}</td>
+        <td class="px-4 py-3 text-center font-semibold text-gray-700">${diasEmTrans != null ? diasEmTrans + "d" : "—"}</td>
+        <td class="px-4 py-3 text-center">${dorHtml}</td>
+        <td class="px-4 py-3 text-center">${cmjHtml}</td>
+        <td class="px-4 py-3 text-center">${hrvHtml}</td>
+        <td class="px-4 py-3">${bloqHtml}</td>
+      </tr>`;
+    }).join("");
+  }
+  </script>
+
+  <script type="module" src="/core/authGuard.js"></script>
+  <script type="module" src="/components/layout.js"></script>
+</body>
+</html>

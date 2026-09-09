@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalhe da Operação · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      #sidebar-container, #tabNav, .no-print, .btnEditar, .btnExcluir, .btnAcao { display: none !important; }
+      body { background: white !important; }
+      .print-section { display: block !important; page-break-before: always; }
+      #tabConvocacao, #tabItinerario, #tabChecklist, #tabHotel { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+<script type="module" src="../components/layout.js"></script>
+<script type="module" src="../core/authGuard.js"></script>
+
+<div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-5 gap-4 flex-wrap">
+    <div>
+      <a href="/staff/operacoes_viagens.html" class="text-xs text-orange-600 hover:underline no-print">← Voltar para Viagens</a>
+      <h1 id="paginaTitulo" class="text-2xl font-bold text-gray-800 mt-1">Carregando...</h1>
+      <p id="paginaSubtitulo" class="text-sm text-gray-500 mt-0.5"></p>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap no-print">
+      <span id="badgeStatusViagem"></span>
+      <button id="btnEditarViagem"
+        class="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm transition-colors">
+        Editar Viagem
+      </button>
+      <button id="btnPDFConvocacao"
+        class="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        PDF Convocação
+      </button>
+      <button id="btnGerarPDF"
+        class="bg-gray-800 hover:bg-gray-900 text-white font-medium px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        PDF Completo
+      </button>
+    </div>
+  </div>
+
+  <!-- Cards resumo -->
+  <div id="cardsResumo" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+    <div class="bg-white rounded-xl border p-4 shadow-sm">
+      <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Participantes</p>
+      <p id="cntParticipantes" class="text-2xl font-bold text-gray-800 mt-1">—</p>
+    </div>
+    <div class="bg-white rounded-xl border p-4 shadow-sm">
+      <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Checklist Pendente</p>
+      <p id="cntChecklistPendente" class="text-2xl font-bold text-amber-600 mt-1">—</p>
+    </div>
+    <div class="bg-white rounded-xl border p-4 shadow-sm">
+      <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Próximo Evento</p>
+      <p id="proximoEvento" class="text-sm font-semibold text-gray-700 mt-1">—</p>
+    </div>
+    <div class="bg-white rounded-xl border p-4 shadow-sm">
+      <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Itinerário</p>
+      <p id="cntEventos" class="text-2xl font-bold text-gray-800 mt-1">—</p>
+    </div>
+  </div>
+
+  <!-- Abas -->
+  <div id="tabNav" class="flex border-b mb-5 gap-0 no-print">
+    <button class="tab-btn px-5 py-3 text-sm font-semibold text-orange-600 border-b-2 border-orange-600" data-tab="convocacao">Convocação</button>
+    <button class="tab-btn px-5 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 border-b-2 border-transparent" data-tab="itinerario">Itinerário</button>
+    <button class="tab-btn px-5 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 border-b-2 border-transparent" data-tab="checklist">Checklist</button>
+    <button class="tab-btn px-5 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 border-b-2 border-transparent" data-tab="hotel">Hotel</button>
+  </div>
+
+  <!-- Aba: Convocação -->
+  <div id="tabConvocacao" class="tab-content">
+    <div class="flex items-center justify-between mb-4 no-print">
+      <h2 class="font-bold text-gray-700">Lista de Convocados</h2>
+      <button id="btnAddParticipante"
+        class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+        + Adicionar Staff / Outro
+      </button>
+    </div>
+    <div id="listaParticipantes" class="space-y-3"></div>
+  </div>
+
+  <!-- Aba: Itinerário -->
+  <div id="tabItinerario" class="tab-content hidden">
+    <div class="flex items-center justify-between mb-4 no-print">
+      <h2 class="font-bold text-gray-700">Itinerário da Operação</h2>
+      <button id="btnAddEvento"
+        class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+        + Adicionar Evento
+      </button>
+    </div>
+    <!-- Tabela de itinerário -->
+    <div class="bg-white rounded-xl border shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-2 text-left w-36">Horário</th>
+            <th class="px-4 py-2 text-left">Evento</th>
+            <th class="px-4 py-2 text-left">Local</th>
+            <th class="px-4 py-2 text-left">Responsável</th>
+            <th class="px-4 py-2 text-left w-28">Status</th>
+            <th class="px-4 py-2 text-center w-20 no-print">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaItinerario">
+          <tr id="emptyItinerario">
+            <td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm italic">
+              Nenhum evento. Use os atalhos acima ou clique em "+ Adicionar Evento".
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Aba: Checklist -->
+  <div id="tabChecklist" class="tab-content hidden">
+    <div class="flex items-center justify-between mb-3 no-print">
+      <div>
+        <h2 class="font-bold text-gray-700">Checklist Operacional</h2>
+        <div id="progressChecklist" class="mt-1"></div>
+      </div>
+      <button id="btnAddChecklist"
+        class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+        + Novo Item
+      </button>
+    </div>
+    <div id="listaChecklist" class="space-y-2"></div>
+  </div>
+
+  <!-- Aba: Hotel -->
+  <div id="tabHotel" class="tab-content hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl border p-5 shadow-sm">
+        <h3 class="font-bold text-gray-700 mb-4">Dados de Hospedagem</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Hotel</label>
+            <input id="hotelNome" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Endereço</label>
+            <input id="hotelEndereco" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Check-in</label>
+              <input id="hotelCheckin" type="datetime-local" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Check-out</label>
+              <input id="hotelCheckout" type="datetime-local" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+          </div>
+          <button id="btnSalvarHotel"
+            class="w-full mt-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold py-2 rounded-lg transition-colors no-print">
+            Salvar Hospedagem
+          </button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-700">Atribuição de Quartos</h3>
+          <button id="btnSalvarQuartos"
+            class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors no-print">
+            Salvar Quartos
+          </button>
+        </div>
+        <div id="listaAtribuicaoQuartos" class="space-y-1 text-sm"></div>
+        <div class="mt-5 pt-4 border-t">
+          <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Resumo por Quarto</h4>
+          <div id="listaQuartos" class="space-y-2 text-sm"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Viagem -->
+<div id="modalEditarViagem" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h3 class="font-bold text-gray-800">Editar Viagem</h3>
+      <button id="btnFecharModalEditar" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Status</label>
+        <select id="editStatus" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          <option value="planejamento">Planejamento</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluida">Concluída</option>
+        </select>
+      </div>
+      <div class="border-t pt-4">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Dados do Jogo</p>
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Adversário</label>
+              <input id="editAdversario" type="text" placeholder="Ex: Corinthians"
+                class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Data</label>
+              <input id="editData" type="date" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Horário</label>
+              <input id="editHorario" type="time" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Mando</label>
+              <select id="editMando" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                <option value="Casa">Casa</option>
+                <option value="Fora">Fora</option>
+                <option value="Neutro">Neutro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Cidade</label>
+              <input id="editCidade" type="text" placeholder="Ex: São Paulo - SP"
+                class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Competição</label>
+              <input id="editCompeticao" type="text" placeholder="Ex: Campeonato Paulista"
+                class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-3">
+      <button id="btnCancelarEditar" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+      <button id="btnSalvarEditar" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Adicionar Participante -->
+<div id="modalParticipante" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h3 class="font-bold text-gray-800">Adicionar Participante</h3>
+      <button class="btnFecharModal text-gray-400 hover:text-gray-600" data-modal="modalParticipante">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Nome *</label>
+        <input id="partNome" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Tipo *</label>
+        <select id="partTipo" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          <option value="staff">Staff / Comissão</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Função / Obs</label>
+        <input id="partFuncao" type="text" placeholder="Ex: Médico, Roupeiro..."
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-3">
+      <button class="btnFecharModal px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" data-modal="modalParticipante">Cancelar</button>
+      <button id="btnSalvarParticipante" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Itinerário (tabela) -->
+<div id="modalEvento" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+      <h3 id="modalEventoTitulo" class="font-bold text-gray-800">Planejar Itinerário</h3>
+      <button class="btnFecharModal text-gray-400 hover:text-gray-600" data-modal="modalEvento">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-4 py-4">
+      <p class="text-xs text-gray-500 mb-3">Preencha horário e local para cada evento. Linhas sem horário serão ignoradas.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-3 py-2 text-left border border-gray-200 w-48">Evento</th>
+              <th class="px-3 py-2 text-left border border-gray-200 w-40">Horário</th>
+              <th class="px-3 py-2 text-left border border-gray-200">Local</th>
+              <th class="px-3 py-2 text-left border border-gray-200 w-36">Responsável</th>
+              <th class="px-3 py-2 text-left border border-gray-200 w-28">Status</th>
+              <th class="px-3 py-2 border border-gray-200 w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="tabelaModalItinerario"></tbody>
+        </table>
+      </div>
+      <button id="btnAddLinhaItinerario"
+        class="mt-3 text-xs text-orange-600 hover:text-orange-800 font-semibold flex items-center gap-1">
+        + Adicionar linha
+      </button>
+    </div>
+    <div class="px-6 py-4 border-t flex-shrink-0 flex justify-end gap-3">
+      <button class="btnFecharModal px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" data-modal="modalEvento">Cancelar</button>
+      <button id="btnSalvarEvento" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">Salvar Itinerário</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo Item Checklist -->
+<div id="modalChecklist" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h3 id="modalChecklistTitulo" class="font-bold text-gray-800">Novo Item</h3>
+      <button class="btnFecharModal text-gray-400 hover:text-gray-600" data-modal="modalChecklist">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <input type="hidden" id="checklistItemId">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Item *</label>
+        <input id="checklistItem" type="text"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Categoria *</label>
+        <select id="checklistCategoria" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          <option value="material">Material</option>
+          <option value="medico">Médico</option>
+          <option value="documentos">Documentos</option>
+          <option value="uniforme">Uniforme</option>
+          <option value="alimentacao">Alimentação</option>
+          <option value="outros">Outros</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Responsável</label>
+          <input id="checklistResponsavel" type="text"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Prazo</label>
+          <input id="checklistPrazo" type="date"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-3">
+      <button class="btnFecharModal px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50" data-modal="modalChecklist">Cancelar</button>
+      <button id="btnSalvarChecklist" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-5 right-5 z-[100] hidden">
+  <div id="toastInner" class="px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script type="module">
+import {
+  getViagem, atualizarViagem,
+  listarParticipantes, adicionarParticipante, atualizarParticipante, removerParticipante,
+  listarItinerario, criarEventoItinerario, atualizarEventoItinerario, excluirEventoItinerario,
+  listarChecklist, criarItemChecklist, atualizarItemChecklist, excluirItemChecklist,
+} from '../core/operacoes.service.js?v=2';
+import { auth } from '../core/firebase.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+const uc = JSON.parse(localStorage.getItem('userContext') || '{}');
+const CLUB_ID = uc.clubId || '';
+const UID = uc.uid || '';
+
+const params = new URLSearchParams(location.search);
+const VIAGEM_ID = params.get('id');
+
+if (!VIAGEM_ID) { location.href = '/staff/operacoes_viagens.html'; }
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, tipo = 'ok') {
+  const el = document.getElementById('toast');
+  const inner = document.getElementById('toastInner');
+  inner.textContent = msg;
+  inner.className = `px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${tipo === 'ok' ? 'bg-green-600' : 'bg-red-600'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3500);
+}
+
+// ── Helpers visuais ────────────────────────────────────────────────────────
+const fmtTS = ts => {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const fmtData = ts => {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR');
+};
+
+function toLocalDT(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function badgeStatusPart(status) {
+  const map = {
+    convocado: 'bg-blue-100 text-blue-700',
+    confirmado: 'bg-green-100 text-green-700',
+    pendente: 'bg-amber-100 text-amber-700',
+    cortado: 'bg-red-100 text-red-600 line-through',
+  };
+  const label = { convocado: 'Convocado', confirmado: 'Confirmado', pendente: 'Pendente', cortado: 'Cortado' };
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${map[status] || 'bg-gray-100 text-gray-600'}">${label[status] || status}</span>`;
+}
+
+function badgeStatusEvento(status) {
+  const map = { previsto: 'bg-gray-100 text-gray-600', confirmado: 'bg-green-100 text-green-700', alterado: 'bg-amber-100 text-amber-700' };
+  const label = { previsto: 'Previsto', confirmado: 'Confirmado', alterado: 'Alterado' };
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${map[status] || 'bg-gray-100 text-gray-500'}">${label[status] || status}</span>`;
+}
+
+function iconeTipoEvento(tipo) {
+  const m = { transporte: '🚌', refeicao: '🍽️', treino: '⚽', reuniao: '💬', concentracao: '🏨', jogo: '🏟️', retorno: '🔙' };
+  return m[tipo] || '📌';
+}
+
+function labelCategoria(cat) {
+  const m = { material: 'Material', medico: 'Médico', documentos: 'Documentos', uniforme: 'Uniforme', alimentacao: 'Alimentação', outros: 'Outros' };
+  return m[cat] || cat;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('text-orange-600', 'border-orange-600');
+      b.classList.add('text-gray-500', 'border-transparent');
+    });
+    btn.classList.add('text-orange-600', 'border-orange-600');
+    btn.classList.remove('text-gray-500', 'border-transparent');
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    document.getElementById(`tab${btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)}`).classList.remove('hidden');
+  });
+});
+
+// ── Fechar modais ─────────────────────────────────────────────────────────
+document.querySelectorAll('.btnFecharModal').forEach(btn => {
+  btn.addEventListener('click', () => document.getElementById(btn.dataset.modal).classList.add('hidden'));
+});
+['modalParticipante', 'modalEvento', 'modalChecklist'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) document.getElementById(id).classList.add('hidden');
+  });
+});
+
+// ── Estado global ─────────────────────────────────────────────────────────
+let _viagem = null;
+let _participantes = [];
+let _itinerario = [];
+let _checklist = [];
+
+// ── Carregar viagem ────────────────────────────────────────────────────────
+async function carregarViagem() {
+  _viagem = await getViagem(VIAGEM_ID);
+  if (!_viagem) { alert('Operação não encontrada.'); location.href = '/staff/operacoes_viagens.html'; return; }
+
+  // Título
+  const tipoLabels = { concentracao: 'Concentração', viagem_no_dia: 'Viagem no Dia', viagem_1_dia_antes: 'Viagem 1 Dia Antes', viagem_2_dias_antes: 'Viagem 2 Dias Antes' };
+  document.getElementById('paginaTitulo').textContent = tipoLabels[_viagem.tipoOperacao] || 'Viagem';
+
+  // Transporte
+  const transporteLabel = { onibus:'🚌 Ônibus', van:'🚐 Van', aviao:'✈️ Avião', trem:'🚆 Trem', carro:'🚗 Carro', outro:'🔄 Outro' };
+  // Jogo vinculado (snapshot salvo na viagem)
+  if (_viagem.jogoAdversario) {
+    const parts = [`⚽ vs ${_viagem.jogoAdversario}`];
+    if (_viagem.jogoData) parts.push(_viagem.jogoData);
+    if (_viagem.jogoHorario) parts.push(_viagem.jogoHorario);
+    if (_viagem.jogoMando) parts.push(_viagem.jogoMando);
+    if (_viagem.jogoCidade) parts.push(_viagem.jogoCidade);
+    if (_viagem.meioTransporte) parts.push(transporteLabel[_viagem.meioTransporte] || _viagem.meioTransporte);
+    document.getElementById('paginaSubtitulo').textContent = parts.join(' · ');
+  } else {
+    const ini = fmtData(_viagem.periodo?.inicio);
+    const fim = fmtData(_viagem.periodo?.fim);
+    document.getElementById('paginaSubtitulo').textContent = `${ini} → ${fim}`;
+  }
+
+  // Badge status
+  const badgeMap = {
+    planejamento: 'bg-gray-100 text-gray-600',
+    confirmada: 'bg-blue-100 text-blue-700',
+    em_andamento: 'bg-amber-100 text-amber-700',
+    concluida: 'bg-green-100 text-green-700',
+  };
+  const badgeLabel = { planejamento: 'Planejamento', confirmada: 'Confirmada', em_andamento: 'Em andamento', concluida: 'Concluída' };
+  document.getElementById('badgeStatusViagem').innerHTML =
+    `<span class="px-3 py-1 rounded-full text-sm font-semibold ${badgeMap[_viagem.status] || 'bg-gray-100 text-gray-600'}">${badgeLabel[_viagem.status] || _viagem.status}</span>`;
+
+  // Hotel
+  if (_viagem.hospedagem) {
+    document.getElementById('hotelNome').value = _viagem.hospedagem.hotel || '';
+    document.getElementById('hotelEndereco').value = _viagem.hospedagem.endereco || '';
+    if (_viagem.hospedagem.checkin) document.getElementById('hotelCheckin').value = toLocalDT(_viagem.hospedagem.checkin);
+    if (_viagem.hospedagem.checkout) document.getElementById('hotelCheckout').value = toLocalDT(_viagem.hospedagem.checkout);
+  }
+}
+
+// ── Convocação ─────────────────────────────────────────────────────────────
+async function carregarParticipantes() {
+  _participantes = await listarParticipantes(VIAGEM_ID);
+  document.getElementById('cntParticipantes').textContent = _participantes.length;
+  renderParticipantes();
+}
+
+function renderParticipantes() {
+  const grupos = {};
+  _participantes.forEach(p => {
+    const g = p.tipo === 'atleta' ? (p.grupoOrigem || 'Sem grupo') : (p.tipo === 'staff' ? 'Staff' : 'Outros');
+    if (!grupos[g]) grupos[g] = [];
+    grupos[g].push(p);
+  });
+
+  const container = document.getElementById('listaParticipantes');
+  if (_participantes.length === 0) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic text-center py-8">Nenhum participante convocado.</p>';
+    return;
+  }
+
+  container.innerHTML = Object.entries(grupos).map(([grupo, parts]) => `
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b bg-gray-50 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0"></span>
+        <span class="font-bold text-gray-700 text-sm">${grupo}</span>
+        <span class="text-xs text-gray-400 font-semibold">(${parts.length})</span>
+      </div>
+      <div class="divide-y">
+        ${parts.map(p => `
+          <div class="px-5 py-3 flex items-center gap-3 flex-wrap ${p.status === 'cortado' ? 'opacity-50' : ''}">
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-800 text-sm truncate">${p.nomeSnapshot}</p>
+              ${p.observacaoPublica ? `<p class="text-xs text-gray-500">${p.observacaoPublica}</p>` : ''}
+              ${p.observacaoInterna ? `<p class="text-xs text-amber-600 font-medium no-print">🔒 Interno: ${p.observacaoInterna}</p>` : ''}
+            </div>
+            <div class="flex items-center gap-2 flex-wrap no-print">
+              ${badgeStatusPart(p.status)}
+              <select class="selectStatusPart border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" data-id="${p.id}">
+                ${['convocado','confirmado','pendente','cortado'].map(s =>
+                  `<option value="${s}" ${p.status === s ? 'selected' : ''}>${{convocado:'Convocado',confirmado:'Confirmado',pendente:'Pendente',cortado:'Cortado'}[s]}</option>`
+                ).join('')}
+              </select>
+              <button class="btnRemoverPart text-red-400 hover:text-red-600 text-xs" data-id="${p.id}">Remover</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  // Status inline
+  container.querySelectorAll('.selectStatusPart').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      try {
+        await atualizarParticipante(VIAGEM_ID, sel.dataset.id, { status: sel.value });
+        showToast('Status atualizado.');
+        await carregarParticipantes();
+      } catch (e) { showToast('Erro ao atualizar.', 'erro'); }
+    });
+  });
+
+  // Remover
+  container.querySelectorAll('.btnRemoverPart').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remover este participante?')) return;
+      await removerParticipante(VIAGEM_ID, btn.dataset.id);
+      showToast('Participante removido.');
+      await carregarParticipantes();
+    });
+  });
+
+  renderAtribuicaoQuartos();
+}
+
+function renderAtribuicaoQuartos() {
+  const container = document.getElementById('listaAtribuicaoQuartos');
+  if (!container) return;
+  const ativos = _participantes.filter(p => p.status !== 'cortado');
+  if (ativos.length === 0) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic">Nenhum participante ativo.</p>';
+    renderQuartos();
+    return;
+  }
+  // Group by grupo for better UX
+  const grupos = {};
+  ativos.forEach(p => {
+    const g = p.tipo === 'atleta' ? (p.grupoOrigem || 'Geral') : 'Staff / Outros';
+    if (!grupos[g]) grupos[g] = [];
+    grupos[g].push(p);
+  });
+  container.innerHTML = Object.entries(grupos).map(([g, ps]) => `
+    <div class="mb-4">
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">${g}</p>
+      ${ps.map(p => `
+        <div class="flex items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
+          <span class="flex-1 text-sm font-medium text-gray-800 truncate">${p.nomeSnapshot}</span>
+          <input type="text" placeholder="Quarto" value="${p.quarto || ''}"
+            class="inputQuartoHotel border rounded px-2 py-1 text-xs w-20 text-center focus:outline-none focus:ring-1 focus:ring-orange-500"
+            data-id="${p.id}">
+        </div>`).join('')}
+    </div>`).join('');
+  renderQuartos();
+}
+
+function renderQuartos() {
+  const comQuarto = _participantes.filter(p => p.quarto && p.status !== 'cortado');
+  const container = document.getElementById('listaQuartos');
+  if (comQuarto.length === 0) {
+    container.innerHTML = '<p class="text-gray-400 italic text-xs">Nenhum quarto atribuído ainda.</p>';
+    return;
+  }
+  const agrupado = {};
+  comQuarto.forEach(p => {
+    if (!agrupado[p.quarto]) agrupado[p.quarto] = [];
+    agrupado[p.quarto].push(p.nomeSnapshot);
+  });
+  container.innerHTML = Object.entries(agrupado).sort((a, b) => a[0].localeCompare(b[0])).map(([q, nomes]) => `
+    <div class="flex items-start gap-2 py-2 border-b last:border-0">
+      <span class="font-bold text-orange-600 text-sm w-14 flex-shrink-0">Qto ${q}</span>
+      <span class="text-gray-700 text-sm">${nomes.join(', ')}</span>
+    </div>`).join('');
+}
+
+// Adicionar participante
+document.getElementById('btnAddParticipante').addEventListener('click', () => {
+  document.getElementById('partNome').value = '';
+  document.getElementById('partTipo').value = 'staff';
+  document.getElementById('partFuncao').value = '';
+  document.getElementById('modalParticipante').classList.remove('hidden');
+});
+
+document.getElementById('btnSalvarParticipante').addEventListener('click', async () => {
+  const nome = document.getElementById('partNome').value.trim();
+  if (!nome) { showToast('Informe o nome.', 'erro'); return; }
+  const tipo = document.getElementById('partTipo').value;
+  const funcao = document.getElementById('partFuncao').value.trim();
+  try {
+    await adicionarParticipante(VIAGEM_ID, {
+      tipo, nomeSnapshot: nome, pessoaId: nome,
+      origem: 'manual', observacaoPublica: funcao || null,
+    });
+    document.getElementById('modalParticipante').classList.add('hidden');
+    showToast('Participante adicionado.');
+    await carregarParticipantes();
+  } catch (e) { showToast('Erro ao adicionar.', 'erro'); }
+});
+
+// ── Itinerário ─────────────────────────────────────────────────────────────
+async function carregarItinerario() {
+  _itinerario = await listarItinerario(VIAGEM_ID);
+  document.getElementById('cntEventos').textContent = _itinerario.length;
+
+  // Próximo evento
+  const agora = new Date();
+  const proximo = _itinerario.find(e => {
+    const d = e.dataHora?.toDate ? e.dataHora.toDate() : new Date(e.dataHora);
+    return d > agora;
+  });
+  document.getElementById('proximoEvento').textContent = proximo
+    ? `${iconeTipoEvento(proximo.tipo)} ${proximo.titulo} — ${fmtTS(proximo.dataHora)}`
+    : 'Nenhum próximo';
+
+  renderItinerario();
+}
+
+function renderItinerario() {
+  const tbody = document.getElementById('tabelaItinerario');
+  const empty = document.getElementById('emptyItinerario');
+
+  if (_itinerario.length === 0) {
+    tbody.innerHTML = '';
+    tbody.appendChild(empty);
+    empty.style.display = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  const eventosComHorario = _itinerario
+    .filter(ev => ev.dataHora)
+    .sort((a, b) => {
+      const ta = a.dataHora?.toMillis ? a.dataHora.toMillis() : new Date(a.dataHora).getTime();
+      const tb = b.dataHora?.toMillis ? b.dataHora.toMillis() : new Date(b.dataHora).getTime();
+      return ta - tb;
+    });
+  if (eventosComHorario.length === 0) {
+    tbody.innerHTML = '';
+    tbody.appendChild(empty);
+    empty.style.display = '';
+    return;
+  }
+
+  tbody.innerHTML = eventosComHorario.map(ev => {
+    const hora = ev.dataHora ? (() => {
+      const d = ev.dataHora.toDate ? ev.dataHora.toDate() : new Date(ev.dataHora);
+      return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    })() : '—';
+
+    const transpInfo = ev.transporte
+      ? `<span class="block text-xs text-gray-400">${ev.transporte.tipoTransporte || ''} ${ev.transporte.empresa ? '· '+ev.transporte.empresa : ''} ${ev.transporte.origem ? ev.transporte.origem+'→'+ev.transporte.destino : ''}</span>`
+      : '';
+
+    const badgeMap = { previsto: 'bg-gray-100 text-gray-500', confirmado: 'bg-green-100 text-green-700', alterado: 'bg-amber-100 text-amber-700' };
+    const badgeLabel = { previsto: 'Previsto', confirmado: 'Confirmado', alterado: 'Alterado' };
+
+    return `
+      <tr class="border-b last:border-0 hover:bg-gray-50 transition-colors" data-id="${ev.id}">
+        <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-600">${hora}</td>
+        <td class="px-4 py-2.5">
+          <span class="font-semibold text-gray-800">${iconeTipoEvento(ev.tipo)} ${ev.titulo}</span>
+          ${transpInfo}
+        </td>
+        <td class="px-4 py-2.5 text-sm text-gray-500">${ev.local || '—'}</td>
+        <td class="px-4 py-2.5 text-sm text-gray-500">${ev.responsavel || '—'}</td>
+        <td class="px-4 py-2.5">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${badgeMap[ev.status] || 'bg-gray-100 text-gray-500'}">${badgeLabel[ev.status] || ev.status}</span>
+        </td>
+        <td class="px-4 py-2.5 text-center no-print">
+          <button class="btnEditarEvento text-blue-500 hover:text-blue-700 text-xs mr-2" data-id="${ev.id}">Editar</button>
+          <button class="btnExcluirEvento text-red-400 hover:text-red-600 text-xs" data-id="${ev.id}">✕</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.btnEditarEvento').forEach(btn => {
+    btn.addEventListener('click', () => abrirModalItinerario());
+  });
+  tbody.querySelectorAll('.btnExcluirEvento').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Excluir este evento?')) return;
+      await excluirEventoItinerario(VIAGEM_ID, btn.dataset.id);
+      showToast('Evento excluído.');
+      await carregarItinerario();
+    });
+  });
+}
+
+
+// ── Itinerário (modal tabela) ─────────────────────────────────────────────────
+let _toDeleteEventos = [];
+
+const EVENTOS_PADRAO = [
+  { titulo: 'Saída',                      tipo: 'transporte'   },
+  { titulo: 'Café da Manhã',              tipo: 'refeicao'     },
+  { titulo: 'Almoço',                     tipo: 'refeicao'     },
+  { titulo: 'Jantar',                     tipo: 'refeicao'     },
+  { titulo: 'Palestra / Reunião Técnica', tipo: 'reuniao'      },
+  { titulo: 'Aquecimento / Ativação',     tipo: 'treino'       },
+  { titulo: 'Jogo',                       tipo: 'jogo'         },
+  { titulo: 'Check-in Hotel',             tipo: 'concentracao' },
+  { titulo: 'Retorno',                    tipo: 'retorno'      },
+];
+
+function criarLinhaItinerario(ev = {}) {
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-gray-100';
+  tr.dataset.id = ev.id || '';
+  tr.dataset.tipo = ev.tipo || 'reuniao';
+  const horaVal = ev.dataHora ? toLocalDT(ev.dataHora) : '';
+  const esc = s => (s || '').replace(/"/g, '&quot;');
+  tr.innerHTML = `
+    <td class="border border-gray-200 px-2 py-1">
+      <input type="text" class="inpTitulo w-full text-sm outline-none min-w-[130px]"
+        value="${esc(ev.titulo)}" placeholder="Evento">
+    </td>
+    <td class="border border-gray-200 px-2 py-1">
+      <input type="datetime-local" class="inpDataHora text-sm outline-none"
+        value="${horaVal}">
+    </td>
+    <td class="border border-gray-200 px-2 py-1">
+      <input type="text" class="inpLocal w-full text-sm outline-none min-w-[100px]"
+        value="${esc(ev.local)}" placeholder="Local">
+    </td>
+    <td class="border border-gray-200 px-2 py-1">
+      <input type="text" class="inpResponsavel w-full text-sm outline-none min-w-[100px]"
+        value="${esc(ev.responsavel)}" placeholder="Responsável">
+    </td>
+    <td class="border border-gray-200 px-2 py-1">
+      <select class="inpStatus text-sm outline-none w-full">
+        <option value="previsto" ${(!ev.status||ev.status==='previsto')?'selected':''}>Previsto</option>
+        <option value="confirmado" ${ev.status==='confirmado'?'selected':''}>Confirmado</option>
+        <option value="alterado" ${ev.status==='alterado'?'selected':''}>Alterado</option>
+      </select>
+    </td>
+    <td class="border border-gray-200 px-2 py-1 text-center">
+      <button type="button" class="btnRemoverLinhaItinerario text-red-400 hover:text-red-600 font-bold text-base leading-none">✕</button>
+    </td>
+  `;
+  tr.querySelector('.btnRemoverLinhaItinerario').addEventListener('click', () => {
+    if (tr.dataset.id) _toDeleteEventos.push(tr.dataset.id);
+    tr.remove();
+  });
+  return tr;
+}
+
+function abrirModalItinerario() {
+  _toDeleteEventos = [];
+  const tbody = document.getElementById('tabelaModalItinerario');
+  tbody.innerHTML = '';
+
+  // Índice de eventos existentes por título (pega o primeiro com aquele título)
+  const existentesPorTitulo = {};
+  const idsUsados = new Set();
+  _itinerario.forEach(ev => {
+    if (!existentesPorTitulo[ev.titulo]) existentesPorTitulo[ev.titulo] = ev;
+  });
+
+  // Adiciona linhas pré-definidas, preenchendo com dados existentes se houver
+  EVENTOS_PADRAO.forEach(({ titulo, tipo }) => {
+    const existing = existentesPorTitulo[titulo];
+    if (existing) idsUsados.add(existing.id);
+    tbody.appendChild(criarLinhaItinerario(existing ? existing : { titulo, tipo }));
+  });
+
+  // Adiciona eventos extras que não estão na lista padrão
+  _itinerario.forEach(ev => {
+    if (!idsUsados.has(ev.id)) tbody.appendChild(criarLinhaItinerario(ev));
+  });
+
+  document.getElementById('modalEvento').classList.remove('hidden');
+}
+
+document.getElementById('btnAddEvento').addEventListener('click', () => abrirModalItinerario());
+
+document.getElementById('btnAddLinhaItinerario').addEventListener('click', () => {
+  document.getElementById('tabelaModalItinerario').appendChild(criarLinhaItinerario());
+});
+
+document.getElementById('btnSalvarEvento').addEventListener('click', async () => {
+  const linhas = [...document.getElementById('tabelaModalItinerario').querySelectorAll('tr')];
+  try {
+    // Excluir removidos manualmente
+    for (const id of _toDeleteEventos) {
+      await excluirEventoItinerario(VIAGEM_ID, id);
+    }
+    // Salvar cada linha — só persiste se tem horário preenchido
+    for (const tr of linhas) {
+      const titulo = tr.querySelector('.inpTitulo').value.trim();
+      const dataHora = tr.querySelector('.inpDataHora').value;
+      const id = tr.dataset.id;
+      // Se não tem horário: exclui do Firestore se já existia, ignora se novo
+      if (!dataHora) {
+        if (id) await excluirEventoItinerario(VIAGEM_ID, id);
+        continue;
+      }
+      const dados = {
+        titulo: titulo || '(sem nome)',
+        tipo: tr.dataset.tipo || 'reuniao',
+        dataHora,
+        local: tr.querySelector('.inpLocal').value.trim() || null,
+        responsavel: tr.querySelector('.inpResponsavel').value.trim() || null,
+        status: tr.querySelector('.inpStatus').value,
+        escopo: 'todos',
+        destinatarios: [],
+        transporte: null,
+      };
+      if (id) {
+        await atualizarEventoItinerario(VIAGEM_ID, id, dados, UID);
+      } else {
+        await criarEventoItinerario(VIAGEM_ID, dados, UID);
+      }
+    }
+    document.getElementById('modalEvento').classList.add('hidden');
+    showToast('Itinerário salvo.');
+    await carregarItinerario();
+  } catch (e) { console.error(e); showToast('Erro ao salvar itinerário.', 'erro'); }
+});
+
+// ── Checklist ──────────────────────────────────────────────────────────────
+async function carregarChecklist() {
+  _checklist = await listarChecklist(VIAGEM_ID);
+  const pendentes = _checklist.filter(i => i.status === 'pendente').length;
+  document.getElementById('cntChecklistPendente').textContent = pendentes;
+  renderChecklist();
+}
+
+function renderChecklist() {
+  const container = document.getElementById('listaChecklist');
+  const total = _checklist.length;
+  const ok = _checklist.filter(i => i.status === 'ok').length;
+
+  document.getElementById('progressChecklist').innerHTML = total > 0 ? `
+    <div class="flex items-center gap-2 mt-1">
+      <div class="flex-1 bg-gray-200 rounded-full h-1.5">
+        <div class="bg-green-500 h-1.5 rounded-full" style="width:${Math.round(ok/total*100)}%"></div>
+      </div>
+      <span class="text-xs text-gray-500 font-medium">${ok}/${total}</span>
+    </div>` : '';
+
+  if (total === 0) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic text-center py-8">Nenhum item no checklist.</p>';
+    return;
+  }
+
+  // Agrupar por categoria
+  const cats = {};
+  _checklist.forEach(i => {
+    if (!cats[i.categoria]) cats[i.categoria] = [];
+    cats[i.categoria].push(i);
+  });
+
+  container.innerHTML = Object.entries(cats).map(([cat, items]) => `
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="px-4 py-2 border-b bg-gray-50">
+        <span class="text-xs font-bold uppercase tracking-widest text-gray-500">${labelCategoria(cat)}</span>
+      </div>
+      <div class="divide-y">
+        ${items.map(item => `
+          <div class="px-4 py-3 flex items-center gap-3 ${item.status === 'ok' ? 'opacity-60' : ''}">
+            <input type="checkbox" class="checkItem w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+              data-id="${item.id}" ${item.status === 'ok' ? 'checked' : ''}>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-800 ${item.status === 'ok' ? 'line-through text-gray-400' : ''}">${item.item}</p>
+              <p class="text-xs text-gray-400">${item.responsavel ? `Resp: ${item.responsavel}` : ''}${item.prazo ? ` · Prazo: ${fmtData(item.prazo)}` : ''}</p>
+            </div>
+            <div class="flex items-center gap-2 no-print">
+              <button class="btnEditarChecklist text-blue-500 hover:text-blue-700 text-xs" data-id="${item.id}">Editar</button>
+              <button class="btnExcluirChecklist text-red-400 hover:text-red-600 text-xs" data-id="${item.id}">Excluir</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  container.querySelectorAll('.checkItem').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const novoStatus = cb.checked ? 'ok' : 'pendente';
+      const dados = { status: novoStatus };
+      if (novoStatus === 'ok') dados.concluidoPor = UID;
+      await atualizarItemChecklist(VIAGEM_ID, cb.dataset.id, dados);
+      await carregarChecklist();
+    });
+  });
+
+  container.querySelectorAll('.btnEditarChecklist').forEach(btn => {
+    btn.addEventListener('click', () => abrirModalChecklist(btn.dataset.id));
+  });
+
+  container.querySelectorAll('.btnExcluirChecklist').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Excluir este item?')) return;
+      await excluirItemChecklist(VIAGEM_ID, btn.dataset.id);
+      showToast('Item excluído.');
+      await carregarChecklist();
+    });
+  });
+}
+
+function abrirModalChecklist(id) {
+  const item = id ? _checklist.find(i => i.id === id) : null;
+  document.getElementById('modalChecklistTitulo').textContent = item ? 'Editar Item' : 'Novo Item';
+  document.getElementById('checklistItemId').value = id || '';
+  document.getElementById('checklistItem').value = item?.item || '';
+  document.getElementById('checklistCategoria').value = item?.categoria || 'outros';
+  document.getElementById('checklistResponsavel').value = item?.responsavel || '';
+  document.getElementById('checklistPrazo').value = item?.prazo
+    ? (item.prazo.toDate ? item.prazo.toDate().toISOString().split('T')[0] : '')
+    : '';
+  document.getElementById('modalChecklist').classList.remove('hidden');
+}
+
+document.getElementById('btnAddChecklist').addEventListener('click', () => abrirModalChecklist(null));
+
+document.getElementById('btnSalvarChecklist').addEventListener('click', async () => {
+  const item = document.getElementById('checklistItem').value.trim();
+  if (!item) { showToast('Informe o item.', 'erro'); return; }
+  const dados = {
+    item,
+    categoria: document.getElementById('checklistCategoria').value,
+    responsavel: document.getElementById('checklistResponsavel').value.trim() || null,
+    prazo: document.getElementById('checklistPrazo').value || null,
+  };
+  try {
+    const id = document.getElementById('checklistItemId').value;
+    if (id) {
+      await atualizarItemChecklist(VIAGEM_ID, id, dados);
+    } else {
+      await criarItemChecklist(VIAGEM_ID, dados);
+    }
+    document.getElementById('modalChecklist').classList.add('hidden');
+    showToast('Item salvo.');
+    await carregarChecklist();
+  } catch (e) { showToast('Erro ao salvar.', 'erro'); }
+});
+
+// ── Hotel ──────────────────────────────────────────────────────────────────
+document.getElementById('btnSalvarHotel').addEventListener('click', async () => {
+  const hospedagem = {
+    hotel: document.getElementById('hotelNome').value.trim(),
+    endereco: document.getElementById('hotelEndereco').value.trim(),
+    checkin: document.getElementById('hotelCheckin').value || null,
+    checkout: document.getElementById('hotelCheckout').value || null,
+  };
+  try {
+    await atualizarViagem(VIAGEM_ID, { hospedagem }, UID);
+    showToast('Hospedagem salva.');
+  } catch (e) { showToast('Erro ao salvar hospedagem.', 'erro'); }
+});
+
+// ── Salvar Quartos ────────────────────────────────────────────────────────────
+document.getElementById('btnSalvarQuartos').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('.inputQuartoHotel');
+  try {
+    await Promise.all([...inputs].map(inp =>
+      atualizarParticipante(VIAGEM_ID, inp.dataset.id, { quarto: inp.value.trim() || null })
+    ));
+    showToast('Quartos salvos.');
+    await carregarParticipantes();
+  } catch (e) { showToast('Erro ao salvar quartos.', 'erro'); }
+});
+
+// ── Editar viagem ─────────────────────────────────────────────────────────────
+document.getElementById('btnEditarViagem').addEventListener('click', () => {
+  const v = _viagem;
+  document.getElementById('editStatus').value      = v.status || 'planejamento';
+  document.getElementById('editAdversario').value  = v.jogoAdversario || '';
+  document.getElementById('editData').value        = v.jogoData || '';
+  document.getElementById('editHorario').value     = v.jogoHorario || '';
+  document.getElementById('editMando').value       = v.jogoMando || 'Casa';
+  document.getElementById('editCidade').value      = v.jogoCidade || '';
+  document.getElementById('editCompeticao').value  = v.jogoCompeticao || '';
+  document.getElementById('modalEditarViagem').classList.remove('hidden');
+});
+
+['btnFecharModalEditar','btnCancelarEditar'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () =>
+    document.getElementById('modalEditarViagem').classList.add('hidden'));
+});
+
+document.getElementById('btnSalvarEditar').addEventListener('click', async () => {
+  const dados = {
+    status:         document.getElementById('editStatus').value,
+    jogoAdversario: document.getElementById('editAdversario').value.trim() || null,
+    jogoData:       document.getElementById('editData').value || null,
+    jogoHorario:    document.getElementById('editHorario').value || null,
+    jogoMando:      document.getElementById('editMando').value || null,
+    jogoCidade:     document.getElementById('editCidade').value.trim() || null,
+    jogoCompeticao: document.getElementById('editCompeticao').value.trim() || null,
+  };
+  try {
+    await atualizarViagem(VIAGEM_ID, dados, UID);
+    document.getElementById('modalEditarViagem').classList.add('hidden');
+    showToast('Viagem atualizada.');
+    location.reload();
+  } catch (e) { showToast('Erro ao salvar.', 'erro'); }
+});
+
+// ── PDF Completo ──────────────────────────────────────────────────────────────
+document.getElementById('btnGerarPDF').addEventListener('click', () => {
+  const v = _viagem || {};
+  const uc3 = JSON.parse(localStorage.getItem('userContext') || '{}');
+  const COR2  = uc3.clubColor || '#1e3a5f';
+  const LOGO2 = uc3.clubLogoUrl || null;
+  const NOME2 = uc3.clubName || '';
+
+  const statusBadge2 = s => ({
+    convocado: '<span class="badge badge-blue">Convocado</span>',
+    confirmado:'<span class="badge badge-green">Confirmado</span>',
+    pendente:  '<span class="badge badge-amber">Pendente</span>',
+    cortado:   '<span class="badge badge-gray">Cortado</span>',
+  }[s] || `<span class="badge badge-gray">${_pdfEsc(s)}</span>`);
+
+  // Participantes
+  const todosP = _participantes;
+  const grupos2 = {};
+  todosP.forEach(p => {
+    const g = p.tipo === 'atleta' ? (p.grupoOrigem||'Sem grupo') : (p.tipo === 'staff' ? 'Staff' : 'Outros');
+    if (!grupos2[g]) grupos2[g] = [];
+    grupos2[g].push(p);
+  });
+
+  const tblPart = Object.entries(grupos2).map(([g, ps]) => `
+    <div class="group-label">${_pdfEsc(g)} (${ps.length})</div>
+    <table style="margin-bottom:8px">
+      <thead><tr><th style="width:36px">#</th><th>Nome</th><th style="width:90px">Quarto</th><th style="width:100px">Status</th><th>Obs. Pública</th><th>⚠ Interna</th></tr></thead>
+      <tbody>${ps.map((p,i) => `
+        <tr class="${i%2?'tr-alt':''} ${p.status==='cortado'?'style="opacity:.5;text-decoration:line-through"':''}">
+          <td style="color:#9ca3af">${i+1}</td>
+          <td style="font-weight:600">${_pdfEsc(p.nomeSnapshot)}</td>
+          <td>${_pdfEsc(p.quarto||'—')}</td>
+          <td>${statusBadge2(p.status)}</td>
+          <td style="color:#6b7280;font-size:10px">${_pdfEsc(p.observacaoPublica||'')}</td>
+          <td style="color:#d97706;font-size:10px;font-style:italic">${_pdfEsc(p.observacaoInterna||'')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`).join('');
+
+  // Quartos
+  const quartos2 = {};
+  todosP.filter(p => p.quarto && p.status !== 'cortado').forEach(p => {
+    if (!quartos2[p.quarto]) quartos2[p.quarto] = [];
+    quartos2[p.quarto].push(_pdfEsc(p.nomeSnapshot));
+  });
+
+  // Itinerário
+  const eventos2 = [..._itinerario]
+    .filter(e => e.dataHora)
+    .sort((a,b) => (a.dataHora?.toMillis ? a.dataHora.toMillis() : 0) - (b.dataHora?.toMillis ? b.dataHora.toMillis() : 0));
+
+  // Checklist agrupado
+  const cats = {};
+  _checklist.forEach(i => { if (!cats[i.categoria]) cats[i.categoria] = []; cats[i.categoria].push(i); });
+  const catLabel = { material:'Material', medico:'Médico', documentos:'Documentos', uniforme:'Uniforme', alimentacao:'Alimentação', outros:'Outros' };
+  const tblChecklist = Object.entries(cats).map(([cat, items]) => `
+    <div class="group-label">${catLabel[cat]||cat}</div>
+    <table style="margin-bottom:8px">
+      <thead><tr><th style="width:30px">✓</th><th>Item</th><th style="width:120px">Responsável</th><th style="width:90px">Status</th></tr></thead>
+      <tbody>${items.map((it,i) => `
+        <tr class="${i%2?'tr-alt':''}">
+          <td style="text-align:center;font-size:14px">${it.status==='ok'?'✅':'⬜'}</td>
+          <td style="${it.status==='ok'?'text-decoration:line-through;color:#9ca3af':''}">${_pdfEsc(it.item)}</td>
+          <td style="color:#6b7280">${_pdfEsc(it.responsavel||'—')}</td>
+          <td><span class="badge ${it.status==='ok'?'badge-green':'badge-amber'}">${it.status==='ok'?'OK':'Pendente'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`).join('');
+
+  const secHotel2 = v.hospedagem?.hotel ? `
+    <div class="section">
+      <div class="section-title">Hospedagem</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+        <p><strong>Hotel:</strong> ${_pdfEsc(v.hospedagem.hotel)}</p>
+        ${v.hospedagem.endereco ? `<p><strong>Endereço:</strong> ${_pdfEsc(v.hospedagem.endereco)}</p>` : ''}
+        ${v.hospedagem.checkin  ? `<p><strong>Check-in:</strong> ${_pdfFmtTS(v.hospedagem.checkin)}</p>` : ''}
+        ${v.hospedagem.checkout ? `<p><strong>Check-out:</strong> ${_pdfFmtTS(v.hospedagem.checkout)}</p>` : ''}
+      </div>
+      ${Object.keys(quartos2).length ? `
+      <div class="section-title" style="font-size:10px;margin-top:12px">Distribuição de Quartos</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        ${Object.entries(quartos2).sort((a,b)=>a[0].localeCompare(b[0])).map(([q,ns])=>`
+          <div class="room-card"><span class="room-num">${_pdfEsc(q)}</span><span>${ns.join('<br>')}</span></div>`).join('')}
+      </div>` : ''}
+    </div>` : '';
+
+  const secItinerario2 = eventos2.length ? `
+    <div class="section">
+      <div class="section-title">Itinerário Completo</div>
+      <table>
+        <thead><tr><th style="width:130px">Horário</th><th>Evento</th><th>Local</th><th style="width:120px">Responsável</th><th style="width:90px">Status</th></tr></thead>
+        <tbody>${eventos2.map((e,i) => `
+          <tr class="${i%2?'tr-alt':''}">
+            <td style="white-space:nowrap">${_pdfFmtTS(e.dataHora)}</td>
+            <td style="font-weight:600">${_pdfEsc(e.titulo)}</td>
+            <td style="color:#6b7280">${_pdfEsc(e.local||'—')}</td>
+            <td style="color:#6b7280">${_pdfEsc(e.responsavel||'—')}</td>
+            <td><span class="badge ${e.status==='confirmado'?'badge-green':e.status==='alterado'?'badge-amber':'badge-gray'}">${{previsto:'Previsto',confirmado:'Confirmado',alterado:'Alterado'}[e.status]||e.status}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
+
+  const pendentes = _checklist.filter(i=>i.status!=='ok').length;
+  const html2 = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>PDF Completo — ${_pdfEsc(v.jogoAdversario||'Operação')}</title>
+  ${_pdfEstilos(COR2)}</head><body>
+  ${_pdfHeader(v, COR2, LOGO2, NOME2, `PDF Completo · ${todosP.length} participantes · Checklist: ${pendentes} pendente${pendentes!==1?'s':''}`)}
+  <div class="section">
+    <div class="section-title">Convocação (${todosP.length})</div>
+    ${tblPart}
+  </div>
+  ${secItinerario2}
+  ${secHotel2}
+  ${_checklist.length ? `<div class="section"><div class="section-title">Checklist Operacional</div>${tblChecklist}</div>` : ''}
+  <div class="footer">
+    <span>${_pdfEsc(NOME2)} — Confidencial · Comissão Técnica</span>
+    <span>Gerado em ${new Date().toLocaleString('pt-BR')}</span>
+  </div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Permita pop-ups para este site e tente novamente.'); return; }
+  win.document.write(html2);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+});
+
+// ── Helpers PDF ───────────────────────────────────────────────────────────────
+function _pdfEsc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _pdfFmtStr(s) {
+  if (!s) return '—';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function _pdfFmtTS(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function _pdfEstilos(cor) {
+  return `
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;background:#fff;font-size:12px;line-height:1.5}
+    @page{margin:18mm 16mm}
+    @media print{body{font-size:11px}}
+    .header{margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid ${cor}}
+    .header-logo{width:36px;height:36px;object-fit:contain;flex-shrink:0}
+    .header-logo-placeholder{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .header-title{font-size:20px;font-weight:800;color:#111827;line-height:1.2;margin-top:10px}
+    .header-sub{font-size:11px;color:#6b7280;margin-top:3px}
+    .section{margin-bottom:20px;page-break-inside:avoid}
+    tr{page-break-inside:avoid}
+    .section-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:${cor};border-bottom:2px solid ${cor};padding-bottom:5px;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{text-align:left;padding:5px 8px;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+    td{padding:5px 8px;border-bottom:1px solid #f3f4f6}
+    .group-label{background:#f3f4f6;padding:4px 10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#374151;border-radius:3px;margin:10px 0 6px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+    .badge-green{background:#dcfce7;color:#15803d}
+    .badge-blue{background:#dbeafe;color:#1d4ed8}
+    .badge-amber{background:#fef3c7;color:#92400e}
+    .badge-gray{background:#f3f4f6;color:#4b5563}
+    .tr-alt td{background:#fafafa}
+    .room-card{display:inline-block;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;margin:4px;min-width:80px;font-size:11px}
+    .room-num{font-weight:800;color:${cor};font-size:13px;display:block}
+    .footer{margin-top:24px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+  </style>`;
+}
+
+function _pdfHeader(v, cor, logoUrl, clubName, subtitle) {
+  const tipoLabels2 = { concentracao:'Concentração', viagem_no_dia:'Viagem no Dia', viagem_1_dia_antes:'Viagem 1 Dia Antes', viagem_2_dias_antes:'Viagem 2 Dias Antes' };
+  const transpLabel = { onibus:'Ônibus', van:'Van', aviao:'Avião', trem:'Trem', carro:'Carro', outro:'Outro' };
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" class="header-logo" alt="logo">`
+    : `<div class="header-logo-placeholder">⚽</div>`;
+
+  // Top bar: logo + club name + tipo + date/groups (right)
+  const tipoLabel = _pdfEsc(tipoLabels2[v.tipoOperacao] || 'Operação');
+  const grupos = (v.gruposConvocados||[]).join(', ') || '—';
+
+  // Game info lines
+  const title = v.jogoAdversario
+    ? `vs ${_pdfEsc(v.jogoAdversario)}`
+    : tipoLabel;
+
+  const linha1Parts = [];
+  if (v.jogoData) linha1Parts.push(_pdfFmtStr(v.jogoData));
+  if (v.jogoHorario) linha1Parts.push(_pdfEsc(v.jogoHorario));
+  if (v.jogoMando) {
+    const loc = _pdfEsc(v.jogoMando) + (v.jogoCidade ? ' · ' + _pdfEsc(v.jogoCidade) : '');
+    linha1Parts.push(loc);
+  }
+  if (v.meioTransporte && transpLabel[v.meioTransporte]) linha1Parts.push(transpLabel[v.meioTransporte]);
+
+  const linha1 = linha1Parts.join('  ·  ');
+  const linha2 = v.jogoCompeticao ? _pdfEsc(v.jogoCompeticao) : '';
+
+  return `<div class="header">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${logoHtml}
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${cor}">${_pdfEsc(clubName||'')} — ${tipoLabel}</div>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#9ca3af">
+        <div>Grupos: <strong style="color:#374151">${grupos}</strong></div>
+        <div style="margin-top:2px">${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+    </div>
+    <div class="header-title">${title}</div>
+    ${linha1 ? `<div class="header-sub">${linha1}</div>` : ''}
+    ${linha2 ? `<div class="header-sub">${linha2}</div>` : ''}
+    ${subtitle ? `<div style="font-size:10px;color:#9ca3af;margin-top:6px">${subtitle}</div>` : ''}
+  </div>`;
+}
+
+// ── PDF Convocação ────────────────────────────────────────────────────────────
+document.getElementById('btnPDFConvocacao').addEventListener('click', () => {
+  const v = _viagem || {};
+
+  const uc2 = JSON.parse(localStorage.getItem('userContext') || '{}');
+  const COR  = uc2.clubColor || '#1e3a5f';
+  const LOGO = uc2.clubLogoUrl || null;
+  const NOME_CLUBE = uc2.clubName || '';
+
+  // Participantes
+  const ativos  = _participantes.filter(p => p.status !== 'cortado');
+  const atletas = ativos.filter(p => p.tipo === 'atleta');
+  const staffLst= ativos.filter(p => p.tipo !== 'atleta');
+
+  // Agrupar atletas por grupo
+  const grupos = {};
+  atletas.forEach(p => {
+    const g = p.grupoOrigem || 'Geral';
+    if (!grupos[g]) grupos[g] = [];
+    grupos[g].push(p);
+  });
+
+  // Quartos
+  const quartos = {};
+  ativos.filter(p => p.quarto).forEach(p => {
+    if (!quartos[p.quarto]) quartos[p.quarto] = [];
+    quartos[p.quarto].push(_pdfEsc(p.nomeSnapshot));
+  });
+
+  // Itinerário ordenado
+  const eventos = [..._itinerario]
+    .filter(e => e.dataHora)
+    .sort((a,b) => {
+      const ta = a.dataHora?.toMillis ? a.dataHora.toMillis() : new Date(a.dataHora).getTime();
+      const tb = b.dataHora?.toMillis ? b.dataHora.toMillis() : new Date(b.dataHora).getTime();
+      return ta - tb;
+    });
+
+  const statusBadge = s => ({
+    convocado: '<span class="badge badge-blue">Convocado</span>',
+    confirmado: '<span class="badge badge-green">Confirmado</span>',
+    pendente:  '<span class="badge badge-amber">Pendente</span>',
+  }[s] || `<span class="badge badge-gray">${_pdfEsc(s)}</span>`);
+
+  const tblAtletas = Object.entries(grupos).map(([g, ps]) => `
+    <div class="group-label">${_pdfEsc(g)} (${ps.length})</div>
+    <table style="margin-bottom:8px">
+      <thead><tr><th style="width:40px">#</th><th>Nome</th><th style="width:90px">Quarto</th><th style="width:100px">Status</th></tr></thead>
+      <tbody>${ps.map((p,i) => `
+        <tr class="${i%2?'tr-alt':''}">
+          <td style="color:#9ca3af">${i+1}</td>
+          <td style="font-weight:600">${_pdfEsc(p.nomeSnapshot)}</td>
+          <td style="color:#374151">${_pdfEsc(p.quarto||'—')}</td>
+          <td>${statusBadge(p.status)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`).join('');
+
+  const tblStaff = staffLst.length ? `
+    <div class="group-label">Comissão / Staff (${staffLst.length})</div>
+    <table style="margin-bottom:8px">
+      <thead><tr><th>Nome</th><th style="width:160px">Função</th><th style="width:90px">Quarto</th></tr></thead>
+      <tbody>${staffLst.map((p,i) => `
+        <tr class="${i%2?'tr-alt':''}">
+          <td style="font-weight:600">${_pdfEsc(p.nomeSnapshot)}</td>
+          <td style="color:#6b7280">${_pdfEsc(p.observacaoPublica||'—')}</td>
+          <td>${_pdfEsc(p.quarto||'—')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : '';
+
+  const tblQuartos = Object.keys(quartos).length ? `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+      ${Object.entries(quartos).sort((a,b)=>a[0].localeCompare(b[0])).map(([q,ns])=>`
+        <div class="room-card">
+          <span class="room-num">${_pdfEsc(q)}</span>
+          <span style="color:#374151">${ns.join('<br>')}</span>
+        </div>`).join('')}
+    </div>` : '<p style="color:#9ca3af;font-size:11px">Nenhum quarto atribuído.</p>';
+
+  const secHotel = (v.hospedagem?.hotel || Object.keys(quartos).length) ? `
+    <div class="section">
+      <div class="section-title">Hospedagem</div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+        ${v.hospedagem?.hotel    ? `<p><strong>Hotel:</strong> ${_pdfEsc(v.hospedagem.hotel)}</p>` : ''}
+        ${v.hospedagem?.endereco ? `<p><strong>Endereço:</strong> ${_pdfEsc(v.hospedagem.endereco)}</p>` : ''}
+        ${v.hospedagem?.checkin  ? `<p><strong>Check-in:</strong> ${_pdfFmtTS(v.hospedagem.checkin)}</p>` : ''}
+        ${v.hospedagem?.checkout ? `<p><strong>Check-out:</strong> ${_pdfFmtTS(v.hospedagem.checkout)}</p>` : ''}
+      </div>
+      <div class="section-title" style="font-size:10px;margin-top:12px">Distribuição de Quartos</div>
+      ${tblQuartos}
+    </div>` : '';
+
+  const secItinerario = eventos.length ? `
+    <div class="section">
+      <div class="section-title">Itinerário</div>
+      <table>
+        <thead><tr><th style="width:130px">Horário</th><th>Evento</th><th>Local</th><th style="width:120px">Responsável</th></tr></thead>
+        <tbody>${eventos.map((e,i) => `
+          <tr class="${i%2?'tr-alt':''}">
+            <td style="white-space:nowrap;color:#374151">${_pdfFmtTS(e.dataHora)}</td>
+            <td style="font-weight:600">${_pdfEsc(e.titulo)}</td>
+            <td style="color:#6b7280">${_pdfEsc(e.local||'—')}</td>
+            <td style="color:#6b7280">${_pdfEsc(e.responsavel||'—')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Convocação — ${_pdfEsc(v.jogoAdversario||'Operação')}</title>
+  ${_pdfEstilos(COR)}</head><body>
+  ${_pdfHeader(v, COR, LOGO, NOME_CLUBE, `Convocação · ${ativos.length} participantes`)}
+  <div class="section">
+    <div class="section-title">Convocados (${ativos.length})</div>
+    ${tblAtletas}${tblStaff}
+  </div>
+  ${secHotel}
+  ${secItinerario}
+  <div class="footer">
+    <span>${_pdfEsc(NOME_CLUBE)} — Documento de uso interno</span>
+    <span>Gerado em ${new Date().toLocaleString('pt-BR')}</span>
+  </div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Permita pop-ups para este site e tente novamente.'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  if (!CLUB_ID || !VIAGEM_ID) return;
+  await carregarViagem();
+  await Promise.all([
+    carregarParticipantes(),
+    carregarItinerario(),
+    carregarChecklist(),
+  ]);
+}
+
+onAuthStateChanged(auth, user => {
+  if (user) init();
+});
+</script>
+</body>
+</html>

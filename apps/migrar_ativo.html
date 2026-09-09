@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Migração · ativo: true</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+
+  <div class="bg-white rounded-xl shadow-md p-8 max-w-lg w-full space-y-5">
+    <h1 class="text-xl font-bold">Migração: campo <code class="bg-gray-100 px-1 rounded">ativo</code></h1>
+    <p class="text-sm text-gray-600">
+      Adiciona <code class="bg-gray-100 px-1 rounded">ativo: true</code> a todos os documentos
+      em <strong>athletes</strong> que ainda não possuem o campo.
+      Documentos que já têm o campo <strong>não são alterados</strong>.
+    </p>
+
+    <div id="log"
+         class="bg-gray-50 border rounded-lg p-4 text-sm font-mono h-48 overflow-y-auto space-y-1 text-gray-700">
+      <p class="text-gray-400">Aguardando início…</p>
+    </div>
+
+    <div class="flex gap-3">
+      <button id="btnRodar"
+              class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700">
+        Rodar migração
+      </button>
+      <button id="btnFechar" disabled
+              class="px-5 bg-gray-200 py-2.5 rounded-lg opacity-50 cursor-not-allowed">
+        Fechar
+      </button>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      collection, getDocs, doc, updateDoc, writeBatch
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { db, auth } from "/core/firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+    const logEl    = document.getElementById("log");
+    const btnRodar = document.getElementById("btnRodar");
+    const btnFechar= document.getElementById("btnFechar");
+
+    function log(texto, cor = "text-gray-700") {
+      const p = document.createElement("p");
+      p.className = cor;
+      p.textContent = texto;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        log("⚠ Faça login antes de rodar a migração.", "text-red-500");
+        btnRodar.disabled = true;
+      }
+    });
+
+    btnRodar.addEventListener("click", async () => {
+      btnRodar.disabled = true;
+      logEl.innerHTML = "";
+      log("Buscando todos os atletas…");
+
+      try {
+        const snap = await getDocs(collection(db, "athletes"));
+        const semCampo = snap.docs.filter(d => d.data().ativo === undefined);
+
+        log(`Total de documentos: ${snap.size}`);
+        log(`Documentos sem campo "ativo": ${semCampo.length}`);
+
+        if (semCampo.length === 0) {
+          log("✓ Nada a migrar. Todos os documentos já possuem o campo.", "text-green-600");
+          habilitarFechar();
+          return;
+        }
+
+        // Firestore permite até 500 ops por batch
+        const CHUNK = 500;
+        let atualizados = 0;
+
+        for (let i = 0; i < semCampo.length; i += CHUNK) {
+          const lote = semCampo.slice(i, i + CHUNK);
+          const batch = writeBatch(db);
+          lote.forEach(d => batch.update(doc(db, "athletes", d.id), { ativo: true }));
+          await batch.commit();
+          atualizados += lote.length;
+          log(`  → ${atualizados}/${semCampo.length} documentos atualizados`);
+        }
+
+        log(`✓ Migração concluída. ${atualizados} documentos atualizados.`, "text-green-600");
+        habilitarFechar();
+
+      } catch (err) {
+        log(`✗ Erro: ${err.message}`, "text-red-500");
+        console.error(err);
+        btnRodar.disabled = false;
+      }
+    });
+
+    function habilitarFechar() {
+      btnFechar.disabled = false;
+      btnFechar.classList.remove("opacity-50", "cursor-not-allowed");
+      btnFechar.addEventListener("click", () => window.close());
+    }
+  </script>
+
+</body>
+</html>

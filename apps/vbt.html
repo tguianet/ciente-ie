@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciente VBT — Movesense</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --surface2: #181c22;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ffb800;
+    --danger: #ff4560;
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .logo {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--accent); }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 0.5px solid var(--border2);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    cursor: default;
+    transition: all 0.2s;
+  }
+  .status-pill.connected { border-color: var(--accent2); color: var(--accent2); }
+  .status-pill.connecting { border-color: var(--warn); color: var(--warn); }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.2s;
+  }
+  .connected .dot { background: var(--accent2); animation: pulse-dot 1.5s ease-in-out infinite; }
+  .connecting .dot { background: var(--warn); animation: pulse-dot 0.6s ease-in-out infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── MAIN GRID ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* ── BIG NUMBER ── */
+  .big-number {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    font-family: var(--font-display);
+    transition: color 0.15s;
+  }
+  .big-number.flash-green { color: var(--accent2); }
+  .big-number.flash-cyan { color: var(--accent); }
+
+  .unit {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+
+  /* ── VELOCITY PANEL ── */
+  #panel-vel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .vel-display {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .vel-zone {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .zone-tag {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 3px;
+    background: var(--surface2);
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  .zone-tag.z-max { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .zone-tag.z-force { background: rgba(255,184,0,0.15); color: var(--warn); }
+  .zone-tag.z-power { background: rgba(0,255,157,0.15); color: var(--accent2); }
+  .zone-tag.z-speed { background: rgba(180,100,255,0.15); color: #b464ff; }
+  .zone-tag.z-skill { background: rgba(255,69,96,0.15); color: var(--danger); }
+
+  /* ── REPS PANEL ── */
+  #panel-reps {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .rep-counter {
+    font-size: 128px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    font-family: var(--font-display);
+    transition: color 0.1s;
+  }
+
+  /* ── ACCEL GRAPH ── */
+  #panel-graph {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding: 20px 32px;
+    height: 160px;
+    position: relative;
+  }
+
+  canvas#acc-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .graph-overlay {
+    position: absolute;
+    top: 20px; left: 32px; right: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ── SÉRIE TABLE ── */
+  #panel-serie {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    padding: 20px 32px;
+  }
+
+  .serie-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  table.reps-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .reps-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 10px 10px 0;
+    border-bottom: 0.5px solid var(--border2);
+  }
+
+  .reps-table td {
+    padding: 9px 10px 9px 0;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .reps-table tr:last-child td { border-bottom: none; }
+
+  .vel-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 80px;
+  }
+  .vel-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
+
+  .badge-vel {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  /* ── CONTROLS ── */
+  #panel-controls {
+    grid-column: 1 / -1;
+    padding: 20px 32px;
+    border-top: 0.5px solid var(--border2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  button.btn {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  button.btn:hover { background: var(--surface); border-color: var(--border2); }
+  button.btn:active { transform: scale(0.97); }
+
+  button.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+  button.btn-primary:hover { opacity: 0.85; }
+
+  button.btn-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  button.btn-danger:hover { background: rgba(255,69,96,0.1); }
+
+  button.btn-success {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  button.btn-success:hover { background: rgba(0,255,157,0.08); }
+
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .sep { width: 0.5px; height: 24px; background: var(--border2); margin: 0 4px; }
+
+  .ctrl-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  input.ctrl-input {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    width: 70px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    text-align: center;
+  }
+  input.ctrl-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── PEAK BADGE ── */
+  .peak-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .stat-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-mini .label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .stat-mini .value { font-family: var(--font-mono); font-size: 20px; font-weight: 500; color: var(--text); }
+  .stat-mini .value.hi { color: var(--accent); }
+
+  /* ── PHASE INDICATOR ── */
+  .phase-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .phase-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--surface2);
+    transition: all 0.15s;
+  }
+  .phase-dot.ecc { background: var(--warn); }
+  .phase-dot.con { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    border: 0.5px dashed var(--border2);
+    border-radius: 4px;
+    width: 100%;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 12px 24px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: all 0.25s;
+    z-index: 100;
+    max-width: 400px;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.success { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── ALERTAS DE QUEDA DE VELOCIDADE ── */
+  .vl-alert {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 0.5px solid transparent;
+    transition: all 0.2s;
+  }
+  .vl-alert.show { display: flex; }
+  .vl-alert.warn {
+    background: rgba(255,184,0,0.10);
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .vl-alert.stop {
+    background: rgba(255,69,96,0.12);
+    border-color: var(--danger);
+    color: var(--danger);
+    animation: pulse-alert 1s ease-in-out infinite;
+  }
+  @keyframes pulse-alert {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  .vl-alert-icon { font-size: 16px; flex-shrink: 0; }
+
+  /* Painel de thresholds */
+  .threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .threshold-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .threshold-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .threshold-input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    width: 52px;
+    padding: 6px 8px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    text-align: center;
+  }
+  .threshold-input:focus { outline: none; border-color: var(--warn); }
+  .threshold-pct { font-size: 11px; color: var(--muted); }
+
+  /* Big number vermelho quando em alerta */
+  .big-number.alert-warn { color: var(--warn) !important; }
+  .big-number.alert-stop { color: var(--danger) !important; animation: pulse-alert 0.8s ease-in-out infinite; }
+
+  /* ── CHART ── */
+  #acc-canvas { cursor: default; }
+
+  @media (max-width: 640px) {
+    main { grid-template-columns: 1fr; }
+    #panel-vel, #panel-reps { grid-column: 1; }
+    #panel-graph, #panel-serie, #panel-controls { grid-column: 1; }
+    .big-number { font-size: 72px; }
+    .rep-counter { font-size: 96px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Ciente <span>VBT</span></div>
+  <div class="status-pill" id="status-pill">
+    <div class="dot"></div>
+    <span id="status-text">Desconectado</span>
+  </div>
+</header>
+
+<main>
+  <!-- VELOCIDADE -->
+  <div class="panel" id="panel-vel">
+    <div class="panel-label">Velocidade Média Concêntrica</div>
+    <div class="vel-display">
+      <div class="big-number" id="vel-mean">—</div>
+      <span class="unit">m/s</span>
+    </div>
+    <div class="vel-zone">
+      <div class="zone-tag" id="zone-tag">—</div>
+    </div>
+    <div class="peak-row" style="margin-top: 20px;">
+      <div class="stat-mini">
+        <div class="label">Pico</div>
+        <div class="value hi" id="vel-peak">—</div>
+      </div>
+      <div class="stat-mini">
+        <div class="label">Última rep</div>
+        <div class="value" id="vel-last">—</div>
+      </div>
+      <div class="stat-mini">
+        <div class="label">Perda de vel.</div>
+        <div class="value" id="vel-loss">—</div>
+      </div>
+    </div>
+    <div class="phase-row" id="phase-row">
+      <div class="phase-dot" id="ph-1"></div>
+      <div class="phase-dot" id="ph-2"></div>
+      <div class="phase-dot" id="ph-3"></div>
+      <div style="font-size:11px; color: var(--muted); margin-left: 4px;" id="phase-label">aguardando</div>
+    </div>
+
+    <!-- ALERTA DE QUEDA DE VELOCIDADE -->
+    <div class="vl-alert warn" id="vl-alert-warn">
+      <span class="vl-alert-icon">⚠️</span>
+      <div>
+        <div>Queda de velocidade — atenção</div>
+        <div style="font-size:10px; font-weight:400; margin-top:2px; opacity:0.8;" id="vl-warn-detail">—</div>
+      </div>
+    </div>
+    <div class="vl-alert stop" id="vl-alert-stop">
+      <span class="vl-alert-icon">🛑</span>
+      <div>
+        <div>Encerrar série agora</div>
+        <div style="font-size:10px; font-weight:400; margin-top:2px; opacity:0.8;" id="vl-stop-detail">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPS -->
+  <div class="panel" id="panel-reps">
+    <div class="panel-label">Repetições</div>
+    <div class="rep-counter" id="rep-count">0</div>
+    <div class="peak-row" style="margin-top: 16px;">
+      <div class="stat-mini">
+        <div class="label">Série</div>
+        <div class="value" id="serie-num">1</div>
+      </div>
+      <div class="stat-mini">
+        <div class="label">Duração concêntrica</div>
+        <div class="value" id="con-dur">— ms</div>
+      </div>
+      <div class="stat-mini">
+        <div class="label">Amostras/s</div>
+        <div class="value" id="sample-rate">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO BARRAS POR REP -->
+  <div class="panel" id="panel-graph">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <div class="panel-label" style="margin:0">Velocidade por Repetição</div>
+      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--muted);" id="acc-live">acc: 0.00 m/s²</div>
+    </div>
+    <canvas id="acc-canvas"></canvas>
+  </div>
+
+  <!-- HISTÓRICO SÉRIE -->
+  <div class="panel" id="panel-serie">
+    <div class="serie-header">
+      <div class="panel-label" style="margin:0">Histórico da Série</div>
+      <div style="font-family: var(--font-mono); font-size: 12px; color: var(--muted);" id="serie-stats"></div>
+    </div>
+    <div id="table-container">
+      <div class="empty-state" id="empty-msg">
+        Conecte o Movesense e inicie a série para ver as repetições
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLES -->
+  <div id="panel-controls">
+    <button class="btn btn-primary" id="btn-connect" onclick="connectDevice()">Conectar Movesense</button>
+    <button class="btn btn-success" id="btn-start" onclick="startSerie()" disabled>Nova Série</button>
+    <button class="btn btn-danger" id="btn-end" onclick="endSerie()" disabled>Encerrar Série</button>
+    <div class="sep"></div>
+    <span class="ctrl-label">Carga (kg)</span>
+    <input type="number" class="ctrl-input" id="load-input" value="0" min="0" max="500" step="2.5">
+    <div class="sep"></div>
+    <div class="threshold-row">
+      <div class="threshold-group">
+        <span style="font-size:13px;">⚠️</span>
+        <span class="threshold-label">Atenção</span>
+        <input type="number" class="threshold-input" id="vl-warn-input" value="15" min="5" max="50" step="5">
+        <span class="threshold-pct">%</span>
+      </div>
+      <div class="threshold-group">
+        <span style="font-size:13px;">🛑</span>
+        <span class="threshold-label">Parar</span>
+        <input type="number" class="threshold-input" id="vl-stop-input" value="25" min="10" max="60" step="5">
+        <span class="threshold-pct">%</span>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <button class="btn" id="btn-reset-rep" onclick="resetRep()" disabled>Reset Rep</button>
+    <button class="btn" id="btn-export" onclick="exportData()" disabled>Exportar CSV</button>
+    <div class="sep"></div>
+    <button class="btn" onclick="toggleDebug()" style="font-size:11px; opacity:0.6">Debug BLE</button>
+  </div>
+  <div id="debug-panel" style="display:none; padding: 12px 32px; background: var(--surface); border-top: 0.5px solid var(--border2); font-family: var(--font-mono); font-size: 11px; color: var(--muted);">
+    <div style="margin-bottom:6px; color: var(--warn); font-weight:500;">Primeiros frames BLE recebidos (hex) — cole isso para diagnóstico:</div>
+    <div id="debug-frames" style="line-height:2.2;">Nenhum dado recebido ainda.</div>
+    <div style="margin-top:8px; color: var(--accent); cursor:pointer; text-decoration:underline" onclick="copyDebug()">Copiar tudo</div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIGURAÇÃO BLE — GSP (GATT SensorData Protocol)
+// Documentação oficial: movesense.com/docs/esw/gatt_sensordata_protocol
+// ─────────────────────────────────────────────
+
+// UUIDs do GSP Service (confirmados na documentação oficial)
+const GSP_SERVICE      = '34802252-7185-4d5d-b431-630e7050e8f0';
+const GSP_WRITE_CHAR   = '34800001-7185-4d5d-b431-630e7050e8f0';  // Client → Sensor
+const GSP_NOTIFY_CHAR  = '34800002-7185-4d5d-b431-630e7050e8f0';  // Sensor → Client
+
+// GSP Command IDs
+const GSP_CMD_HELLO     = 0;
+const GSP_CMD_SUBSCRIBE = 1;
+const GSP_CMD_UNSUB     = 2;
+
+// Reference codes (escolhidos pelo cliente, únicos por subscrição ativa)
+const REF_ACC = 1;  // ref_code para acelerômetro
+
+// GSP Response codes
+const GSP_RESP_COMMAND = 0x01;  // resposta a comando
+const GSP_RESP_DATA    = 0x02;  // notificação de dados
+const GSP_RESP_DATA2   = 0x03;  // continuação de dados (packet split)
+
+// ─────────────────────────────────────────────
+// ESTADO GLOBAL
+// ─────────────────────────────────────────────
+let device = null, server = null, writeChar = null, notifyChar = null;
+let connected = false;
+let recording = false;
+
+// Dados de aceleração
+const ACC_BUFFER_SIZE = 300;
+let accBuffer = new Array(ACC_BUFFER_SIZE).fill(0);
+let accRaw = { x: 0, y: 0, z: 0 };
+let accTs = 0;
+let sampleCount = 0;
+let lastRateTs = Date.now();
+
+// Integração para velocidade
+let velocity = 0;
+let lastAccTs = null;
+
+// Detecção de rep
+// State machine: IDLE → ECCENTRIC → TRANSITION → CONCENTRIC → REP_COMPLETE
+const STATE = { IDLE: 0, ECC: 1, TRANS: 2, CON: 3 };
+let repState = STATE.IDLE;
+
+let concVelocities = [];
+let concStartTs = null;
+let repVels = [];          // velocidade média de cada rep
+let repPeakVels = [];
+let repDurations = [];
+let repCount = 0;
+let serieNum = 1;
+let serieActive = false;
+let serieData = [];        // [{rep, vel, peak, dur, load}]
+
+// Parâmetros do algoritmo — calibrados para barra lateral, cargas altas
+// Usando magnitude dos 3 eixos para ser independente da orientação do sensor
+const GRAVITY = 9.81;
+
+const ACC_ECC_THRESHOLD  = -0.6;  // m/s² — descida (ligeiramente mais alto que ruído de vibração)
+const ACC_CON_THRESHOLD  =  0.6;  // m/s² — subida
+const ACC_IDLE_THRESHOLD =  0.35; // m/s² — repouso/fim de fase
+
+const MIN_ECC_DURATION   = 300;   // ms — descida mínima real (vibração dura <100ms)
+const MIN_CON_DURATION   = 250;   // ms — subida mínima real (evita fechar rep cedo)
+const MAX_REP_DURATION   = 12000; // ms — suporta movimentos muito lentos
+const VEL_RESET_THRESHOLD = 0.03;
+
+// Smooth N maior para filtrar vibração mecânica da barra
+const SMOOTH_N = 7;
+let accHistory = [];
+let smoothedAcc = 0;
+
+// Canvas
+const canvas = document.getElementById('acc-canvas');
+const ctx = canvas.getContext('2d');
+let graphData = new Array(200).fill(0);
+
+// ─────────────────────────────────────────────
+// CONEXÃO BLE
+// ─────────────────────────────────────────────
+function logStep(msg, type) {
+  console.log('[BLE]', msg);
+  // Mostrar no painel de debug na tela
+  const el = document.getElementById('debug-frames');
+  if (el) {
+    const line = document.createElement('div');
+    line.style.color = type === 'ok' ? 'var(--accent2)' : type === 'err' ? 'var(--danger)' : 'var(--text)';
+    line.textContent = `▸ ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+  // Também no toast para visibilidade imediata
+  showToast(msg, type === 'ok' ? 'success' : type === 'err' ? 'error' : '');
+}
+
+async function connectDevice() {
+  if (!navigator.bluetooth) {
+    showToast('Web Bluetooth não suportado. Use Chrome desktop (não iOS).', 'error');
+    return;
+  }
+
+  // Abrir painel de debug automaticamente durante conexão
+  const dbg = document.getElementById('debug-panel');
+  dbg.style.display = 'block';
+  document.getElementById('debug-frames').innerHTML = '';
+
+  try {
+    setStatus('connecting');
+    logStep('Abrindo seletor de dispositivos BLE...', '');
+
+    device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { namePrefix: 'Movesense' },
+        { namePrefix: 'MOVESENSE' },
+        { namePrefix: 'movesense' },
+      ],
+      optionalServices: [
+        GSP_SERVICE,
+        '34802252-7185-4d5d-b431-630e7050e8f0',
+        '61353090-8231-49cc-b57a-886370740041',
+        // serviços padrão BLE que o sensor possa anunciar
+        '0000180d-0000-1000-8000-00805f9b34fb', // Heart Rate
+        '0000180a-0000-1000-8000-00805f9b34fb', // Device Information
+      ]
+    });
+
+    logStep(`Dispositivo selecionado: ${device.name || '(sem nome)'}`, 'ok');
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+
+    // GATT connect com retry e delay crescente
+    logStep('Conectando GATT (tentativa 1/5)...', '');
+    server = await connectGattWithRetry(device, 5);
+    logStep('GATT conectado!', 'ok');
+
+    // Descobrir serviço primário GSP
+    logStep(`Buscando serviço GSP...`, '');
+    let service;
+    try {
+      service = await server.getPrimaryService(GSP_SERVICE);
+      logStep('Serviço GSP encontrado!', 'ok');
+    } catch(e) {
+      // Tentar listar todos os serviços disponíveis para diagnóstico
+      logStep(`Serviço GSP não encontrado. Erro: ${e.message}`, 'err');
+      try {
+        const services = await server.getPrimaryServices();
+        const uuids = services.map(s => s.uuid).join('\n');
+        logStep(`Serviços disponíveis no sensor:\n${uuids}`, '');
+        document.getElementById('debug-frames').innerHTML +=
+          `<div style="color:var(--warn); margin-top:8px; font-size:10px; word-break:break-all">${uuids}</div>`;
+      } catch(_) {}
+      throw e;
+    }
+
+    logStep('Obtendo características...', '');
+    writeChar  = await service.getCharacteristic(GSP_WRITE_CHAR);
+    notifyChar = await service.getCharacteristic(GSP_NOTIFY_CHAR);
+    logStep('Características encontradas!', 'ok');
+
+    logStep('Habilitando notificações...', '');
+    await notifyChar.startNotifications();
+    notifyChar.addEventListener('characteristicvaluechanged', onMovesenseData);
+    logStep('Notificações ativas!', 'ok');
+
+    logStep('Enviando HELLO...', '');
+    await sendHello();
+    await new Promise(r => setTimeout(r, 300));
+
+    logStep('Subscrevendo /Meas/Acc/52...', '');
+    await subscribeAcc(52);
+    logStep('Subscrição enviada! Aguardando dados...', 'ok');
+
+    connected = true;
+    setStatus('connected');
+
+    document.getElementById('btn-connect').textContent = 'Desconectar';
+    document.getElementById('btn-connect').onclick = disconnectDevice;
+    document.getElementById('btn-start').disabled = false;
+
+  } catch (err) {
+    connected = false;
+    setStatus('disconnected');
+    if (err.name === 'NotFoundError') {
+      logStep('Seleção cancelada pelo usuário.', '');
+      return;
+    }
+    logStep(`ERRO: ${err.name} — ${err.message}`, 'err');
+    console.error('BLE error:', err);
+  }
+}
+
+async function connectGattWithRetry(dev, maxAttempts) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      if (i > 0) logStep(`Tentativa ${i+1}/${maxAttempts}...`, '');
+      const srv = await dev.gatt.connect();
+      return srv;
+    } catch(e) {
+      console.warn(`GATT attempt ${i+1} failed:`, e.message);
+      if (i === maxAttempts - 1) throw e;
+      // Delay crescente: 500ms, 1s, 1.5s, 2s
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+}
+
+async function sendHello() {
+  // GSP HELLO: [cmd=0, ref_code]
+  const frame = new Uint8Array([GSP_CMD_HELLO, 0x00]);
+  try {
+    await writeChar.writeValue(frame);
+    console.log('GSP HELLO sent');
+  } catch(e) {
+    console.warn('HELLO failed:', e);
+  }
+}
+
+async function subscribeAcc(hz) {
+  // GSP SUBSCRIBE: [cmd=1, ref_code, path_utf8]
+  // Path: "/Meas/Acc/52" (sem terminador nulo)
+  const path = `/Meas/Acc/${hz}`;
+  const pathBytes = new TextEncoder().encode(path);
+  const frame = new Uint8Array(2 + pathBytes.length);
+  frame[0] = GSP_CMD_SUBSCRIBE;
+  frame[1] = REF_ACC;
+  frame.set(pathBytes, 2);
+
+  await writeChar.writeValue(frame);
+  console.log(`GSP SUBSCRIBE sent: ${path} (ref=${REF_ACC})`);
+}
+
+async function disconnectDevice() {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+  }
+  onDisconnect();
+}
+
+function onDisconnect() {
+  connected = false;
+  recording = false;
+  serieActive = false;
+  setStatus('disconnected');
+  document.getElementById('btn-connect').textContent = 'Conectar Movesense';
+  document.getElementById('btn-connect').onclick = connectDevice;
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-end').disabled = true;
+  showToast('Dispositivo desconectado', 'error');
+}
+
+// ─────────────────────────────────────────────
+// PARSE DE DADOS — GSP + SBEM
+// Documentação: movesense.com/docs/esw/gatt_sensordata_protocol
+// ─────────────────────────────────────────────
+let debugLog = [];
+let partialData = null; // para DATA_PART2
+
+function onMovesenseData(event) {
+  const raw = new Uint8Array(event.target.value.buffer);
+  const data = new DataView(event.target.value.buffer);
+
+  if (raw.length < 2) return;
+
+  // Log para debug
+  if (debugLog.length < 10) {
+    const hex = Array.from(raw.slice(0, Math.min(20, raw.length)))
+      .map(b => b.toString(16).padStart(2,'0')).join(' ');
+    debugLog.push(`[${raw.length}b] ${hex}`);
+    console.log('GSP frame:', hex, 'len:', raw.length);
+  }
+
+  const respCode = raw[0];
+  const refCode  = raw[1];
+
+  if (respCode === GSP_RESP_COMMAND) {
+    // Resposta a comando (HELLO, SUBSCRIBE confirm, etc.)
+    if (raw.length >= 4) {
+      const status = data.getUint16(2, true); // HTTP status LE
+      console.log(`GSP CMD_RESP ref=${refCode} status=${status}`);
+      if (status !== 200 && status !== 201) {
+        console.warn(`GSP error status ${status} for ref=${refCode}`);
+        if (refCode === REF_ACC) {
+          showToast(`Erro ao subscrever acelerômetro: HTTP ${status}`, 'error');
+        }
+      }
+    }
+    return;
+  }
+
+  if (respCode === GSP_RESP_DATA || respCode === GSP_RESP_DATA2) {
+    // Notificação de dados
+    if (refCode !== REF_ACC) return;
+
+    let payload;
+    if (respCode === GSP_RESP_DATA2 && partialData) {
+      // Juntar com pacote anterior
+      const combined = new Uint8Array(partialData.length + raw.length - 2);
+      combined.set(partialData);
+      combined.set(raw.slice(2), partialData.length);
+      payload = combined;
+      partialData = null;
+    } else if (respCode === GSP_RESP_DATA) {
+      payload = raw.slice(2); // remover [resp_code, ref_code]
+      // Verificar se este frame pode continuar em DATA_PART2
+      // (não há sinalização explícita, guardamos para possível continuação)
+    } else {
+      return;
+    }
+
+    parseAccSbem(payload);
+    sampleCount++;
+  }
+
+  const now = Date.now();
+  if (now - lastRateTs >= 1000) {
+    document.getElementById('sample-rate').textContent = sampleCount;
+    sampleCount = 0;
+    lastRateTs = now;
+  }
+}
+
+// SBEM (Simple Binary Encoding with Metadata) para AccData
+// Estrutura de /Meas/Acc/{hz} notification:
+// Timestamp: uint32 LE (ms desde boot)  — 4 bytes
+// ArrayAcc:  array de structs {x: float32LE, y: float32LE, z: float32LE}
+//   - O array pode ter 1 ou mais amostras dependendo da taxa
+//   - Sem header de contagem explícito: inferir pelo tamanho restante
+function parseAccSbem(payload) {
+  if (payload.length < 4) return;
+
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  const ts = view.getUint32(0, true);  // timestamp ms
+  let offset = 4;
+
+  // Calcular número de amostras: (bytes restantes) / 12 (3 floats × 4 bytes)
+  const nSamples = Math.floor((payload.length - 4) / 12);
+  if (nSamples === 0) return;
+
+  const dtPerSample = Math.round(1000 / 52); // ~19ms @ 52Hz
+
+  for (let i = 0; i < nSamples; i++) {
+    if (offset + 12 > payload.length) break;
+
+    const ax = view.getFloat32(offset,     true);
+    const ay = view.getFloat32(offset + 4, true);
+    const az = view.getFloat32(offset + 8, true);
+    offset += 12;
+
+    // Sanity check: aceleração válida entre -200 e 200 m/s²
+    if (!isFinite(ax) || !isFinite(ay) || !isFinite(az)) continue;
+    if (Math.abs(ax) > 200 || Math.abs(ay) > 200 || Math.abs(az) > 200) continue;
+
+    const sampleTs = ts + i * dtPerSample;
+    processAccSample(ax, ay, az, sampleTs);
+  }
+}
+
+// ─────────────────────────────────────────────
+// PROCESSAMENTO DE AMOSTRA
+// ─────────────────────────────────────────────
+// Dados reais confirmados: az ≈ 9.87 em repouso → gravidade no eixo Z
+// accVertical = az - 9.81 → ~0 em repouso, negativo na descida, positivo na subida
+
+// Filtro low-pass gravitacional — igual ao CMJ
+// Alpha alto = remove gravidade lentamente sem distorcer dinâmica do movimento
+let _gX = 0, _gY = 0, _gZ = 9.81;
+const G_ALPHA = 0.98;
+
+function processAccSample(ax, ay, az, ts) {
+  // Remover gravidade via low-pass (robusto para qualquer orientação do sensor)
+  _gX = G_ALPHA * _gX + (1 - G_ALPHA) * ax;
+  _gY = G_ALPHA * _gY + (1 - G_ALPHA) * ay;
+  _gZ = G_ALPHA * _gZ + (1 - G_ALPHA) * az;
+  const lax = ax - _gX;
+  const lay = ay - _gY;
+  const laz = az - _gZ;
+
+  // Magnitude da aceleração linear (independe da orientação do sensor)
+  const mag = Math.sqrt(lax*lax + lay*lay + laz*laz);
+
+  // Az linear ainda é usado para determinar direção (cima/baixo)
+  // Suavização leve n=3
+  accHistory.push(laz);
+  if (accHistory.length > SMOOTH_N) accHistory.shift();
+  smoothedAcc = accHistory.reduce((a, b) => a + b, 0) / accHistory.length;
+
+  document.getElementById('acc-live').textContent = `mag: ${mag.toFixed(2)}  az: ${smoothedAcc.toFixed(2)}`;
+  accRaw = { x: ax, y: ay, z: az };
+
+  // Integração de velocidade usando magnitude com sinal do az
+  // Se az < 0 → descida (sinal negativo), az > 0 → subida (sinal positivo)
+  const signedMag = smoothedAcc >= 0 ? mag : -mag;
+
+  if (lastAccTs !== null) {
+    const dt = (ts - lastAccTs) / 1000;
+    if (dt > 0 && dt < 0.2) {
+      velocity += signedMag * dt;
+    }
+    // Decay de drift só em IDLE
+    if (repState === STATE.IDLE) {
+      velocity *= 0.75;
+      if (Math.abs(velocity) < 0.01) velocity = 0;
+    }
+  }
+  lastAccTs = ts;
+  accTs = ts;
+
+  if (serieActive) runRepStateMachine(smoothedAcc, mag, ts);
+
+  const now = Date.now();
+  if (now - lastRateTs >= 1000) {
+    document.getElementById('sample-rate').textContent = sampleCount;
+    sampleCount = 0;
+    lastRateTs = now;
+  }
+}
+
+// ─────────────────────────────────────────────
+// STATE MACHINE — DETECÇÃO DE REP
+// Janela de confirmação reduzida: 2 amostras @ 52Hz = ~38ms
+// Thresholds baixos para capturar movimentos lentos (>85% 1RM)
+// ─────────────────────────────────────────────
+let eccStartTs = null;
+let transStartTs = null;
+
+// ECC_WINDOW maior = elimina vibrações curtas da barra (vibração dura 2-4 amostras a 52Hz)
+// A 52Hz: 3 amostras = ~58ms — descida real dura >300ms, vibração <100ms
+// Reduzido de 5→3 para entrar mais cedo no estado ECC e acumular mais deslocamento
+const ECC_WINDOW = 3;
+const CON_WINDOW = 3;
+let eccCount = 0;
+let conCount = 0;
+
+// Histerese no fim da concêntrica
+const CON_END_WINDOW = 4;
+let conEndCount = 0;
+
+// Amplitude mínima da fase excêntrica em metros
+// Reduzido de 10cm→5cm: a integração dupla perde os primeiros ~58ms de descida
+// e sofre com drift, portanto 5cm é suficiente para distinguir rep real de vibração
+const MIN_ECC_AMPLITUDE = 0.05; // 5cm
+let eccDisplacement = 0;        // deslocamento acumulado durante a descida (m)
+let eccVelocity = 0;            // velocidade de integração durante fase ECC
+
+function runRepStateMachine(acc, mag, ts) {
+  switch (repState) {
+
+    case STATE.IDLE:
+      updatePhaseUI('idle');
+      if (acc < ACC_ECC_THRESHOLD && mag > 0.4) {
+        eccCount++;
+        if (eccCount >= ECC_WINDOW) {
+          repState = STATE.ECC;
+          eccStartTs = ts;
+          eccCount = 0;
+          eccDisplacement = 0;
+          eccVelocity = 0;
+          velocity = 0;
+          concVelocities = [];
+          updatePhaseUI('eccentric');
+        }
+      } else {
+        eccCount = 0;
+      }
+      break;
+
+    case STATE.ECC:
+      updatePhaseUI('eccentric');
+
+      // Integrar deslocamento durante a descida
+      if (lastAccTs !== null) {
+        const dt = (ts - lastAccTs) / 1000;
+        if (dt > 0 && dt < 0.2) {
+          eccVelocity += acc * dt;               // integra acc → velocidade excêntrica
+          eccDisplacement += Math.abs(eccVelocity * dt); // acumula deslocamento absoluto
+        }
+      }
+
+      if (acc > -ACC_IDLE_THRESHOLD) {
+        const eccDur = ts - eccStartTs;
+        if (eccDur >= MIN_ECC_DURATION && eccDisplacement >= MIN_ECC_AMPLITUDE) {
+          // Descida válida: duração OK e amplitude OK
+          repState = STATE.TRANS;
+          transStartTs = ts;
+          velocity = 0;
+          conCount = 0;
+          conEndCount = 0;
+        } else {
+          // Curta demais ou amplitude insuficiente = vibração/ajuste, descarta
+          repState = STATE.IDLE;
+          eccCount = 0;
+        }
+      }
+      if (ts - eccStartTs > MAX_REP_DURATION) { repState = STATE.IDLE; eccCount = 0; }
+      break;
+
+    case STATE.TRANS:
+      updatePhaseUI('transition');
+      if (acc > ACC_CON_THRESHOLD && mag > 0.4) {
+        conCount++;
+        if (conCount >= CON_WINDOW) {
+          repState = STATE.CON;
+          concStartTs = ts;
+          concVelocities = [];
+          velocity = 0;
+          conCount = 0;
+          conEndCount = 0;
+          updatePhaseUI('concentric');
+        }
+      } else {
+        conCount = 0;
+      }
+      if (ts - transStartTs > 3000) { repState = STATE.IDLE; eccCount = 0; conCount = 0; }
+      break;
+
+    case STATE.CON:
+      updatePhaseUI('concentric');
+      if (velocity > 0.02) {
+        concVelocities.push(velocity);
+      }
+
+      if (acc < ACC_IDLE_THRESHOLD) {
+        conEndCount++;
+      } else {
+        conEndCount = 0;
+      }
+
+      if (conEndCount >= CON_END_WINDOW) {
+        const concDur = ts - concStartTs;
+        if (concDur >= MIN_CON_DURATION) {
+          const meanVel = concVelocities.length > 0
+            ? concVelocities.reduce((a, b) => a + b, 0) / concVelocities.length
+            : 0;
+          const peakVel = concVelocities.length > 0 ? Math.max(...concVelocities) : 0;
+          registerRep(meanVel, peakVel, concDur);
+          repState = STATE.IDLE;
+          velocity = 0;
+          eccCount = 0;
+          conCount = 0;
+          conEndCount = 0;
+        } else {
+          repState = STATE.IDLE;
+          eccCount = 0;
+          conCount = 0;
+          conEndCount = 0;
+        }
+      }
+      if (ts - concStartTs > MAX_REP_DURATION) { repState = STATE.IDLE; eccCount = 0; conCount = 0; conEndCount = 0; }
+      break;
+  }
+}
+
+// ─────────────────────────────────────────────
+// REGISTRAR REP
+// ─────────────────────────────────────────────
+function registerRep(meanVel, peakVel, concDur) {
+  repCount++;
+  repVels.push(meanVel);
+  repPeakVels.push(peakVel);
+  repDurations.push(concDur);
+
+  const load = parseFloat(document.getElementById('load-input').value) || 0;
+  serieData.push({
+    rep: repCount,
+    vel: meanVel,
+    peak: peakVel,
+    dur: concDur,
+    load
+  });
+
+  // Atualizar UI
+  updateVelDisplay(meanVel, peakVel);
+  updateRepCounter(repCount);
+  updateTable();
+  updateSerieStats();
+
+  // Flash
+  flashElement('rep-count', 'flash-green');
+
+  // Duração concêntrica
+  document.getElementById('con-dur').textContent = concDur + ' ms';
+
+  // Atualizar gráfico de barras
+  drawGraph();
+}
+
+// ─────────────────────────────────────────────
+// UI UPDATES
+// ─────────────────────────────────────────────
+
+// Velocidade de referência: melhor das 2 primeiras reps (mais estável que só a 1ª)
+function getVelRef() {
+  if (repVels.length === 0) return null;
+  if (repVels.length === 1) return repVels[0];
+  return Math.max(repVels[0], repVels[1]);
+}
+
+function getVLThresholds() {
+  const warn = parseFloat(document.getElementById('vl-warn-input').value) || 15;
+  const stop = parseFloat(document.getElementById('vl-stop-input').value) || 25;
+  return { warn, stop };
+}
+
+function updateVelDisplay(meanVel, peakVel) {
+  const el = document.getElementById('vel-mean');
+  el.textContent = meanVel.toFixed(2);
+
+  // Peak global
+  const globalPeak = repPeakVels.length > 0 ? Math.max(...repPeakVels) : 0;
+  document.getElementById('vel-peak').textContent = globalPeak.toFixed(2) + ' m/s';
+
+  // Última rep
+  document.getElementById('vel-last').textContent = meanVel.toFixed(2) + ' m/s';
+
+  // Queda de velocidade
+  const velRef = getVelRef();
+  const { warn: warnPct, stop: stopPct } = getVLThresholds();
+
+  const warnAlertEl = document.getElementById('vl-alert-warn');
+  const stopAlertEl = document.getElementById('vl-alert-stop');
+  const lossEl      = document.getElementById('vel-loss');
+
+  if (velRef !== null && repVels.length >= 2) {
+    const loss = (velRef - meanVel) / velRef * 100;
+    const lossStr = loss.toFixed(1) + '%';
+
+    lossEl.textContent = (loss > 0 ? '+' : '') + lossStr;
+
+    // Determinar nível de alerta
+    if (loss >= stopPct) {
+      // PARAR
+      lossEl.style.color = 'var(--danger)';
+      el.className = 'big-number alert-stop';
+      warnAlertEl.classList.remove('show');
+      stopAlertEl.classList.add('show');
+      document.getElementById('vl-stop-detail').textContent =
+        `Queda de ${lossStr} (ref ${velRef.toFixed(2)} → atual ${meanVel.toFixed(2)} m/s) · limite ${stopPct}%`;
+      // Toast de parada
+      showToast(`🛑 Encerrar série — queda de ${lossStr}`, 'error');
+
+    } else if (loss >= warnPct) {
+      // ATENÇÃO
+      lossEl.style.color = 'var(--warn)';
+      el.className = 'big-number alert-warn';
+      warnAlertEl.classList.add('show');
+      stopAlertEl.classList.remove('show');
+      document.getElementById('vl-warn-detail').textContent =
+        `Queda de ${lossStr} (ref ${velRef.toFixed(2)} → atual ${meanVel.toFixed(2)} m/s) · limite ${warnPct}%`;
+
+    } else {
+      // OK
+      lossEl.style.color = loss > 5 ? 'var(--text)' : 'var(--accent2)';
+      el.className = 'big-number';
+      warnAlertEl.classList.remove('show');
+      stopAlertEl.classList.remove('show');
+    }
+
+  } else {
+    // Menos de 2 reps — sem referência ainda
+    lossEl.textContent = '—';
+    lossEl.style.color = 'var(--muted)';
+    el.className = 'big-number';
+    warnAlertEl.classList.remove('show');
+    stopAlertEl.classList.remove('show');
+  }
+
+  flashElement('vel-mean', 'flash-cyan');
+
+  // Zona de velocidade
+  const zone = getVelZone(meanVel);
+  const tag = document.getElementById('zone-tag');
+  tag.className = 'zone-tag ' + zone.cls;
+  tag.textContent = zone.label;
+}
+
+function clearVLAlerts() {
+  document.getElementById('vl-alert-warn').classList.remove('show');
+  document.getElementById('vl-alert-stop').classList.remove('show');
+  document.getElementById('vel-mean').className = 'big-number';
+  document.getElementById('vel-loss').textContent = '—';
+  document.getElementById('vel-loss').style.color = 'var(--muted)';
+}
+
+function getVelZone(v) {
+  if (v >= 1.30) return { label: 'Velocidade máxima (>1.30)', cls: 'z-max' };
+  if (v >= 1.00) return { label: 'Força-velocidade (1.00–1.30)', cls: 'z-force' };
+  if (v >= 0.75) return { label: 'Zona de potência (0.75–1.00)', cls: 'z-power' };
+  if (v >= 0.50) return { label: 'Força-potência (0.50–0.75)', cls: 'z-speed' };
+  if (v >  0)    return { label: 'Força máxima (<0.50)', cls: 'z-skill' };
+  return { label: '—', cls: '' };
+}
+
+function updateRepCounter(n) {
+  document.getElementById('rep-count').textContent = n;
+}
+
+function updatePhaseUI(phase) {
+  const ph1 = document.getElementById('ph-1');
+  const ph2 = document.getElementById('ph-2');
+  const ph3 = document.getElementById('ph-3');
+  const lbl = document.getElementById('phase-label');
+
+  ph1.className = 'phase-dot';
+  ph2.className = 'phase-dot';
+  ph3.className = 'phase-dot';
+
+  switch(phase) {
+    case 'eccentric':
+      ph1.className = 'phase-dot ecc';
+      lbl.textContent = 'excêntrica';
+      break;
+    case 'transition':
+      ph2.className = 'phase-dot ecc';
+      lbl.textContent = 'transição';
+      break;
+    case 'concentric':
+      ph3.className = 'phase-dot con';
+      lbl.textContent = 'CONCÊNTRICA';
+      break;
+    default:
+      lbl.textContent = 'aguardando';
+  }
+}
+
+function updateTable() {
+  const container = document.getElementById('table-container');
+  document.getElementById('empty-msg')?.remove();
+
+  let tbl = document.getElementById('rep-table');
+  if (!tbl) {
+    tbl = document.createElement('table');
+    tbl.id = 'rep-table';
+    tbl.className = 'reps-table';
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th style="width:40px">REP</th>
+          <th>VEL MÉDIA</th>
+          <th>VEL PICO</th>
+          <th>DUR CONC</th>
+          <th>CARGA</th>
+          <th style="width: 120px">BARRA VEL</th>
+          <th>ZONA</th>
+        </tr>
+      </thead>
+      <tbody id="rep-tbody"></tbody>
+    `;
+    container.appendChild(tbl);
+  }
+
+  const tbody = document.getElementById('rep-tbody');
+  const rep = serieData[serieData.length - 1];
+  if (!rep) return;
+
+  const zone = getVelZone(rep.vel);
+  const barPct = Math.min(100, (rep.vel / 1.5) * 100).toFixed(0);
+  const velColor = rep.vel >= 1.0 ? 'var(--accent)' : rep.vel >= 0.75 ? 'var(--accent2)' : rep.vel >= 0.5 ? 'var(--warn)' : 'var(--danger)';
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="font-weight:500; color: var(--muted)">${rep.rep}</td>
+    <td style="font-weight:500; color:${velColor}">${rep.vel.toFixed(2)} m/s</td>
+    <td>${rep.peak.toFixed(2)} m/s</td>
+    <td style="color: var(--muted)">${rep.dur} ms</td>
+    <td style="color: var(--muted)">${rep.load > 0 ? rep.load + ' kg' : '—'}</td>
+    <td>
+      <div class="vel-bar">
+        <div class="vel-bar-fill" style="width:${barPct}%; background:${velColor}"></div>
+      </div>
+    </td>
+    <td><span class="badge-vel zone-tag ${zone.cls}" style="font-size:11px; padding: 2px 7px">${zone.label.split('(')[0].trim()}</span></td>
+  `;
+  tbody.appendChild(tr);
+  tbody.scrollTop = tbody.scrollHeight;
+}
+
+function updateSerieStats() {
+  if (repVels.length === 0) return;
+  const avg = repVels.reduce((a, b) => a + b, 0) / repVels.length;
+  const peak = Math.max(...repPeakVels);
+  document.getElementById('serie-stats').textContent =
+    `média ${avg.toFixed(2)} m/s  |  pico ${peak.toFixed(2)} m/s`;
+}
+
+// ─────────────────────────────────────────────
+// CONTROLES DA SÉRIE
+// ─────────────────────────────────────────────
+function startSerie() {
+  serieActive = true;
+  recording = true;
+  repState = STATE.IDLE;
+  repCount = 0;
+  repVels = [];
+  repPeakVels = [];
+  repDurations = [];
+  serieData = [];
+  velocity = 0;
+  lastAccTs = null;
+  concVelocities = [];
+  eccStartTs = null;
+  concStartTs = null;
+
+  document.getElementById('rep-count').textContent = '0';
+  document.getElementById('vel-mean').textContent = '—';
+  document.getElementById('vel-peak').textContent = '—';
+  document.getElementById('vel-last').textContent = '—';
+  document.getElementById('vel-loss').textContent = '—';
+  document.getElementById('con-dur').textContent = '— ms';
+  document.getElementById('zone-tag').className = 'zone-tag';
+  document.getElementById('zone-tag').textContent = '—';
+  document.getElementById('table-container').innerHTML = '<div class="empty-state" id="empty-msg">Aguardando primeira repetição...</div>';
+  clearVLAlerts();
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-end').disabled = false;
+  document.getElementById('btn-reset-rep').disabled = false;
+
+  showToast('Série iniciada. Execute o movimento!', 'success');
+  drawGraph();
+}
+
+function endSerie() {
+  // Para a série sem desconectar o sensor — só reseta o estado
+  serieActive = false;
+  recording = false;
+  repState = STATE.IDLE;
+  velocity = 0;
+  eccCount = 0;
+  conCount = 0;
+
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-end').disabled = true;
+  document.getElementById('btn-reset-rep').disabled = true;
+  document.getElementById('btn-export').disabled = serieData.length === 0;
+
+  serieNum++;
+  document.getElementById('serie-num').textContent = serieNum;
+
+  const avg = repVels.length > 0 ? (repVels.reduce((a, b) => a + b, 0) / repVels.length).toFixed(2) : '0.00';
+  showToast(`Série ${serieNum - 1} encerrada · ${repCount} reps · média ${avg} m/s`, 'success');
+}
+
+function resetRep() {
+  // Zera contador sem reiniciar série (para correção de falsos positivos)
+  if (repCount > 0 && serieData.length > 0) {
+    repCount--;
+    repVels.pop();
+    repPeakVels.pop();
+    repDurations.pop();
+    serieData.pop();
+    document.getElementById('rep-count').textContent = repCount;
+    const tbody = document.getElementById('rep-tbody');
+    if (tbody && tbody.lastElementChild) tbody.removeChild(tbody.lastElementChild);
+    updateSerieStats();
+    showToast('Última repetição removida', '');
+  }
+  repState = STATE.IDLE;
+  velocity = 0;
+}
+
+// ─────────────────────────────────────────────
+// DEBUG BLE
+// ─────────────────────────────────────────────
+function toggleDebug() {
+  const p = document.getElementById('debug-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display === 'block') {
+    const el = document.getElementById('debug-frames');
+    el.innerHTML = debugLog.length > 0
+      ? debugLog.map((h,i) => `<div><span style="color:var(--muted)">frame ${i}:</span> <span style="color:var(--text)">${h}</span></div>`).join('')
+      : 'Nenhum dado recebido ainda.';
+  }
+}
+
+function copyDebug() {
+  const txt = debugLog.length > 0 ? debugLog.join('\n') : 'sem dados';
+  navigator.clipboard.writeText(txt).then(() => showToast('Copiado!', 'success'));
+}
+
+// ─────────────────────────────────────────────
+// EXPORT CSV
+// ─────────────────────────────────────────────
+function exportData() {
+  if (serieData.length === 0) return;
+
+  const load = parseFloat(document.getElementById('load-input').value) || 0;
+  let csv = 'Rep,Vel_Media_ms,Vel_Pico_ms,Dur_Concentrica_ms,Carga_kg\n';
+  serieData.forEach(r => {
+    csv += `${r.rep},${r.vel.toFixed(3)},${r.peak.toFixed(3)},${r.dur},${r.load}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vbt_serie${serieNum}_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────
+// GRÁFICO DE BARRAS — Velocidade por Rep
+// ─────────────────────────────────────────────
+function drawGraph() {
+  const panel = document.getElementById('panel-graph');
+  const w = panel.clientWidth - 64;
+  const h = panel.clientHeight - 52;
+  canvas.width  = w;
+  canvas.height = h;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const data = serieData;
+
+  if (data.length === 0) {
+    // Estado vazio — mostrar texto
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.font = '13px DM Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Inicie uma série para ver o gráfico', w / 2, h / 2);
+    return;
+  }
+
+  const maxVel = Math.max(...data.map(r => r.vel), 1.4);
+  const yScale = (h - 30) / maxVel; // px por m/s, 30px para labels
+
+  // Linhas de referência de zona (VBT)
+  const zones = [
+    { v: 1.30, color: 'rgba(0,212,255,0.15)',  label: '1.30' },
+    { v: 1.00, color: 'rgba(255,184,0,0.12)',  label: '1.00' },
+    { v: 0.75, color: 'rgba(0,255,157,0.12)',  label: '0.75' },
+    { v: 0.50, color: 'rgba(180,100,255,0.12)', label: '0.50' },
+  ];
+
+  zones.forEach(z => {
+    if (z.v > maxVel * 1.1) return;
+    const y = h - 30 - z.v * yScale;
+    ctx.strokeStyle = z.color.replace('0.1', '0.3');
+    ctx.setLineDash([3, 5]);
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '9px DM Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(z.label, w - 2, y - 3);
+  });
+
+  // Linhas de threshold VL (atenção e parar) baseadas na velocidade de referência
+  if (velRef !== null && data.length >= 2) {
+    const velWarn = velRef * (1 - warnPct / 100);
+    const velStop = velRef * (1 - stopPct / 100);
+
+    const yWarn = h - 30 - velWarn * yScale;
+    const yStop = h - 30 - velStop * yScale;
+
+    // Linha de atenção
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = 'rgba(255,184,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, yWarn); ctx.lineTo(w, yWarn); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,184,0,0.7)';
+    ctx.font = 'bold 9px DM Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`⚠ −${warnPct}%`, 4, yWarn - 3);
+
+    // Linha de parar
+    ctx.strokeStyle = 'rgba(255,69,96,0.5)';
+    ctx.beginPath(); ctx.moveTo(0, yStop); ctx.lineTo(w, yStop); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,69,96,0.7)';
+    ctx.fillText(`🛑 −${stopPct}%`, 4, yStop - 3);
+
+    ctx.setLineDash([]);
+  }
+
+  // Barras
+  const n = data.length;
+  const barW = Math.min(60, Math.max(16, (w - (n + 1) * 8) / n));
+  const gap   = (w - n * barW) / (n + 1);
+
+  // Calcular referência de VL para colorir barras
+  const velRef = data.length >= 2 ? Math.max(data[0].vel, data[1].vel) : (data.length === 1 ? data[0].vel : null);
+  const { warn: warnPct, stop: stopPct } = getVLThresholds();
+
+  data.forEach((rep, i) => {
+    const x    = gap + i * (barW + gap);
+    const barH = Math.max(2, rep.vel * yScale);
+    const y    = h - 30 - barH;
+
+    // Cor: prioridade para alerta VL, fallback para zona
+    let color;
+    if (velRef !== null && i >= 2) {
+      const loss = (velRef - rep.vel) / velRef * 100;
+      if (loss >= stopPct)       color = '#ff4560'; // parar
+      else if (loss >= warnPct)  color = '#ffb800'; // atenção
+      else                        color = '#00ff9d'; // ok
+    } else {
+      // Primeiras 2 reps ou sem referência — cor por zona
+      if (rep.vel >= 1.30)      color = '#00d4ff';
+      else if (rep.vel >= 1.00) color = '#ffb800';
+      else if (rep.vel >= 0.75) color = '#00ff9d';
+      else if (rep.vel >= 0.50) color = '#b464ff';
+      else                      color = '#ff4560';
+    }
+
+    // Sombra/glow
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = repState === STATE.CON && i === n - 1 ? 12 : 4;
+
+    // Barra com gradiente
+    const grad = ctx.createLinearGradient(x, y, x, h - 30);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, color + '33');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Linha de pico (pequena marca no topo)
+    const peakY = h - 30 - rep.peak * yScale;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, peakY);
+    ctx.lineTo(x + barW, peakY);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Label: velocidade no topo da barra
+    ctx.fillStyle = color;
+    ctx.font = `bold ${Math.max(9, Math.min(12, barW * 0.22))}px DM Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(rep.vel.toFixed(2), x + barW / 2, y - 4);
+
+    // Label: rep no rodapé
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '10px DM Mono, monospace';
+    ctx.fillText(rep.rep, x + barW / 2, h - 14);
+  });
+
+  // Linha de tendência (se ≥ 3 reps)
+  if (data.length >= 3) {
+    const pts = data.map((r, i) => ({
+      x: gap + i * (barW + gap) + barW / 2,
+      y: h - 30 - r.vel * yScale
+    }));
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function setStatus(s) {
+  const pill = document.getElementById('status-pill');
+  const txt  = document.getElementById('status-text');
+  pill.className = 'status-pill ' + (s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : '');
+  txt.textContent = s === 'connected' ? (device?.name || 'Conectado')
+                  : s === 'connecting' ? 'Conectando...'
+                  : 'Desconectado';
+}
+
+function flashElement(id, cls) {
+  const el = document.getElementById(id);
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 300);
+}
+
+let toastTimer = null;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+
+// Simulação para desenvolvimento (sem hardware)
+let simMode = false;
+let simAngle = 0;
+let simState = 'idle';
+let simTimer = 0;
+
+function startSimulation() {
+  simMode = true;
+  serieActive = true;
+  recording = true;
+  showToast('Modo simulação ativo', 'success');
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-end').disabled = false;
+  document.getElementById('btn-reset-rep').disabled = false;
+
+  const SIM_HZ = 104;
+  let t = 0;
+  let repPhase = 'wait';
+  let phaseT = 0;
+
+  setInterval(() => {
+    if (!simMode || !serieActive) return;
+
+    let acc = 0;
+    phaseT += 1/SIM_HZ;
+
+    // Simular ciclo de rep ~2s: 0.8s ecc, 0.2s trans, 0.6s con, 0.4s rest
+    const cycle = phaseT % 2.0;
+    if (cycle < 0.8) {
+      // Excêntrica: aceleração negativa
+      acc = -3.5 * Math.sin(Math.PI * cycle / 0.8);
+    } else if (cycle < 1.0) {
+      // Transição
+      acc = 0.3 * Math.sin(Math.PI * (cycle - 0.8) / 0.2);
+    } else if (cycle < 1.6) {
+      // Concêntrica: aceleração positiva forte
+      acc = 5.0 * Math.sin(Math.PI * (cycle - 1.0) / 0.6);
+    } else {
+      // Repouso
+      acc = 0.1 * (Math.random() - 0.5);
+    }
+
+    // Adicionar pequeno ruído
+    acc += 0.2 * (Math.random() - 0.5);
+
+    const ts = Date.now();
+    processAccSample(0, 0, acc + GRAVITY, ts);
+  }, 1000 / SIM_HZ);
+}
+
+// Botão simulação
+window.addEventListener('DOMContentLoaded', () => {
+  const ctrl = document.getElementById('panel-controls');
+  const simBtn = document.createElement('button');
+  simBtn.className = 'btn';
+  simBtn.textContent = 'Simular Reps';
+  simBtn.title = 'Teste sem hardware Movesense';
+  simBtn.onclick = () => {
+    startSerie();
+    startSimulation();
+    simBtn.disabled = true;
+  };
+  ctrl.appendChild(simBtn);
+
+  // Inicializar gráfico vazio
+  drawGraph();
+});
+</script>
+</body>
+</html>

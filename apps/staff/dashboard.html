@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Ciente IE · Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex">
+
+<!-- ================= SIDEBAR ================= -->
+
+<div id="sidebar-container"></div>
+
+<!-- ================= CONTEÚDO PRINCIPAL ================= -->
+<div class="flex-1 flex flex-col">
+
+<header class="bg-white border-b px-6 py-4 pl-14 md:pl-6 flex justify-between items-center">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">
+      Dashboard · Situação Diária
+    </h1>
+    <p class="text-sm text-gray-500">
+      Visão rápida para tomada de decisão
+    </p>
+  </div>
+  <button id="btnBriefing"
+          onclick="window._abrirBriefing && window._abrirBriefing()"
+          style="display:flex;align-items:center;gap:7px;background:#1e3a5f;color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(30,58,95,.18);transition:background .15s;"
+          onmouseover="this.style.background='#16304f'" onmouseout="this.style.background='#1e3a5f'">
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    Briefing Pré-Treino
+  </button>
+</header>
+
+<!-- FILTROS -->
+<div class="bg-white border-b px-6 py-3 flex flex-wrap gap-5 items-center">
+  <div class="flex items-center gap-2">
+    <label class="text-sm font-semibold text-gray-700">Categoria:</label>
+    <select id="dashFiltroCategoria" class="border rounded px-3 py-1.5 text-sm text-gray-700">
+      <option value="">Todas</option>
+    </select>
+  </div>
+  <div class="flex items-center gap-2">
+    <label class="text-sm font-semibold text-gray-700">Grupo:</label>
+    <select id="dashFiltroGrupo" class="border rounded px-3 py-1.5 text-sm text-gray-700">
+      <option value="">Todos</option>
+      <option value="Geral">Geral</option>
+      <option value="G1">G1</option>
+      <option value="G2">G2</option>
+      <option value="G3">G3</option>
+      <option value="G4">G4</option>
+      <option value="Transição - RTP">Transição - RTP</option>
+      <option value="Restrição">Restrição</option>
+    </select>
+  </div>
+</div>
+
+<!-- Botões ocultos — usados pelos listeners de dashboard.js e auto-trigger de ?relatorio=X -->
+<div style="display:none">
+  <button id="exportarPDF">Status Diário</button>
+  <button id="btnRelatorioGeral">Relatório Geral</button>
+</div>
+
+<main class="flex-1 overflow-y-auto p-6 space-y-10"
+      id="dashboard-content">
+
+  <!-- Banner Microciclo -->
+  <div id="bannerMicrociclo"
+       style="display:none;align-items:center;gap:12px;padding:12px 18px;background:#1e3a5f;border-radius:10px;margin-bottom:4px;">
+  </div>
+
+  <!-- Cards contadores por status -->
+  <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px;margin-bottom:4px;">
+    <div id="statusCountCards" style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;"></div>
+  </div>
+
+  <!-- Situação do Elenco -->
+  <section>
+    <h2 class="text-xl font-semibold mb-4">Situação do Elenco</h2>
+    <!-- Seções por grupo de status — populado por renderGridAtletas() -->
+    <div id="gridSituacao">
+      <!-- Cards inseridos via JS -->
+    </div>
+    <!-- Elementos ocultos mantidos para compatibilidade com PDF e lógica existente -->
+    <div style="display:none">
+      <ul id="listaAfastados"></ul>
+      <ul id="listaTransicao"></ul>
+      <ul id="listaLiberados"></ul>
+      <ul id="listaCriticos"></ul>
+      <ul id="listaAtencao"></ul>
+      <span id="countAfastados"></span>
+      <span id="countTransicao"></span>
+      <span id="countLiberados"></span>
+      <span id="countCriticos"></span>
+      <span id="countAtencao"></span>
+      <p id="msgAfastados"></p>
+      <p id="msgTransicao"></p>
+      <p id="msgLiberados"></p>
+      <p id="msgCriticos"></p>
+      <p id="msgAtencao"></p>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- Modal filtro de período -->
+<div id="modalPeriodoRelatorio" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <h3 style="margin:0 0 6px;font-size:18px;font-weight:700;color:#1a1a18;">Relatório Geral</h3>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;">Escolha o período a incluir no relatório:</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-periodo" data-periodo="preparatorio"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:16px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Preparatório
+      </button>
+      <button class="btn-periodo" data-periodo="competitivo"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:16px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Competitivo
+      </button>
+      <button class="btn-periodo" data-periodo="todos"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:16px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Todos
+      </button>
+    </div>
+    <button id="btnCancelarPeriodo"
+      style="margin-top:16px;width:100%;padding:8px;border:none;background:none;color:#888;font-size:15px;cursor:pointer;">
+      Cancelar
+    </button>
+  </div>
+</div>
+
+<!-- Modal detalhe do atleta -->
+<div id="cardModal"
+     onclick="if(event.target===this)_fecharCardModal()"
+     style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);align-items:flex-start;justify-content:center;padding:24px 20px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:820px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.28);position:relative;">
+    <!-- Cabeçalho -->
+    <div style="padding:14px 56px 0 16px;border-bottom:1px solid #f3f4f6;">
+      <!-- Info do atleta (preenchido por JS) -->
+      <div id="cardModalAtletaInfo" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;"></div>
+      <!-- Abas -->
+      <div style="display:flex;gap:0;overflow-x:auto;margin-bottom:-1px;scrollbar-width:none;">
+        <button onclick="_modalAbaSelecionar('prontidao')" id="cmTab_prontidao"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #1e3a5f;background:none;cursor:pointer;color:#1e3a5f;white-space:nowrap;flex-shrink:0;">Prontidão</button>
+        <button onclick="_modalAbaSelecionar('carga')" id="cmTab_carga"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:#9ca3af;white-space:nowrap;flex-shrink:0;">Carga</button>
+        <button onclick="_modalAbaSelecionar('perfil')" id="cmTab_perfil"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:#9ca3af;white-space:nowrap;flex-shrink:0;">Perfil</button>
+        <button onclick="_modalAbaSelecionar('medico')" id="cmTab_medico"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:#9ca3af;white-space:nowrap;flex-shrink:0;">Médico</button>
+        <button onclick="_modalAbaSelecionar('avaliacoes')" id="cmTab_avaliacoes"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:#9ca3af;white-space:nowrap;flex-shrink:0;">Avaliações</button>
+        <button onclick="_modalAbaSelecionar('desempenho')" id="cmTab_desempenho"
+          style="padding:8px 14px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:#9ca3af;white-space:nowrap;flex-shrink:0;">Desempenho</button>
+      </div>
+    </div>
+    <!-- Conteúdo -->
+    <div id="cardModalContent" style="font-size:14px;max-height:70vh;overflow-y:auto;"></div>
+    <!-- Fechar -->
+    <button onclick="_fecharCardModal()"
+            style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:24px;color:#9ca3af;cursor:pointer;line-height:1;padding:2px 6px;">✕</button>
+  </div>
+</div>
+
+<!-- Modal Briefing Pré-Treino -->
+<div id="modalBriefing"
+     onclick="if(event.target===this)document.getElementById('modalBriefing').style.display='none'"
+     style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:20px 16px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:580px;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.28);position:relative;">
+    <div id="modalBriefingContent" style="padding:24px 26px;"></div>
+    <button onclick="document.getElementById('modalBriefing').style.display='none'"
+            style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;line-height:1;padding:2px 6px;">✕</button>
+  </div>
+</div>
+
+<script type="module" src="./dashboard.js"></script>
+<script type="module">
+  import { gerarRelatorioGeral } from './relatorio_geral.js';
+
+  const modal = document.getElementById('modalPeriodoRelatorio');
+  const btn   = document.getElementById('btnRelatorioGeral');
+
+  btn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+
+  document.getElementById('btnCancelarPeriodo').addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  document.querySelectorAll('.btn-periodo').forEach(b => {
+    b.addEventListener('click', async () => {
+      const periodo = b.dataset.periodo;
+      modal.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '⏳ Carregando…';
+      try { await gerarRelatorioGeral(periodo); } finally {
+        btn.disabled = false;
+        btn.textContent = '📊 Relatório Geral';
+      }
+    });
+  });
+</script>
+<script src="/components/layout.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Scout Simples • Ciente IE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#020617; font-family:'Inter',system-ui,sans-serif; }
+    .card { background:#0f172a; border:1px solid rgba(148,163,184,.18); border-radius:14px; }
+    .title { font-size:11px; font-weight:700; color:#cbd5e1; letter-spacing:.02em; text-transform:uppercase; }
+    .btn { display:flex; align-items:center; justify-content:center; border-radius:10px; font-weight:800; user-select:none; cursor:pointer; border:none; transition:all .12s; }
+    .btn:active { transform:scale(.96); }
+    .btn-sm { padding:8px 10px; font-size:12px; }
+    .btn-primary { background:#2563eb; color:#fff; padding:10px 20px; font-size:14px; }
+    .btn-primary:hover { background:#1d4ed8; }
+    .btn-primary:disabled { background:#374151; color:#6b7280; cursor:not-allowed; transform:none; }
+    .input-dark { background:#1e293b; border:1px solid rgba(148,163,184,.2); color:#f1f5f9; border-radius:8px; padding:8px 12px; width:100%; outline:none; font-size:14px; }
+    .input-dark:focus { border-color:#38bdf8; box-shadow:0 0 0 3px rgba(56,189,248,.15); }
+    .athlete-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; background:#1e293b; margin-bottom:4px; }
+    .radio-group label { cursor:pointer; font-size:12px; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e293b; color:#f1f5f9; padding:12px 24px; border-radius:12px; font-weight:600; box-shadow:0 8px 32px rgba(0,0,0,.5); z-index:9999; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:500; display:flex; align-items:center; justify-content:center; }
+    .modal-box { background:#0f172a; border:1px solid rgba(148,163,184,.2); border-radius:16px; padding:24px; width:90%; max-width:420px; max-height:80vh; overflow-y:auto; }
+    .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+    .athlete-picker-item { padding:10px 14px; border-radius:10px; cursor:pointer; border:2px solid transparent; transition:all .15s; font-size:14px; color:#cbd5e1; }
+    .athlete-picker-item:hover { background:#1e293b; }
+    .athlete-picker-item.on-field { border-color:#22c55e; background:rgba(34,197,94,.1); }
+    .ev-btn { display:flex; align-items:center; justify-content:center; gap:6px; border-radius:12px; font-weight:800; font-size:13px; cursor:pointer; border:none; padding:0; transition:all .12s; user-select:none; aspect-ratio:unset; }
+    .ev-btn:active { transform:scale(.94); }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:8px 12px; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid rgba(148,163,184,.15); }
+    td { padding:10px 12px; font-size:13px; color:#cbd5e1; border-bottom:1px solid rgba(148,163,184,.08); }
+    tr:last-child td { border-bottom:none; }
+
+    /* Landscape mobile — compact layout */
+    @media (orientation:landscape) and (max-height:550px) {
+      #liveWrapper { padding:4px !important; gap:4px !important; }
+      .lc { padding:8px !important; }
+      .lc .title { margin-bottom:4px !important; }
+      .lc-score { font-size:2rem !important; }
+      .ev-btn { padding:8px 6px !important; font-size:11px !important; }
+      .btn-sm { padding:5px 8px !important; font-size:11px !important; }
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen">
+
+<!-- AUTH GUARD -->
+<script type="module" src="../core/authGuard.js"></script>
+
+<!-- RESTORE CHECKPOINT BANNER -->
+<div id="restoreBanner" class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-600 text-white px-4 py-3 flex items-center justify-between gap-4">
+  <span class="text-sm font-semibold">⚠️ Jogo salvo automaticamente. Deseja continuar de onde parou?</span>
+  <div class="flex gap-2 shrink-0">
+    <button id="btnRestore" class="bg-white text-amber-800 text-sm font-bold px-4 py-1.5 rounded-lg hover:bg-amber-50">Restaurar</button>
+    <button id="btnDiscardRestore" class="bg-amber-800 text-white text-sm font-bold px-4 py-1.5 rounded-lg hover:bg-amber-700">Ignorar</button>
+  </div>
+</div>
+
+<!-- PHASE 1: SETUP -->
+<div id="faseSetup" class="p-3 max-w-2xl mx-auto space-y-4">
+  <!-- Setup Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <button onclick="history.back()" class="btn btn-sm bg-slate-700 hover:bg-slate-600 text-slate-200">← Voltar</button>
+      <span class="text-lg font-black text-white">🎯 Scout Simples</span>
+    </div>
+  </div>
+
+  <div class="card p-6 mb-6">
+    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4">Informações da Partida</h2>
+    <div class="grid grid-cols-1 gap-4">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Adversário *</label>
+        <input id="inpAdversario" type="text" class="input-dark" placeholder="Ex: Flamengo" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Competição *</label>
+        <input id="inpCompeticao" type="text" class="input-dark" placeholder="Ex: Campeonato Estadual" />
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Data *</label>
+          <input id="inpData" type="date" class="input-dark" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Local / Cidade</label>
+          <input id="inpLocal" type="text" class="input-dark" placeholder="Ex: Maracanã" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-2">Mando</label>
+        <div class="flex gap-6">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mando" value="Casa" checked class="accent-blue-500" /> Casa
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mando" value="Fora" class="accent-blue-500" /> Fora
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest">Convocação</h2>
+      <span id="convCounter" class="text-xs text-slate-400">0 titulares · 0 reservas</span>
+    </div>
+    <div id="athleteList" class="space-y-1">
+      <p class="text-slate-500 text-sm text-center py-4">Carregando atletas...</p>
+    </div>
+  </div>
+
+  <button id="btnIniciarJogo" class="btn-primary w-full text-base py-3 mb-8" disabled>
+    ▶ Iniciar Jogo
+  </button>
+
+  <!-- HISTORICAL MATCHES -->
+  <div class="card p-6">
+    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest mb-4">Histórico de Jogos</h2>
+    <div id="historicoContainer">
+      <p class="text-slate-500 text-sm text-center py-4">Carregando...</p>
+    </div>
+  </div>
+</div>
+
+<!-- PHASE 2: LIVE GAME -->
+<div id="faseJogo" class="hidden">
+  <div id="liveWrapper" class="p-3 max-w-6xl mx-auto space-y-3">
+
+    <!-- Live Header -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <button onclick="voltarSetup()" class="btn btn-sm bg-slate-700 hover:bg-slate-600 text-slate-200">← Setup</button>
+        <span class="text-base font-black text-white" id="liveTitle">Scout Simples</span>
+        <span id="etapaLabel" class="badge bg-blue-900 text-blue-300">1T</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnTelaCheia" class="btn btn-sm bg-slate-800 hover:bg-slate-700 text-slate-300">⛶ Tela cheia</button>
+      </div>
+    </div>
+
+    <!-- 3-column grid (desktop) / stacked (mobile) -->
+    <div class="grid grid-cols-12 gap-3">
+
+      <!-- Col 1: Partida + Clock + Controls -->
+      <div class="col-span-12 sm:col-span-4 card lc p-3 space-y-3">
+        <div class="title">Partida</div>
+        <div class="text-xs text-slate-400 leading-5" id="matchMetaLine"></div>
+
+        <!-- Score + Clock -->
+        <div class="flex items-center justify-between">
+          <div class="lc-score font-black text-4xl font-mono tracking-tight text-white">
+            <span id="scorePro">0</span>
+            <span class="text-slate-600 mx-2">–</span>
+            <span id="scoreCon">0</span>
+          </div>
+          <div class="text-right">
+            <div id="clockDisplay" class="font-mono font-black text-2xl text-white">00:00</div>
+            <div id="scoreBadge" class="text-xs text-slate-500 mt-0.5"></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-2">
+          <button id="btnStartPause" onclick="toggleTimer()"
+            class="btn bg-green-700 hover:bg-green-600 text-white flex-1 py-3 text-sm">▶ INICIAR</button>
+          <button id="btnIntervalo" onclick="doIntervalo()"
+            class="btn bg-blue-700 hover:bg-blue-600 text-white flex-1 py-3 text-sm">⏱ INTERVALO</button>
+        </div>
+        <button id="btnEncerrar" onclick="confirmarEncerrar()"
+          class="btn bg-red-800 hover:bg-red-700 text-white w-full py-3 text-sm">🏁 ENCERRAR JOGO</button>
+      </div>
+
+      <!-- Col 2: Event Buttons -->
+      <div class="col-span-12 sm:col-span-4 card lc p-3 space-y-3">
+        <div class="title">Registrar Evento</div>
+        <div class="grid grid-cols-2 gap-2 h-full">
+          <button onclick="registerEvent('Gol Pró')"
+            class="ev-btn bg-green-900 hover:bg-green-800 text-green-300 py-6">⚽ Gol Pró</button>
+          <button onclick="registerEvent('Gol Adversário')"
+            class="ev-btn bg-red-950 hover:bg-red-900 text-red-400 py-6">⚽ Gol Adv.</button>
+          <button onclick="registerEvent('Cartão Amarelo')"
+            class="ev-btn bg-yellow-700 hover:bg-yellow-600 text-white py-6">🟡 Amarelo</button>
+          <button onclick="registerEvent('Cartão Vermelho')"
+            class="ev-btn bg-red-700 hover:bg-red-600 text-white py-6">🔴 Vermelho</button>
+          <button onclick="openSubModal()"
+            class="ev-btn bg-slate-700 hover:bg-slate-600 text-white col-span-2 py-5">🔄 Substituição</button>
+        </div>
+      </div>
+
+      <!-- Col 3: Event Log -->
+      <div class="col-span-12 sm:col-span-4 card p-3">
+        <div class="title mb-3">Log de Eventos</div>
+        <div id="eventLog" class="space-y-1.5 overflow-y-auto" style="max-height:52vh">
+          <p class="text-slate-600 text-sm text-center py-4">Nenhum evento ainda</p>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+  </div><!-- /liveWrapper -->
+</div>
+
+<!-- ATHLETE PICKER MODAL -->
+<div id="athletePickerModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="pickerTitle" class="font-bold text-white text-lg">Selecionar Atleta</h3>
+      <button onclick="closePickerModal()" class="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+    </div>
+    <div id="pickerList" class="space-y-1"></div>
+    <button onclick="closePickerModal()" class="mt-4 w-full text-sm text-slate-400 hover:text-white py-2">Cancelar</button>
+  </div>
+</div>
+
+<!-- SUBSTITUIÇÃO MODAL -->
+<div id="subModal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-white text-lg">🔄 Substituição</h3>
+      <button onclick="closeSubModal()" class="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sai</p>
+        <div id="subSaiList" class="space-y-1 max-h-60 overflow-y-auto"></div>
+      </div>
+      <div>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Entra</p>
+        <div id="subEntraList" class="space-y-1 max-h-60 overflow-y-auto"></div>
+      </div>
+    </div>
+    <div id="subSelecao" class="mt-4 p-3 bg-slate-800 rounded-lg text-sm text-slate-300 hidden">
+      <span id="subSelecaoText"></span>
+    </div>
+    <button id="btnConfirmSub" onclick="confirmSub()" disabled class="btn-primary w-full mt-4 opacity-50">Confirmar Substituição</button>
+    <button onclick="closeSubModal()" class="mt-2 w-full text-sm text-slate-400 hover:text-white py-2">Cancelar</button>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:360px;">
+    <h3 class="font-bold text-white text-lg mb-2">🏁 Encerrar Jogo?</h3>
+    <p class="text-slate-400 text-sm mb-6">Esta ação irá salvar o jogo e não pode ser desfeita.</p>
+    <div class="flex gap-3">
+      <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-semibold">Cancelar</button>
+      <button onclick="encerrarJogo()" class="flex-1 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-semibold">Encerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastEl" class="toast hidden"></div>
+
+<script type="module">
+import { db, auth } from '../core/firebase.js';
+import {
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc,
+  query, where, serverTimestamp, writeBatch, orderBy, limit
+} from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = {
+  matchId: null, etapa: '1T',
+  halfSeconds: 0,
+  totalSeconds: 0,
+  timerInterval: null, running: false, encerrado: false,
+  scorePro: 0, scoreCon: 0,
+  onField: new Set(), onFieldSince: {}, playedSeconds: {},
+  events: [], athletes: [], titulares: new Set(), reservas: new Set(),
+  adversario: '', competicao: '', data: '', mando: 'Casa', local: '',
+};
+
+let CLUB_ID = '';
+let USER_ID = '';
+let checkpointData = null;
+let pendingEventAction = null;
+let subSai = null, subEntra = null;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function toast(msg, color = '#1e293b') {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.style.background = color;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3500);
+}
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function athleteName(id) {
+  return S.athletes.find(a => a.id === id)?.nome || id;
+}
+
+function eventEmoji(action) {
+  const map = { 'Gol Pró': '⚽', 'Gol Adversário': '⚽', 'Cartão Amarelo': '🟡',
+    'Cartão Vermelho': '🔴', 'Substituição': '🔄', 'Intervalo': '⏱', 'Início': '▶' };
+  return map[action] || '•';
+}
+
+// ─── TIMER ───────────────────────────────────────────────────────────────────
+window.toggleTimer = function() {
+  if (S.encerrado) return;
+  if (S.running) {
+    pauseTimer();
+  } else {
+    startTimer();
+  }
+};
+
+function startTimer() {
+  S.running = true;
+  document.getElementById('btnStartPause').innerHTML = '⏸ PAUSAR';
+  document.getElementById('btnStartPause').className = 'event-btn bg-amber-600 hover:bg-amber-500 text-white flex-1 min-w-[120px]';
+  S.timerInterval = setInterval(() => {
+    S.halfSeconds++;
+    S.totalSeconds++;
+    document.getElementById('clockDisplay').textContent = fmtTime(S.halfSeconds);
+  }, 1000);
+}
+
+function pauseTimer() {
+  S.running = false;
+  clearInterval(S.timerInterval);
+  document.getElementById('btnStartPause').innerHTML = '▶ INICIAR';
+  document.getElementById('btnStartPause').className = 'event-btn bg-green-700 hover:bg-green-600 text-white flex-1 min-w-[120px]';
+}
+
+window.doIntervalo = function() {
+  if (S.etapa !== '1T') return;
+  pauseTimer();
+  // Save time for all on-field players
+  const onFieldSnap = [...S.onField];
+  onFieldSnap.forEach(id => sairCampo(id));
+
+  addEvent('Intervalo', null, {});
+  S.etapa = '2T';
+  S.halfSeconds = 0;
+  document.getElementById('etapaLabel').textContent = '2T';
+  document.getElementById('btnIntervalo').disabled = true;
+  document.getElementById('btnIntervalo').classList.add('opacity-40', 'cursor-not-allowed');
+  toast('Intervalo! Clique em Iniciar para o 2° tempo.');
+
+  // After interval, re-enter players when timer starts again
+  S._resumePlayers = onFieldSnap;
+};
+
+function startTimerWithResume() {
+  if (S._resumePlayers && S._resumePlayers.length > 0) {
+    S._resumePlayers.forEach(id => entrarCampo(id));
+    delete S._resumePlayers;
+  }
+  startTimer();
+}
+
+// Override toggleTimer to handle resume
+window.toggleTimer = function() {
+  if (S.encerrado) return;
+  if (S.running) {
+    pauseTimer();
+  } else {
+    if (S._resumePlayers) {
+      startTimerWithResume();
+    } else {
+      startTimer();
+    }
+  }
+};
+
+// ─── PLAYER TIME ─────────────────────────────────────────────────────────────
+function entrarCampo(id) {
+  S.onField.add(id);
+  S.onFieldSince[id] = S.totalSeconds;
+}
+
+function sairCampo(id) {
+  if (!S.playedSeconds[id]) S.playedSeconds[id] = 0;
+  S.playedSeconds[id] += (S.totalSeconds - (S.onFieldSince[id] || S.totalSeconds));
+  delete S.onFieldSince[id];
+  S.onField.delete(id);
+}
+
+// ─── EVENTS ──────────────────────────────────────────────────────────────────
+function addEvent(action, athleteId, meta) {
+  const ev = {
+    id: Date.now().toString(),
+    time: `${Math.floor(S.halfSeconds / 60)}'`,
+    seconds: S.totalSeconds,
+    etapa: S.etapa,
+    action,
+    athleteId: athleteId || null,
+    meta: meta || {},
+  };
+  S.events.push(ev);
+  renderEventLog();
+  return ev;
+}
+
+function renderEventLog() {
+  const container = document.getElementById('eventLog');
+  if (S.events.length === 0) {
+    container.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Nenhum evento ainda</p>';
+    return;
+  }
+  const reversed = [...S.events].reverse();
+  container.innerHTML = reversed.map(ev => {
+    const name = ev.athleteId ? ` · <span class="text-white">${athleteName(ev.athleteId)}</span>` : '';
+    const metaStr = ev.action === 'Substituição' && ev.meta.sai && ev.meta.entra
+      ? ` (↓${athleteName(ev.meta.sai)} ↑${athleteName(ev.meta.entra)})` : '';
+    return `<div class="flex items-center gap-2 py-2 px-3 rounded-lg bg-slate-900 text-sm">
+      <span class="text-slate-500 font-mono text-xs w-10 shrink-0">${ev.time}</span>
+      <span class="text-slate-400 text-xs w-4 shrink-0">${ev.etapa}</span>
+      <span>${eventEmoji(ev.action)}</span>
+      <span class="text-slate-300">${ev.action}${name}${metaStr}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── REGISTER EVENT (opens picker) ───────────────────────────────────────────
+window.registerEvent = function(action) {
+  if (!S.running && !S.encerrado) { toast('Inicie o jogo primeiro.', '#92400e'); return; }
+  if (action === 'Gol Adversário') {
+    S.scoreCon++;
+    document.getElementById('scoreCon').textContent = S.scoreCon;
+    addEvent('Gol Adversário', null, {});
+    return;
+  }
+  pendingEventAction = action;
+  openPickerModal(action);
+};
+
+// ─── ATHLETE PICKER MODAL ─────────────────────────────────────────────────────
+function openPickerModal(action) {
+  document.getElementById('pickerTitle').textContent =
+    action === 'Gol Pró' ? '⚽ Quem fez o gol?' :
+    action === 'Cartão Amarelo' ? '🟡 Quem recebeu o amarelo?' :
+    action === 'Cartão Vermelho' ? '🔴 Quem recebeu o vermelho?' : 'Selecionar Atleta';
+
+  const onFieldArr = [...S.onField];
+  const eligible = S.athletes.filter(a => S.titulares.has(a.id) || S.reservas.has(a.id));
+
+  const list = document.getElementById('pickerList');
+  list.innerHTML = '';
+
+  // On-field first
+  const onFieldAthletes = eligible.filter(a => onFieldArr.includes(a.id));
+  const offFieldAthletes = eligible.filter(a => !onFieldArr.includes(a.id));
+
+  if (onFieldAthletes.length > 0) {
+    list.innerHTML += `<p class="text-xs text-slate-500 mb-1 mt-1">Em campo</p>`;
+    onFieldAthletes.forEach(a => {
+      list.innerHTML += `<div class="athlete-picker-item on-field" onclick="pickAthlete('${a.id}')">${a.nome} <span class="text-xs text-slate-400">${a.posicao||''}</span></div>`;
+    });
+  }
+  if (offFieldAthletes.length > 0) {
+    list.innerHTML += `<p class="text-xs text-slate-500 mt-3 mb-1">Banco</p>`;
+    offFieldAthletes.forEach(a => {
+      list.innerHTML += `<div class="athlete-picker-item" onclick="pickAthlete('${a.id}')">${a.nome} <span class="text-xs text-slate-400">${a.posicao||''}</span></div>`;
+    });
+  }
+
+  document.getElementById('athletePickerModal').classList.remove('hidden');
+}
+
+window.pickAthlete = function(id) {
+  closePickerModal();
+  const action = pendingEventAction;
+  pendingEventAction = null;
+
+  if (action === 'Gol Pró') {
+    S.scorePro++;
+    document.getElementById('scorePro').textContent = S.scorePro;
+    addEvent('Gol Pró', id, {});
+  } else if (action === 'Cartão Amarelo') {
+    addEvent('Cartão Amarelo', id, {});
+  } else if (action === 'Cartão Vermelho') {
+    addEvent('Cartão Vermelho', id, {});
+  }
+};
+
+window.closePickerModal = function() {
+  document.getElementById('athletePickerModal').classList.add('hidden');
+  pendingEventAction = null;
+};
+
+// ─── SUBSTITUIÇÃO MODAL ───────────────────────────────────────────────────────
+window.openSubModal = function() {
+  if (!S.running && !S.encerrado) { toast('Inicie o jogo primeiro.', '#92400e'); return; }
+  subSai = null; subEntra = null;
+  renderSubModal();
+  document.getElementById('subModal').classList.remove('hidden');
+};
+
+function renderSubModal() {
+  const onFieldArr = [...S.onField];
+  const allConv = S.athletes.filter(a => S.titulares.has(a.id) || S.reservas.has(a.id));
+  const notOnField = allConv.filter(a => !S.onField.has(a.id));
+
+  const saiList = document.getElementById('subSaiList');
+  saiList.innerHTML = onFieldArr.map(id => {
+    const a = S.athletes.find(x => x.id === id);
+    const sel = subSai === id ? 'bg-red-900 border-red-500' : 'bg-slate-800 border-slate-700 hover:bg-slate-700';
+    return `<div class="athlete-picker-item border ${sel} mb-1" onclick="selectSubSai('${id}')">${a?.nome||id} <span class="text-xs text-slate-400">${a?.posicao||''}</span></div>`;
+  }).join('') || '<p class="text-slate-500 text-sm">Nenhum em campo</p>';
+
+  const entraList = document.getElementById('subEntraList');
+  entraList.innerHTML = notOnField.map(a => {
+    const sel = subEntra === a.id ? 'bg-green-900 border-green-500' : 'bg-slate-800 border-slate-700 hover:bg-slate-700';
+    return `<div class="athlete-picker-item border ${sel} mb-1" onclick="selectSubEntra('${a.id}')">${a.nome} <span class="text-xs text-slate-400">${a.posicao||''}</span></div>`;
+  }).join('') || '<p class="text-slate-500 text-sm">Nenhum disponível</p>';
+
+  updateSubSelecao();
+}
+
+window.selectSubSai = function(id) {
+  subSai = id;
+  renderSubModal();
+};
+
+window.selectSubEntra = function(id) {
+  subEntra = id;
+  renderSubModal();
+};
+
+function updateSubSelecao() {
+  const box = document.getElementById('subSelecao');
+  const txt = document.getElementById('subSelecaoText');
+  const btn = document.getElementById('btnConfirmSub');
+  if (subSai && subEntra) {
+    box.classList.remove('hidden');
+    txt.textContent = `↓ ${athleteName(subSai)}  →  ↑ ${athleteName(subEntra)}`;
+    btn.disabled = false;
+    btn.classList.remove('opacity-50');
+  } else {
+    box.classList.add('hidden');
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+  }
+}
+
+window.confirmSub = function() {
+  if (!subSai || !subEntra) return;
+  sairCampo(subSai);
+  entrarCampo(subEntra);
+  addEvent('Substituição', null, { sai: subSai, entra: subEntra });
+  closeSubModal();
+};
+
+window.closeSubModal = function() {
+  document.getElementById('subModal').classList.add('hidden');
+  subSai = null; subEntra = null;
+};
+
+// ─── ENCERRAR ─────────────────────────────────────────────────────────────────
+window.confirmarEncerrar = function() {
+  document.getElementById('confirmModal').classList.remove('hidden');
+};
+
+window.closeConfirmModal = function() {
+  document.getElementById('confirmModal').classList.add('hidden');
+};
+
+window.encerrarJogo = async function() {
+  closeConfirmModal();
+  pauseTimer();
+  S.encerrado = true;
+
+  // Finalize time for all on-field
+  [...S.onField].forEach(id => sairCampo(id));
+
+  // Build perfSnapshot
+  const allConv = S.athletes.filter(a => S.titulares.has(a.id) || S.reservas.has(a.id));
+  const perfSnapshot = {};
+  allConv.forEach(a => {
+    const minutos = Math.round((S.playedSeconds[a.id] || 0) / 60);
+    const evts = S.events.filter(e => e.athleteId === a.id);
+    perfSnapshot[a.id] = {
+      athleteId: a.id, athleteName: a.nome, posicao: a.posicao || '',
+      minutos,
+      gols: evts.filter(e => e.action === 'Gol Pró').length,
+      assistencias: 0,
+      cartoes_amarelos: evts.filter(e => e.action === 'Cartão Amarelo').length,
+      cartoes_vermelhos: evts.filter(e => e.action === 'Cartão Vermelho').length,
+      defesas_dificeis: 0, chances_criadas: 0, finalizacoes: 0,
+      erros_nf: 0, erros_pressao: 0, boas_decisoes: 0, passes_chave: 0,
+      roubadas: 0, duelos_ganhos: 0, duelos_perdidos: 0,
+      performance: 0, bruto: 0,
+    };
+  });
+
+  const playedSecondsDoc = {};
+  Object.entries(S.playedSeconds).forEach(([id, secs]) => {
+    const a = S.athletes.find(x => x.id === id);
+    playedSecondsDoc[id] = { seconds: secs, athleteName: a?.nome || id };
+  });
+
+  const matchDoc = {
+    clubId: CLUB_ID,
+    matchId: S.matchId,
+    scoutTipo: 'simples',
+    data: S.data,
+    adversario: S.adversario,
+    competicao: S.competicao,
+    mando: S.mando,
+    local: S.local,
+    placar: { pro: S.scorePro, contra: S.scoreCon },
+    etapaFinal: S.etapa,
+    duracaoSegundos: S.totalSeconds,
+    titulares: [...S.titulares],
+    reservas: [...S.reservas],
+    playedSeconds: playedSecondsDoc,
+    perfSnapshot,
+    totalEvents: S.events.length,
+    createdAt: serverTimestamp(),
+  };
+
+  try {
+    toast('Salvando jogo...', '#1e3a5f');
+    await setDoc(doc(db, 'scout_partidas', S.matchId), matchDoc);
+
+    // Write events in batches of 450
+    const BATCH_SIZE = 450;
+    for (let i = 0; i < S.events.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = S.events.slice(i, i + BATCH_SIZE);
+      chunk.forEach((ev, idx) => {
+        const evIdx = (i + idx).toString().padStart(6, '0');
+        const evRef = doc(db, 'scout_partidas', S.matchId, 'events', evIdx);
+        batch.set(evRef, ev);
+      });
+      await batch.commit();
+    }
+
+    // Delete checkpoint
+    await deleteDoc(doc(db, 'scout_checkpoints', CLUB_ID));
+
+    toast('✅ Jogo salvo com sucesso!', '#064e3b');
+    setTimeout(() => { window.location.href = '/staff/scout_simples.html'; }, 2000);
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar: ' + err.message, '#7f1d1d');
+  }
+};
+
+// ─── AUTO-SAVE CHECKPOINT ─────────────────────────────────────────────────────
+function buildCheckpointState() {
+  return {
+    matchId: S.matchId, etapa: S.etapa,
+    halfSeconds: S.halfSeconds, totalSeconds: S.totalSeconds,
+    running: false, encerrado: S.encerrado,
+    scorePro: S.scorePro, scoreCon: S.scoreCon,
+    onField: [...S.onField], onFieldSince: S.onFieldSince,
+    playedSeconds: S.playedSeconds,
+    events: S.events,
+    titulares: [...S.titulares], reservas: [...S.reservas],
+    adversario: S.adversario, competicao: S.competicao,
+    data: S.data, mando: S.mando, local: S.local,
+    athletes: S.athletes,
+  };
+}
+
+async function saveCheckpoint() {
+  if (!CLUB_ID || S.encerrado) return;
+  try {
+    await setDoc(doc(db, 'scout_checkpoints', CLUB_ID), {
+      clubId: CLUB_ID,
+      savedAt: Date.now(),
+      savedAtISO: new Date().toISOString(),
+      adv: S.adversario, local: S.local, mando: S.mando, data: S.data,
+      state: buildCheckpointState(),
+    });
+  } catch (err) { console.warn('Checkpoint failed', err); }
+}
+
+setInterval(() => { if (S.running) saveCheckpoint(); }, 30000);
+
+// ─── RESTORE ─────────────────────────────────────────────────────────────────
+function restoreFromCheckpoint(state) {
+  Object.assign(S, {
+    matchId: state.matchId, etapa: state.etapa,
+    halfSeconds: state.halfSeconds, totalSeconds: state.totalSeconds,
+    running: false, encerrado: state.encerrado,
+    scorePro: state.scorePro, scoreCon: state.scoreCon,
+    onField: new Set(state.onField), onFieldSince: state.onFieldSince,
+    playedSeconds: state.playedSeconds,
+    events: state.events,
+    titulares: new Set(state.titulares), reservas: new Set(state.reservas),
+    adversario: state.adversario, competicao: state.competicao,
+    data: state.data, mando: state.mando, local: state.local,
+    athletes: state.athletes,
+  });
+  showPhase2();
+}
+
+// ─── FULLSCREEN ───────────────────────────────────────────────────────────────
+document.getElementById('btnTelaCheia').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen?.();
+});
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('btnTelaCheia');
+  btn.textContent = document.fullscreenElement ? '✕ Sair tela cheia' : '⛶ Tela cheia';
+});
+
+window.voltarSetup = function() {
+  if (S.running) pauseTimer();
+  document.getElementById('faseJogo').classList.add('hidden');
+  document.getElementById('faseSetup').classList.remove('hidden');
+};
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+function showPhase2() {
+  document.getElementById('faseSetup').classList.add('hidden');
+  document.getElementById('faseJogo').classList.remove('hidden');
+  // live title + meta
+  document.getElementById('liveTitle').textContent = `vs ${S.adversario}`;
+  const mandoStr = S.mando === 'Casa' ? '🏠 Casa' : '✈️ Fora';
+  document.getElementById('matchMetaLine').innerHTML =
+    `${S.competicao ? `<span>${S.competicao}</span> · ` : ''}${mandoStr}${S.local ? ` · ${S.local}` : ''}${S.data ? ` · ${S.data}` : ''}`;
+  document.getElementById('etapaLabel').textContent = S.etapa;
+  document.getElementById('clockDisplay').textContent = fmtTime(S.halfSeconds);
+  document.getElementById('scorePro').textContent = S.scorePro;
+  document.getElementById('scoreCon').textContent = S.scoreCon;
+  if (S.etapa === '2T') {
+    document.getElementById('btnIntervalo').disabled = true;
+    document.getElementById('btnIntervalo').classList.add('opacity-40', 'cursor-not-allowed');
+  }
+  renderEventLog();
+}
+
+// ─── CONVOCAÇÃO ───────────────────────────────────────────────────────────────
+function renderAthleteList(athletes) {
+  const container = document.getElementById('athleteList');
+  if (athletes.length === 0) {
+    container.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">Nenhum atleta ativo encontrado.</p>';
+    return;
+  }
+  container.innerHTML = athletes.map(a => `
+    <div class="athlete-row">
+      <div class="flex-1 min-w-0">
+        <span class="font-semibold text-sm text-white">${a.nome}</span>
+        <span class="ml-2 text-xs text-slate-400">${a.posicao||''}</span>
+        ${a.categoria ? `<span class="ml-2 text-xs text-slate-500">${a.categoria}</span>` : ''}
+      </div>
+      <div class="flex gap-3 radio-group shrink-0">
+        <label class="text-green-400"><input type="radio" name="conv_${a.id}" value="titular" onchange="updateConv('${a.id}','titular')"> Titular</label>
+        <label class="text-blue-400"><input type="radio" name="conv_${a.id}" value="reserva" onchange="updateConv('${a.id}','reserva')"> Reserva</label>
+        <label class="text-slate-400"><input type="radio" name="conv_${a.id}" value="none" checked onchange="updateConv('${a.id}','none')"> —</label>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.updateConv = function(id, role) {
+  S.titulares.delete(id); S.reservas.delete(id);
+  if (role === 'titular') S.titulares.add(id);
+  if (role === 'reserva') S.reservas.add(id);
+  document.getElementById('convCounter').textContent = `${S.titulares.size} titulares · ${S.reservas.size} reservas`;
+  validateSetupForm();
+};
+
+function validateSetupForm() {
+  const ok = document.getElementById('inpAdversario').value.trim() &&
+             document.getElementById('inpCompeticao').value.trim() &&
+             document.getElementById('inpData').value &&
+             S.titulares.size >= 1;
+  const btn = document.getElementById('btnIniciarJogo');
+  btn.disabled = !ok;
+}
+
+['inpAdversario','inpCompeticao','inpData','inpLocal'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', validateSetupForm);
+});
+
+// ─── INICIAR JOGO ─────────────────────────────────────────────────────────────
+document.getElementById('btnIniciarJogo').addEventListener('click', () => {
+  S.adversario = document.getElementById('inpAdversario').value.trim();
+  S.competicao = document.getElementById('inpCompeticao').value.trim();
+  S.data = document.getElementById('inpData').value;
+  S.local = document.getElementById('inpLocal').value.trim();
+  S.mando = document.querySelector('input[name="mando"]:checked').value;
+  S.matchId = `${CLUB_ID}_${S.data}_${Date.now()}`;
+
+  // Put titulares on field
+  [...S.titulares].forEach(id => entrarCampo(id));
+  addEvent('Início', null, {});
+  showPhase2();
+});
+
+// ─── HISTÓRICO ────────────────────────────────────────────────────────────────
+async function loadHistorico() {
+  const container = document.getElementById('historicoContainer');
+  try {
+    const q = query(
+      collection(db, 'scout_partidas'),
+      where('clubId', '==', CLUB_ID),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      container.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">Nenhum jogo registrado ainda.</p>';
+      return;
+    }
+    let html = `<div class="overflow-x-auto"><table>
+      <thead><tr>
+        <th>Data</th><th>Adversário</th><th>Competição</th><th>Placar</th><th>Tipo</th>
+      </tr></thead><tbody>`;
+    snap.forEach(d => {
+      const m = d.data();
+      const placar = m.placar ? `${m.placar.pro||0} × ${m.placar.contra||0}` : '–';
+      const tipo = m.scoutTipo === 'simples' ? '<span class="badge bg-slate-700 text-slate-300">Simples</span>' : '<span class="badge bg-blue-900 text-blue-300">Completo</span>';
+      html += `<tr>
+        <td class="font-mono text-xs">${m.data||'–'}</td>
+        <td class="font-semibold text-white">${m.adversario||'–'}</td>
+        <td>${m.competicao||'–'}</td>
+        <td class="font-mono font-bold text-white">${placar}</td>
+        <td>${tipo}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400 text-sm text-center py-4">Erro ao carregar: ${err.message}</p>`;
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) return;
+  USER_ID = user.uid;
+
+  const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+  CLUB_ID = ctx.clubId || '';
+  if (!CLUB_ID) {
+    try {
+      const uDoc = await getDoc(doc(db, 'users', user.uid));
+      if (uDoc.exists()) CLUB_ID = uDoc.data().clubId || '';
+    } catch (_) {}
+  }
+
+  // Load athletes
+  try {
+    const q = query(collection(db, 'athletes'), where('clubId', '==', CLUB_ID), where('ativo', '==', true));
+    const snap = await getDocs(q);
+    S.athletes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    S.athletes.sort((a, b) => (a.nome||'').localeCompare(b.nome||''));
+    renderAthleteList(S.athletes);
+  } catch (err) {
+    document.getElementById('athleteList').innerHTML = `<p class="text-red-400 text-sm">Erro: ${err.message}</p>`;
+  }
+
+  // Check checkpoint
+  try {
+    const cpDoc = await getDoc(doc(db, 'scout_checkpoints', CLUB_ID));
+    if (cpDoc.exists()) {
+      checkpointData = cpDoc.data();
+      document.getElementById('restoreBanner').classList.remove('hidden');
+    }
+  } catch (_) {}
+
+  document.getElementById('btnRestore').addEventListener('click', () => {
+    if (checkpointData?.state) {
+      document.getElementById('restoreBanner').classList.add('hidden');
+      restoreFromCheckpoint(checkpointData.state);
+    }
+  });
+
+  document.getElementById('btnDiscardRestore').addEventListener('click', async () => {
+    document.getElementById('restoreBanner').classList.add('hidden');
+    try { await deleteDoc(doc(db, 'scout_checkpoints', CLUB_ID)); } catch (_) {}
+    checkpointData = null;
+  });
+
+  // Load histórico
+  await loadHistorico();
+
+  // Set today as default date
+  document.getElementById('inpData').value = new Date().toISOString().slice(0,10);
+});
+</script>
+</body>
+</html>

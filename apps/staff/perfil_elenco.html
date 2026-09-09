@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<title>Perfil do Elenco • Ciente IE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+  <div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6">
+
+<div class="max-w-7xl mx-auto">
+
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold">Perfil do Elenco</h1>
+    <button
+      onclick="exportarPDF()"
+      id="btnExportPDF"
+      class="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3M3 7V4a1 1 0 011-1h5l2 2h7a1 1 0 011 1v3"/>
+      </svg>
+      Exportar PDF
+    </button>
+  </div>
+
+  <!-- Grid de figurinhas -->
+  <div id="gridAtletas" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-bottom:28px;"></div>
+
+  <div class="grid md:grid-cols-3 gap-6 mb-10">
+
+    <button onclick="abrir('medico')" class="card">Depto Médico</button>
+    <button onclick="abrir('funcional')" class="card">Avaliação Funcional</button>
+    <button onclick="abrir('antropometria')" class="card">Avaliação Antropométrica</button>
+    <button onclick="abrir('fisica')" class="card">Avaliação Física</button>
+    <button onclick="abrir('performance')" class="card">Avaliação de Performance</button>
+    <button onclick="abrir('psicologica')" class="card">Avaliação Personalidade</button>
+
+  </div>
+
+  <div id="conteudo"></div>
+
+</div>
+
+<style>
+.card{
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  font-weight:600;
+  text-align:center;
+  cursor:pointer;
+  transition:0.2s;
+}
+.card:hover{
+  transform:translateY(-5px);
+}
+.tabela{
+  width:100%;
+  border-collapse:collapse;
+}
+.tabela th, .tabela td{
+  border:1px solid #e5e7eb;
+  padding:8px;
+  text-align:center;
+}
+.tabela th{
+  background:#f1f5f9;
+}
+</style>
+
+</div>
+<script src="/components/layout.js"></script>
+<script type="module" src="./perfil_elenco.js"></script>
+
+</body>
+</html>

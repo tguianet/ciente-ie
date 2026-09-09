@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Avaliação Física – Ciente IE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+  <div class="flex-1 p-6">
+
+<header class="bg-blue-700 text-white text-center py-4 pl-14 md:pl-0 text-xl font-semibold">
+  Avaliação Física – Ciente IE
+</header>
+
+<main class="p-4 max-w-4xl mx-auto">
+  <section id="inicio">
+    <h2 class="text-lg font-bold mb-3">Lista de Atletas</h2>
+    <div id="status" class="text-sm text-gray-600 mb-3"></div>
+    <div id="listaAtletas" class="space-y-2"></div>
+  </section>
+
+  <section id="avaliacao" class="hidden">
+    <button id="btnVoltar" class="mb-3 text-blue-600">← Voltar</button>
+    <h2 id="titulo" class="text-lg font-bold mb-1"></h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Preencha os valores. Dica: tempos (s) → menor é melhor; distâncias (cm) → maior é melhor.
+    </p>
+
+    <form id="formFisico" class="space-y-4">
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">Testes</h3>
+
+        <label class="text-sm font-medium">Velocidade 30m</label>
+        <input id="vel30" type="number" step="0.01" placeholder="Tempo (s) — menor é melhor"
+               class="border p-2 w-full mb-3">
+
+        <label class="text-sm font-medium">Agilidade (T-Test)</label>
+        <input id="ttest" type="number" step="0.01" placeholder="Tempo (s) — menor é melhor"
+               class="border p-2 w-full mb-3">
+
+        <label class="text-sm font-medium">Força Explosiva Inferior (Salto Horizontal)</label>
+        <input id="salto" type="number" step="1" placeholder="Distância (cm) — maior é melhor"
+               class="border p-2 w-full mb-3">
+
+        <label class="text-sm font-medium">Resistência Anaeróbia (Yo-Yo)</label>
+        <input id="yoyo" type="number" step="0.1" placeholder="Nível"
+               class="border p-2 w-full">
+      </div>
+
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">Antropometria</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <input id="est"  type="number" step="0.1" placeholder="Estatura (cm)" class="border p-2 w-full">
+          <input id="peso" type="number" step="0.1" placeholder="Peso (kg)"     class="border p-2 w-full">
+          <input id="gc"   type="number" step="0.1" placeholder="% Gordura (manual/outro método)" class="border p-2 w-full">
+        </div>
+      </div>
+
+      <!-- ──────────── COMPOSIÇÃO CORPORAL – MÉTODO NAVY ──────────── -->
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="font-semibold mb-2">Composição Corporal – Método Navy</h3>
+        <p class="text-xs text-gray-500 mb-3">
+          Preencha as medidas abaixo. O %GC, Massa Magra e Massa Gorda serão calculados automaticamente.
+        </p>
+
+        <!-- Sexo -->
+        <div class="mb-3">
+          <label class="text-sm font-medium block mb-1">Sexo biológico</label>
+          <select id="navySexo" class="border p-2 w-full md:w-48">
+            <option value="">Selecionar…</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+
+        <!-- Campos masculinos -->
+        <div id="navyCamposM" class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3 hidden">
+          <div>
+            <label class="text-xs text-gray-600">Circunf. Pescoço (cm)</label>
+            <input id="navyPescocoM" type="number" step="0.1" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Circunf. Abdômen (cm)</label>
+            <input id="navyAbdomen" type="number" step="0.1" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Estatura (cm) <span class="text-gray-400">(usa campo acima)</span></label>
+            <input id="navyAltM" type="number" step="0.1" placeholder="Preenchido do campo acima" class="border p-2 w-full bg-gray-50" readonly>
+          </div>
+        </div>
+
+        <!-- Campos femininos -->
+        <div id="navyCamposF" class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3 hidden">
+          <div>
+            <label class="text-xs text-gray-600">Circunf. Pescoço (cm)</label>
+            <input id="navyPescocoF" type="number" step="0.1" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Circunf. Abdômen (cm)</label>
+            <input id="navyAbdomenF" type="number" step="0.1" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Circunf. Quadril (cm)</label>
+            <input id="navyQuadril" type="number" step="0.1" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Estatura (cm) <span class="text-gray-400">(usa campo acima)</span></label>
+            <input id="navyAltF" type="number" step="0.1" placeholder="Preenchido do campo acima" class="border p-2 w-full bg-gray-50" readonly>
+          </div>
+        </div>
+
+        <!-- Resultado calculado -->
+        <div id="navyResultado" class="hidden mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+          <span class="font-semibold text-blue-800">Resultado Navy:</span>
+          <span id="navyGC"    class="ml-3 font-bold text-blue-900"></span>
+          <span id="navyMM"    class="ml-4 text-gray-700"></span>
+          <span id="navyMG"    class="ml-4 text-gray-700"></span>
+        </div>
+      </div>
+
+      <button class="bg-blue-600 text-white w-full py-2 rounded">
+        Salvar Avaliação Física
+      </button>
+    </form>
+  </section>
+</main>
+
+<script type="module">
+import { db, auth } from "/core/firebase.js";
+import {
+  collection, getDocs, addDoc, query, where,
+  getDoc, doc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+const $ = (id) => document.getElementById(id);
+
+let atletaSelecionado = null;
+let currentUserData = null;
+
+/* ──────────── MÉTODO NAVY ──────────── */
+
+function calcNavy(sexo, alt, pescoco, abdomen, quadril){
+  if(!alt || !pescoco) return null;
+  const h = Number(alt), p = Number(pescoco);
+  if(sexo === "M"){
+    if(!abdomen) return null;
+    const ab = Number(abdomen);
+    const gc = 495 / (1.0324 - 0.19077 * Math.log10(ab - p) + 0.15456 * Math.log10(h)) - 450;
+    return isFinite(gc) && gc > 0 ? +gc.toFixed(1) : null;
+  }
+  if(sexo === "F"){
+    if(!abdomen || !quadril) return null;
+    const ab = Number(abdomen), qd = Number(quadril);
+    const gc = 495 / (1.29579 - 0.35004 * Math.log10(ab + qd - p) + 0.22100 * Math.log10(h)) - 450;
+    return isFinite(gc) && gc > 0 ? +gc.toFixed(1) : null;
+  }
+  return null;
+}
+
+function atualizarNavy(){
+  const sexo = $("navySexo").value;
+  const alt  = $("est").value;
+
+  // Espelha estatura
+  if($("navyAltM")) $("navyAltM").value = alt || "";
+  if($("navyAltF")) $("navyAltF").value = alt || "";
+
+  // Visibilidade dos blocos de campo
+  $("navyCamposM").classList.toggle("hidden", sexo !== "M");
+  $("navyCamposF").classList.toggle("hidden", sexo !== "F");
+
+  if(!sexo){ $("navyResultado").classList.add("hidden"); return; }
+
+  const pescoco = sexo==="M" ? $("navyPescocoM").value : $("navyPescocoF").value;
+  const abdomen = sexo==="M" ? $("navyAbdomen").value  : $("navyAbdomenF").value;
+  const quadril = sexo==="F" ? $("navyQuadril").value  : null;
+  const peso    = $("peso").value;
+
+  const gc = calcNavy(sexo, alt, pescoco, abdomen, quadril);
+
+  if(gc !== null){
+    const mm = peso ? +((1 - gc/100) * Number(peso)).toFixed(1) : null;
+    const mg = peso ? +(gc/100 * Number(peso)).toFixed(1) : null;
+    $("navyGC").textContent = `%GC: ${gc}%`;
+    $("navyMM").textContent = mm !== null ? `Massa Magra: ${mm} kg` : "";
+    $("navyMG").textContent = mg !== null ? `Massa Gorda: ${mg} kg` : "";
+    $("navyResultado").classList.remove("hidden");
+  } else {
+    $("navyResultado").classList.add("hidden");
+  }
+}
+
+// Listeners para recálculo em tempo real
+["navySexo","est","peso","navyPescocoM","navyAbdomen","navyPescocoF","navyAbdomenF","navyQuadril"]
+  .forEach(id => { const el = $(id); if(el) el.addEventListener("input", atualizarNavy); });
+/* ────────────────────────────────────── */
+
+async function resolveUserData() {
+  // 1. Tenta localStorage (salvo no login — mais rápido e confiável)
+  try {
+    const ctx = JSON.parse(localStorage.getItem("userContext"));
+    if (ctx?.clubId) return ctx;
+  } catch(e) {}
+
+  // 2. Fallback: aguarda Auth e busca no Firestore
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, async u => {
+      unsub();
+      if (!u) { reject(new Error("não autenticado")); return; }
+      const snap = await getDoc(doc(db, "users", u.uid));
+      if (!snap.exists()) { reject(new Error("sem perfil")); return; }
+      resolve(snap.data());
+    });
+  }).catch(() => {
+    window.location.href = "/login.html";
+    return null;
+  });
+}
+
+// leitura robusta (garante pegar clubId exatamente)
+function extrairNome(d){
+  return (d?.nome ?? d?.name ?? d?.atleta ?? "").toString().trim();
+}
+function extrairClubId(d){
+  // cobre variações e evita "undefined"
+  return (d?.clubId ?? d?.club_id ?? d?.clubeId ?? d?.club ?? null);
+}
+
+async function carregarAtletas() {
+  $("status").innerText = "Carregando atletas…";
+  $("listaAtletas").innerHTML = "";
+
+  const snap = await getDocs(query(
+    collection(db, "athletes"),
+    where("clubId", "==", currentUserData.clubId),
+    where("ativo", "!=", false)
+  ));
+  const atletas = [];
+
+  snap.forEach((docu) => {
+    const d = docu.data();
+    const nome = extrairNome(d);
+    if (!nome) return;
+    const clubId = extrairClubId(d);
+    atletas.push({ id: docu.id, nome, clubId, fotoUrl: d.fotoUrl || null });
+  });
+
+  atletas.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  $("status").innerText = `Atletas: ${atletas.length}`;
+
+  $("listaAtletas").innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">${atletas.map(a => {
+    const ok = a.clubId && currentUserData?.clubId && a.clubId === currentUserData.clubId;
+    const avatarHtml = a.fotoUrl
+      ? `<img src="${a.fotoUrl}" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 border-2 border-white shadow" alt="" />`
+      : `<div class="w-16 h-16 rounded-full bg-blue-700 text-white flex items-center justify-center text-xl font-bold mx-auto mb-2 shadow">${a.nome.charAt(0).toUpperCase()}</div>`;
+    const badge = !a.clubId
+      ? `<span class="text-xs text-orange-500">sem clubId</span>`
+      : (a.clubId !== currentUserData.clubId ? `<span class="text-xs text-red-500">outro clube</span>` : "");
+    return `
+      <button class="bg-white rounded-xl shadow p-4 flex flex-col items-center text-center transition hover:shadow-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        ${ok ? "" : "disabled"}
+        data-id="${a.id}"
+        data-nome="${a.nome}"
+        data-clubid="${a.clubId ?? ""}">
+        ${avatarHtml}
+        <span class="text-sm font-semibold text-gray-800 leading-tight">${a.nome}</span>
+        ${badge}
+        ${ok ? `<span class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-0.5">Avaliar</span>` : ''}
+      </button>`;
+  }).join("")}</div>`;
+
+  document.querySelectorAll("button[data-id]").forEach((b) => {
+    b.onclick = () => {
+      atletaSelecionado = {
+        id: b.dataset.id,
+        nome: b.dataset.nome,
+        clubId: b.dataset.clubid || null
+      };
+
+      $("titulo").innerText = "Avaliação Física – " + atletaSelecionado.nome;
+      $("inicio").classList.add("hidden");
+      $("avaliacao").classList.remove("hidden");
+    };
+  });
+}
+
+$("btnVoltar").onclick = () => location.reload();
+
+currentUserData = await resolveUserData();
+if (!currentUserData?.clubId) { $("status").innerText = "Erro: usuário sem clubId."; }
+else await carregarAtletas();
+
+$("formFisico").onsubmit = async (e) => {
+  e.preventDefault();
+  if (!atletaSelecionado) return alert("Selecione um atleta.");
+
+  if (atletaSelecionado.clubId !== currentUserData.clubId)
+    return alert("Atleta não pertence ao seu clube.");
+
+  const date = new Date().toLocaleDateString('en-CA');
+
+  // Calcula Navy antes de salvar
+  const sexo    = $("navySexo").value;
+  const altVal  = +$("est").value || null;
+  const pesoVal = +$("peso").value || null;
+  const pescM   = +$("navyPescocoM")?.value || null;
+  const pescF   = +$("navyPescocoF")?.value || null;
+  const abdM    = +$("navyAbdomen")?.value  || null;
+  const abdF    = +$("navyAbdomenF")?.value || null;
+  const quadF   = +$("navyQuadril")?.value  || null;
+
+  const pescoco = sexo==="M" ? pescM : pescF;
+  const abdomen = sexo==="M" ? abdM  : abdF;
+  const gcNavy  = calcNavy(sexo, altVal, pescoco, abdomen, sexo==="F" ? quadF : null);
+  const mmNavy  = (gcNavy !== null && pesoVal) ? +((1 - gcNavy/100) * pesoVal).toFixed(1) : null;
+  const mgNavy  = (gcNavy !== null && pesoVal) ? +(gcNavy/100 * pesoVal).toFixed(1) : null;
+
+  // % gordura final: Navy tem prioridade, fallback campo manual
+  const gcFinal = gcNavy ?? (+$("gc").value || null);
+
+  await addDoc(collection(db, "assessments_functional"), {
+    athleteId: atletaSelecionado.id,
+    clubId: currentUserData.clubId,
+    date,
+    tipo: "fisica",
+
+    dados: {
+      velocidade_30m:    +$("vel30").value  || null,
+      agilidade_ttest:   +$("ttest").value  || null,
+      salto_horizontal:  +$("salto").value  || null,
+      yoyo:              +$("yoyo").value   || null,
+      antropometria: {
+        estatura_cm:          altVal,
+        peso_kg:              pesoVal,
+        gordura_percentual:   gcFinal,
+        massa_magra_kg:       mmNavy,
+        massa_gorda_kg:       mgNavy,
+        navy: sexo ? {
+          sexo,
+          pescoco_cm:  pescoco,
+          abdomen_cm:  abdomen,
+          quadril_cm:  sexo==="F" ? quadF : null,
+          gc_calculado: gcNavy
+        } : null
+      }
+    },
+
+    meta: {
+      createdAt: serverTimestamp(),
+      origem: "avaliacao_fisica"
+    }
+  });
+
+  alert("✅ Avaliação física salva com sucesso!");
+  location.reload();
+};
+
+</script>
+
+</div>
+  <script src="/components/layout.js"></script>
+
+</body>
+</html>

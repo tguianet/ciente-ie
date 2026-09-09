@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Nutrição · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+
+<div class="flex-1 flex flex-col min-w-0">
+
+  <!-- CABEÇALHO -->
+  <header class="bg-white border-b px-6 py-4 pl-14 md:pl-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Nutrição · Reposição &amp; Suplementação</h1>
+      <p class="text-sm text-gray-500">Pesagem pré/pós e protocolo coletivo do dia</p>
+    </div>
+    <div id="mcBadge"></div>
+  </header>
+
+  <!-- FILTRO CATEGORIA -->
+  <div class="bg-white border-b px-6 py-3 flex items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-2">
+      <label class="text-sm font-semibold text-gray-700">Categoria:</label>
+      <select id="filtroCat" class="border rounded px-3 py-1.5 text-sm text-gray-700">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <span id="contadorAtletas" class="text-sm text-gray-400"></span>
+  </div>
+
+  <!-- PROTOCOLO DO DIA -->
+  <div id="protocoloPanel" class="bg-white border-b px-6 py-5"></div>
+
+  <!-- TABELA DE PESAGEM -->
+  <main class="flex-1 overflow-y-auto p-6">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-base font-bold text-gray-800">Pesagem do Elenco</h2>
+      <p class="text-xs text-gray-400" id="dataHoje"></p>
+    </div>
+    <div id="tabelaContainer" class="bg-white rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
+      <p class="text-center text-gray-400 py-10 text-sm">Carregando atletas…</p>
+    </div>
+
+    <p class="text-xs text-gray-400 mt-4 leading-relaxed">
+      <strong class="text-gray-500">Nota educativa:</strong>
+      Recomendações baseadas em guidelines internacionais (ISSN, ACSM, IOC). Não substituem avaliação individual.
+      Ajuste fino de dose e prescrição requer acompanhamento de nutricionista habilitado.
+    </p>
+  </main>
+</div>
+
+<script type="module" src="/core/authGuard.js"></script>
+<script type="module" src="./nutricao.js"></script>
+<script src="/components/layout.js"></script>
+</body>
+</html>

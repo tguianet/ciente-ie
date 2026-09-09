@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="100" fill="#dcfce7"/>
+
+  <!-- Body / Shirt -->
+  <ellipse cx="100" cy="192" rx="65" ry="48" fill="#16a34a"/>
+  <ellipse cx="100" cy="158" rx="48" ry="32" fill="#16a34a"/>
+
+  <!-- Neck -->
+  <rect x="88" y="132" width="24" height="22" rx="6" fill="#f5c9a0"/>
+
+  <!-- Head -->
+  <ellipse cx="100" cy="108" rx="40" ry="44" fill="#f5c9a0"/>
+
+  <!-- Ears -->
+  <ellipse cx="60" cy="112" rx="9" ry="11" fill="#f5c9a0"/>
+  <ellipse cx="140" cy="112" rx="9" ry="11" fill="#f5c9a0"/>
+  <ellipse cx="60" cy="112" rx="5" ry="7" fill="#e8a87c"/>
+  <ellipse cx="140" cy="112" rx="5" ry="7" fill="#e8a87c"/>
+
+  <!-- Hair — slightly lighter brown, sporty style -->
+  <ellipse cx="100" cy="76" rx="40" ry="20" fill="#6b3a1f"/>
+  <path d="M60 90 Q58 68 70 60 Q85 50 100 48 Q115 50 130 60 Q142 68 140 90 Q130 72 100 70 Q70 72 60 90Z" fill="#6b3a1f"/>
+  <!-- side fade -->
+  <path d="M60 90 Q62 80 66 72" stroke="#6b3a1f" stroke-width="4" fill="none"/>
+  <path d="M140 90 Q138 80 134 72" stroke="#6b3a1f" stroke-width="4" fill="none"/>
+
+  <!-- Eyebrows — slightly arched, confident -->
+  <path d="M79 93 Q87 88 95 92" stroke="#4a2510" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M105 92 Q113 88 121 93" stroke="#4a2510" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Eyes -->
+  <ellipse cx="87" cy="103" rx="8" ry="9" fill="white"/>
+  <ellipse cx="113" cy="103" rx="8" ry="9" fill="white"/>
+  <circle cx="88" cy="104" r="5" fill="#1a0a00"/>
+  <circle cx="114" cy="104" r="5" fill="#1a0a00"/>
+  <circle cx="90" cy="102" r="2" fill="white"/>
+  <circle cx="116" cy="102" r="2" fill="white"/>
+
+  <!-- Nose -->
+  <ellipse cx="100" cy="118" rx="5" ry="4" fill="#e0a070"/>
+
+  <!-- Wider smile — friendly coach -->
+  <path d="M85 127 Q100 140 115 127" stroke="#c46050" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>

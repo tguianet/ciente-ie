@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Perfil do Atleta · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @media (max-width: 767px) {
+      #atletaHeader { padding-left: 68px !important; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <div id="atletaHeader" style="background:#1e3a5f;color:#fff;padding:20px 28px;display:flex;align-items:center;gap:20px;">
+      <div id="headerFoto" style="width:72px;height:72px;border-radius:50%;background:#2d5080;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0;border:3px solid rgba(255,255,255,0.3);overflow:hidden;"></div>
+      <div style="flex:1;min-width:0;">
+        <h1 id="headerNome" style="font-size:22px;font-weight:800;margin:0 0 4px;"></h1>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span id="headerPosicao" style="font-size:13px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:.05em;"></span>
+          <span id="headerStatus" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;"></span>
+        </div>
+      </div>
+      <a href="perfil_elenco.html" style="font-size:12px;color:rgba(255,255,255,0.6);text-decoration:none;flex-shrink:0;">← Elenco</a>
+    </div>
+
+    <!-- Navegação de abas -->
+    <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:0 24px;display:flex;gap:0;">
+      <button id="tabBtnMonit" onclick="switchTab('monitoramento')"
+        style="padding:12px 18px;font-size:13px;font-weight:700;color:#1e3a5f;border:none;border-bottom:2px solid #1e3a5f;background:none;cursor:pointer;letter-spacing:.01em;">
+        Monitoramento
+      </button>
+      <button id="tabBtnAval" onclick="switchTab('avaliacoes')"
+        style="padding:12px 18px;font-size:13px;font-weight:500;color:#9ca3af;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;letter-spacing:.01em;">
+        Avaliações
+      </button>
+      <button id="tabBtnTreinos" onclick="switchTab('treinos')"
+        style="padding:12px 18px;font-size:13px;font-weight:500;color:#9ca3af;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;letter-spacing:.01em;">
+        Treinos
+      </button>
+    </div>
+
+    <!-- Quadrantes -->
+    <main id="panelMonitoramento" style="flex:1;padding:20px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:16px;align-items:start;">
+
+      <!-- Q1: Semana Atual -->
+      <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+        <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Semana Atual</p>
+        <div id="q1Conteudo"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+      </div>
+
+      <!-- Q2: Gráficos 28 dias — prontidão em cima, carga embaixo -->
+      <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+
+        <!-- Prontidão -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0;">Prontidão · 28d</p>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button id="btnGrafico_igp"    onclick="trocarGrafico('igp')"
+                style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:999px;border:1.5px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;">IGP</button>
+              <button id="btnGrafico_hooper" onclick="trocarGrafico('hooper')"
+                style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:999px;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;">IH</button>
+              <button id="btnGrafico_cmj"    onclick="trocarGrafico('cmj')"
+                style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:999px;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;">CMJ</button>
+              <button id="btnGrafico_hrv"    onclick="trocarGrafico('hrv')"
+                style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:999px;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;">VFC</button>
+            </div>
+          </div>
+          <div style="position:relative;height:160px;"><canvas id="graficoProntidao"></canvas></div>
+        </div>
+
+        <div style="border-top:1px solid #f3f4f6;margin-bottom:14px;"></div>
+
+        <!-- Carga -->
+        <div>
+          <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Carga de Treino · 28d</p>
+          <div style="position:relative;height:120px;"><canvas id="graficoCarga"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Q3: Performance -->
+      <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+        <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Performance</p>
+        <div id="q3Conteudo"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+      </div>
+
+      <!-- Q4: Depto Médico -->
+      <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+        <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Depto. Médico</p>
+        <div id="q4Conteudo"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+      </div>
+
+    </main>
+
+    <!-- Painel: Treinos -->
+    <div id="panelTreinos" style="display:none;flex:1;padding:20px;">
+      <!-- Filtros + Navegação de mês -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <!-- Tipo -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Tipo:</span>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <button class="btnTreinoFiltroTipo" data-tipo="" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;border:2px solid #3b82f6;background:#3b82f6;color:#fff;cursor:pointer;">Todos</button>
+            <button class="btnTreinoFiltroTipo" data-tipo="Campo" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;border:2px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;">Técnico</button>
+            <button class="btnTreinoFiltroTipo" data-tipo="Físico" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;border:2px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;">Físico</button>
+            <button class="btnTreinoFiltroTipo" data-tipo="Complementar" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;border:2px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;">Complementar</button>
+          </div>
+        </div>
+        <!-- Navegação de mês -->
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+          <button id="btnTreinoMesAnterior" style="width:28px;height:28px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#374151;">‹</button>
+          <span id="treinoMesLabel" style="font-size:13px;font-weight:700;color:#1e3a5f;min-width:130px;text-align:center;"></span>
+          <button id="btnTreinoProxMes" style="width:28px;height:28px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#374151;">›</button>
+        </div>
+      </div>
+      <!-- Legenda -->
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#dbeafe;color:#1d4ed8;">T Técnico</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#dcfce7;color:#15803d;">F Físico</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#f3e8ff;color:#7c3aed;">C Complementar</span>
+      </div>
+      <div id="treinoHistoricoLista">
+        <p style="font-size:13px;color:#9ca3af;">Carregando...</p>
+      </div>
+    </div>
+
+    <!-- Painel: Avaliações -->
+    <div id="panelAvaliacoes" style="display:none;flex:1;padding:20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:16px;align-items:start;">
+
+        <!-- Q1: Antropometria -->
+        <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+          <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Antropometria</p>
+          <div id="avalQ1"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+        </div>
+
+        <!-- Q2: Avaliação Física -->
+        <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+          <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Avaliação Física</p>
+          <div id="avalQ2"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+        </div>
+
+        <!-- Q3: Avaliação Funcional -->
+        <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+          <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Avaliação Funcional</p>
+          <div id="avalQ3"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+        </div>
+
+        <!-- Q4: Avaliação Psicológica -->
+        <div style="background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+          <p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;">Avaliação Psicológica · BFI-44</p>
+          <div id="avalQ4"><p style="font-size:13px;color:#9ca3af;">Carregando...</p></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/components/layout.js"></script>
+  <script type="module" src="./atleta_perfil.js"></script>
+</body>
+</html>

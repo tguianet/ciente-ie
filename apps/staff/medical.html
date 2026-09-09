@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>DM — Gestão Médica</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+    <!-- CABEÇALHO -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Gestão Médica</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Lesões e atendimentos de rotina</p>
+      </div>
+      <button id="btnNovoRegistro"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+        </svg>
+        Novo Registro
+      </button>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-5 flex flex-wrap gap-3 items-end shadow-sm">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Atleta</label>
+        <select id="filtroAtleta" class="border border-gray-200 rounded-md p-2 text-sm min-w-[180px] focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Período</label>
+        <select id="filtroPeriodo" class="border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="7">Últimos 7 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="60">Últimos 60 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="0">Todos</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Tipo de Lesão</label>
+        <select id="filtroTipoLesao" class="border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="">Todos</option>
+          <option>Muscular</option>
+          <option>Ligamentar</option>
+          <option>Óssea</option>
+          <option>Articular</option>
+          <option>Tendínea</option>
+          <option>Contusão</option>
+          <option>Entorse</option>
+          <option>Fratura</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <button id="btnFiltrar"
+        class="bg-gray-700 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors">
+        Filtrar
+      </button>
+    </div>
+
+    <!-- CARDS RESUMO -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div class="bg-white rounded-lg border border-red-200 p-4 shadow-sm text-center">
+        <div id="cntLesoesAtivas" class="text-3xl font-black text-red-700">—</div>
+        <div class="text-xs font-semibold text-red-400 mt-1 uppercase tracking-wide flex items-center justify-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse"></span>
+          Lesões Ativas
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm text-center">
+        <div id="cntAfastados" class="text-3xl font-black text-red-600">—</div>
+        <div class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Lesões (período)</div>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm text-center">
+        <div id="cntTransicao" class="text-3xl font-black text-orange-500">—</div>
+        <div class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Transição</div>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm text-center">
+        <div id="cntAtendimentos" class="text-3xl font-black text-yellow-500">—</div>
+        <div class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Atendimentos</div>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm text-center">
+        <div id="cntLiberados" class="text-3xl font-black text-green-600">—</div>
+        <div class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Disponíveis</div>
+      </div>
+    </div>
+
+    <!-- TABELA DE LESÕES -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden">
+      <div class="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center justify-between">
+        <h2 class="text-base font-semibold text-red-800 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+          Lesões
+        </h2>
+        <span id="badgeLesoes" class="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">0</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold">Atleta</th>
+              <th class="px-3 py-3 text-center font-semibold">Data</th>
+              <th class="px-3 py-3 text-center font-semibold">Tipo de Lesão</th>
+              <th class="px-3 py-3 text-center font-semibold">Região</th>
+              <th class="px-3 py-3 text-center font-semibold">Dias Afastado</th>
+              <th class="px-3 py-3 text-center font-semibold">Data Liberação</th>
+              <th class="px-3 py-3 text-center font-semibold">Quando</th>
+              <th class="px-3 py-3 text-center font-semibold">Status</th>
+              <th class="px-4 py-3 text-left font-semibold">Observação</th>
+              <th class="px-3 py-3 w-16"></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyLesoes"></tbody>
+        </table>
+        <div id="msgSemLesoes" class="text-center text-gray-400 py-10 text-sm">Nenhuma lesão registrada no período.</div>
+      </div>
+    </div>
+
+    <!-- TABELA DE ATENDIMENTOS -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+      <div class="bg-yellow-50 border-b border-yellow-100 px-5 py-3 flex items-center justify-between">
+        <h2 class="text-base font-semibold text-yellow-800 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span>
+          Atendimentos de Rotina
+        </h2>
+        <span id="badgeAtendimentos" class="text-xs bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">0</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold">Atleta</th>
+              <th class="px-3 py-3 text-center font-semibold">Data</th>
+              <th class="px-3 py-3 text-center font-semibold">Tipo de Atendimento</th>
+              <th class="px-3 py-3 text-center font-semibold">Quando</th>
+              <th class="px-4 py-3 text-left font-semibold">Queixa</th>
+              <th class="px-4 py-3 text-left font-semibold">Conduta</th>
+              <th class="px-3 py-3 w-16"></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAtendimentos"></tbody>
+        </table>
+        <div id="msgSemAtendimentos" class="text-center text-gray-400 py-10 text-sm">Nenhum atendimento registrado no período.</div>
+      </div>
+    </div>
+
+  </div><!-- fim flex-1 -->
+
+  <!-- ═══════════════ MODAL ═══════════════ -->
+  <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden">
+
+      <!-- Header modal -->
+      <div class="bg-gray-900 px-6 py-4 flex items-center justify-between">
+        <h2 class="text-white font-bold text-base" id="modalTitulo">Novo Registro Médico</h2>
+        <button id="btnFecharModal" class="text-gray-400 hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Corpo modal -->
+      <div class="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+
+        <!-- Tipo de registro -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tipo de Registro</label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="tipoRegistro" value="lesao" id="radioLesao" class="accent-red-600" checked>
+              <span class="text-sm font-medium text-gray-700">Lesão</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="tipoRegistro" value="atendimento" id="radioAtendimento" class="accent-yellow-500">
+              <span class="text-sm font-medium text-gray-700">Atendimento de Rotina</span>
+            </label>
+          </div>
+        </div>
+
+        <hr class="border-gray-100">
+
+        <!-- Atleta + Data -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Atleta *</label>
+            <select id="inputAtleta" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Data *</label>
+            <input type="date" id="inputData" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+        </div>
+
+        <!-- Campos de LESÃO -->
+        <div id="camposLesao" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tipo de Lesão *</label>
+              <select id="inputTipoLesao" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">Selecione...</option>
+                <option>Muscular</option>
+                <option>Ligamentar</option>
+                <option>Óssea</option>
+                <option>Articular</option>
+                <option>Tendínea</option>
+                <option>Contusão</option>
+                <option>Entorse</option>
+                <option>Fratura</option>
+                <option>Outro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Região Anatômica</label>
+              <select id="inputRegiao" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">Selecione...</option>
+                <option>Cabeça</option>
+                <option>Pescoço</option>
+                <option>Cervical (Coluna)</option>
+                <option>Torácica (Coluna)</option>
+                <option>Lombar</option>
+                <option>Ombro</option>
+                <option>Braço</option>
+                <option>Cotovelo</option>
+                <option>Antebraço</option>
+                <option>Mão</option>
+                <option>Abdômen</option>
+                <option>Virilha / Púbis</option>
+                <option>Quadril</option>
+                <option>Glúteo</option>
+                <option>Adutor</option>
+                <option>Posterior de Coxa</option>
+                <option>Anterior de Coxa</option>
+                <option>Joelho</option>
+                <option>Canela</option>
+                <option>Panturrilha</option>
+                <option>Tornozelo</option>
+                <option>Pé</option>
+                <option>Outro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Dias Afastado (previsto)</label>
+              <input type="number" id="inputDiasAfastado" min="0" placeholder="ex: 14"
+                class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status Atual *</label>
+              <select id="inputStatus" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="afastado">Afastado</option>
+                <option value="transicao">Transição</option>
+                <option value="liberado">Liberado</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Data de Liberação</label>
+              <input type="date" id="inputDataAlta"
+                class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Quando Ocorreu</label>
+            <select id="inputQuandoLesao" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">Não informado</option>
+              <option>Treino</option>
+              <option>Jogo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Campos de ATENDIMENTO -->
+        <div id="camposAtendimento" class="hidden space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tipo de Atendimento *</label>
+              <select id="inputTipoAtendimento" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">Selecione...</option>
+                <option>Fisioterapia preventiva</option>
+                <option>Massagem / recuperação</option>
+                <option>Avaliação médica</option>
+                <option>Reavaliação</option>
+                <option>Procedimento clínico</option>
+                <option>Outro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Quando Ocorreu</label>
+              <select id="inputQuandoAtendimento" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">Não informado</option>
+                <option>Pré-treino</option>
+                <option>Pós-treino</option>
+                <option>Concentração Pré-jogo</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Queixa do Atleta</label>
+            <textarea id="inputQueixa" rows="2" placeholder="O que o atleta relata — dor, desconforto, localização..."
+              class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Conduta / Procedimento Realizado</label>
+            <textarea id="inputConduta" rows="2" placeholder="O que foi feito — técnicas, recursos, orientações..."
+              class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Observação — só aparece em lesão -->
+        <div id="campoObsLesao">
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observação</label>
+          <textarea id="inputObs" rows="3" placeholder="Detalhes, mecanismo da lesão..."
+            class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+        </div>
+
+      </div>
+
+      <!-- Footer modal -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+        <button id="btnCancelar"
+          class="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          Cancelar
+        </button>
+        <button id="btnSalvar"
+          class="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+          Salvar
+        </button>
+      </div>
+
+    </div>
+  </div>
+  <!-- fim modal -->
+
+  <script type="module">
+  import { db, auth } from "../core/firebase.js";
+  import {
+    collection, getDocs, addDoc, updateDoc, deleteDoc,
+    query, where, doc, getDoc, serverTimestamp, orderBy
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+  let CLUB_ID = null;
+  let atletas = [];
+  let registros = [];
+  let editandoId = null;
+
+  function showToast(msg, color = 'green') {
+    const t = document.createElement('div');
+    const bg = color === 'red' ? '#dc2626' : '#16a34a';
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${bg};color:#fff;font-size:14px;font-weight:600;padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);transition:opacity .4s;`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+  }
+
+  // ── AUTH ──────────────────────────────────────────────────────────────────
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "/login.html"; return; }
+    try {
+      const ctx = JSON.parse(localStorage.getItem("userContext") || "{}");
+      CLUB_ID = ctx?.clubId ?? null;
+      if (!CLUB_ID) {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        CLUB_ID = snap.exists() ? snap.data().clubId : null;
+      }
+      if (!CLUB_ID) { console.error("Usuário sem clubId"); return; }
+      await init();
+    } catch(e) { console.error(e); }
+  });
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  async function init() {
+    await carregarAtletas();
+    await carregarRegistros();
+    configurarModal();
+    configurarFiltros();
+  }
+
+  // ── ATLETAS ───────────────────────────────────────────────────────────────
+  async function carregarAtletas() {
+    const snap = await getDocs(query(
+      collection(db, "athletes"), where("clubId", "==", CLUB_ID)
+    ));
+    atletas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.ativo !== false && a.status !== 'inativo' && a.status !== 'desligado')
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+    // Preencher selects
+    const opts = atletas.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+    document.getElementById('filtroAtleta').innerHTML += opts;
+    document.getElementById('inputAtleta').innerHTML = `<option value="">Selecione...</option>` + opts;
+  }
+
+  // ── CARREGAR REGISTROS ────────────────────────────────────────────────────
+  async function carregarRegistros() {
+    const snap = await getDocs(query(
+      collection(db, "assessments_medical"),
+      where("clubId", "==", CLUB_ID)
+    ));
+    registros = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+      .sort((a, b) => (b.data || b.date || '').localeCompare(a.data || a.date || ''));
+    renderTudo();
+  }
+
+  // ── HELPERS DE CLASSIFICAÇÃO ─────────────────────────────────────────────
+  // Cobre: novo formato (tipo:'lesao'), legado dashboard (tipo:'status_clinico'),
+  // e registros sem tipo mas com tipoLesao
+  function isLesao(r) {
+    return r.tipo === 'lesao' || r.tipo === 'lesão'
+      || r.tipo === 'status_clinico'
+      || r.dados?.tipoRegistro === 'lesao'
+      || (!r.tipoAtendimento && (r.tipoLesao || r.dados?.tipoLesao));
+  }
+  function isAtendimento(r) {
+    return r.tipo === 'atendimento'
+      || r.dados?.tipoRegistro === 'atendimento'
+      || (r.tipoAtendimento && !isLesao(r));
+  }
+  function statusDe(r) {
+    return (r.dados?.status || r.dados?.statusAtual || r.status || r.statusAtual || '').toLowerCase();
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  function tipoLesaoDe(r) {
+    return (r.dados?.tipoLesao || r.tipoLesao || '').trim();
+  }
+
+  function renderTudo() {
+    const atletaFiltro   = document.getElementById('filtroAtleta').value;
+    const diasFiltro     = parseInt(document.getElementById('filtroPeriodo').value);
+    const tipoLesaoFiltro = document.getElementById('filtroTipoLesao').value;
+    const hoje           = new Date();
+
+    const filtrados = registros.filter(r => {
+      if (atletaFiltro && r.athleteId !== atletaFiltro) return false;
+      if (diasFiltro > 0) {
+        const dataReg = new Date((r.data || r.date || '') + 'T12:00:00');
+        const diffDias = (hoje - dataReg) / (1000 * 60 * 60 * 24);
+        if (diffDias > diasFiltro) return false;
+      }
+      // Filtro de tipo de lesão: lesões que não batem são excluídas; atendimentos sempre passam
+      if (tipoLesaoFiltro && isLesao(r) && tipoLesaoDe(r) !== tipoLesaoFiltro) return false;
+      return true;
+    });
+
+    const lesoes       = filtrados.filter(isLesao);
+    const atendimentos = filtrados.filter(isAtendimento);
+
+    renderLesoes(lesoes);
+    renderAtendimentos(atendimentos);
+    atualizarCards(filtrados, tipoLesaoFiltro);
+  }
+
+  function nomeAtleta(id) {
+    return atletas.find(a => a.id === id)?.nome || id || '—';
+  }
+
+  function posAtleta(id) {
+    return atletas.find(a => a.id === id)?.posicao || '—';
+  }
+
+  function atletaAvatar(id) {
+    const a = atletas.find(x => x.id === id);
+    const nome = a?.nome || '?';
+    if (a?.fotoUrl) return `<img src="${a.fotoUrl}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;" alt="" />`;
+    const ini = nome.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    return `<div style="width:30px;height:30px;border-radius:50%;background:#1e40af;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">${ini}</div>`;
+  }
+
+  function fmtData(str) {
+    if (!str) return '—';
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function badgeStatus(status) {
+    const s = (status || '').toLowerCase();
+    if (s.includes('liber') || s.includes('apto'))
+      return `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Liberado</span>`;
+    if (s.includes('transi'))
+      return `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">Transição</span>`;
+    return `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Afastado</span>`;
+  }
+
+  function renderLesoes(lista) {
+    const tbody = document.getElementById('tbodyLesoes');
+    const msg   = document.getElementById('msgSemLesoes');
+    document.getElementById('badgeLesoes').textContent = lista.length;
+
+    if (!lista.length) {
+      tbody.innerHTML = '';
+      msg.style.display = 'block';
+      tbody.closest('table').style.display = 'none';
+      return;
+    }
+    msg.style.display = 'none';
+    tbody.closest('table').style.display = 'table';
+
+    tbody.innerHTML = lista.map((r, i) => {
+      const d = r.dados || r;
+      const bg = i % 2 === 0 ? '' : 'bg-gray-50';
+      return `<tr class="${bg} hover:bg-blue-50 transition-colors" data-id="${r._id}">
+        <td class="px-4 py-3 whitespace-nowrap">
+          <div class="flex items-center gap-2">
+            ${atletaAvatar(r.athleteId)}
+            <div>
+              <div class="font-semibold text-gray-900 text-sm">${nomeAtleta(r.athleteId)}</div>
+              <div class="text-xs text-gray-400">${posAtleta(r.athleteId)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-3 py-3 text-center text-gray-600 text-xs whitespace-nowrap">${fmtData(r.data || r.date)}</td>
+        <td class="px-3 py-3 text-center">
+          ${(d.tipoLesao||r.tipoLesao) ? `<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 border border-red-100">${d.tipoLesao||r.tipoLesao}</span>` : '<span class="text-gray-300">—</span>'}
+        </td>
+        <td class="px-3 py-3 text-center text-xs text-gray-600">${d.regiao || r.regiao || '—'}</td>
+        <td class="px-3 py-3 text-center">
+          ${(() => {
+            const dataLesao = r.data || r.date || '';
+            if(!dataLesao) return '<span class="text-gray-300">—</span>';
+            const status = (d.status || d.statusAtual || r.status || r.statusAtual || '').toLowerCase();
+            const isLiberado = status.includes('liber') || status.includes('apto');
+            const inicio = new Date(dataLesao+'T00:00:00');
+            // Se liberado: congela contagem usando dataAlta (campo explícito) ou updatedAt como fallback
+            let fim;
+            if(isLiberado) {
+              const alta = r.dataAlta || (r.dados && r.dados.dataAlta);
+              if(alta) {
+                fim = new Date(alta + 'T00:00:00');
+              } else {
+                const upd = r.updatedAt;
+                if(upd?.seconds) fim = new Date(upd.seconds * 1000);
+                else if(upd?.toDate) fim = upd.toDate();
+                else if(upd && typeof upd === 'string') fim = new Date(upd);
+                else fim = new Date();
+              }
+              fim.setHours(0,0,0,0);
+            } else {
+              fim = new Date(); fim.setHours(0,0,0,0);
+            }
+            const corridos = Math.round((fim - inicio) / 86400000);
+            const cor = isLiberado ? 'text-green-600' : corridos >= 14 ? 'text-red-600' : corridos >= 7 ? 'text-yellow-600' : 'text-gray-900';
+            const prev = d.diasAfastado ?? r.diasAfastado ?? null;
+            const prevTxt = prev != null && prev !== ''
+              ? `<span class="block text-gray-400 text-xs">(prev. ${prev}d)</span>` : '';
+            const sufixo = isLiberado
+              ? `<span class="text-gray-400 text-xs"> dias (alta)</span>`
+              : `<span class="text-gray-400 text-xs"> dias</span>`;
+            return `<span class="font-bold ${cor}">${corridos}</span>${sufixo}${prevTxt}`;
+          })()}
+        </td>
+        <td class="px-3 py-3 text-center text-xs text-gray-600 whitespace-nowrap">
+          ${(() => {
+            const alta = r.dataAlta || d.dataAlta || null;
+            if (!alta) return '<span class="text-gray-300">—</span>';
+            const [y,m,dd] = alta.split('-');
+            return `<span class="font-semibold text-green-700">${dd}/${m}/${y}</span>`;
+          })()}
+        </td>
+        <td class="px-3 py-3 text-center text-xs text-gray-600 whitespace-nowrap">
+          ${(() => {
+            const q = d.quandoOcorreu || r.quandoOcorreu || '';
+            if (!q) return '<span class="text-gray-300">—</span>';
+            const cor = q === 'Jogo' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-100 text-gray-600 border-gray-200';
+            return `<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold border ${cor}">${q}</span>`;
+          })()}
+        </td>
+        <td class="px-3 py-3 text-center">
+          <div class="flex flex-col items-center gap-1">
+            ${badgeStatus(d.status || d.statusAtual)}
+            <select class="selectStatus text-xs border border-gray-200 rounded px-1 py-0.5 text-gray-500 bg-white cursor-pointer hover:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 mt-0.5" title="Alterar status">
+              <option value="afastado"   ${(d.status||d.statusAtual||r.status||r.statusAtual||'afastado')==='afastado'  ?'selected':''}>Afastado</option>
+              <option value="transicao"  ${(d.status||d.statusAtual||r.status||r.statusAtual||'')==='transicao'          ?'selected':''}>Transição</option>
+              <option value="liberado"   ${(d.status||d.statusAtual||r.status||r.statusAtual||'')==='liberado'           ?'selected':''}>Liberado</option>
+            </select>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate" title="${d.observacao || d.obs || ''}">${d.observacao || d.obs || '—'}</td>
+        <td class="px-3 py-3 text-center">
+          <div class="flex items-center justify-center gap-2">
+            <button class="btnEditar text-gray-400 hover:text-blue-600 transition-colors" title="Editar">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+              </svg>
+            </button>
+            <button class="btnExcluir text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wireButtons(tbody);
+  }
+
+  function renderAtendimentos(lista) {
+    const tbody = document.getElementById('tbodyAtendimentos');
+    const msg   = document.getElementById('msgSemAtendimentos');
+    document.getElementById('badgeAtendimentos').textContent = lista.length;
+
+    if (!lista.length) {
+      tbody.innerHTML = '';
+      msg.style.display = 'block';
+      tbody.closest('table').style.display = 'none';
+      return;
+    }
+    msg.style.display = 'none';
+    tbody.closest('table').style.display = 'table';
+
+    tbody.innerHTML = lista.map((r, i) => {
+      const d = r.dados || r;
+      const bg = i % 2 === 0 ? '' : 'bg-gray-50';
+      return `<tr class="${bg} hover:bg-yellow-50 transition-colors" data-id="${r._id}">
+        <td class="px-4 py-3 whitespace-nowrap">
+          <div class="flex items-center gap-2">
+            ${atletaAvatar(r.athleteId)}
+            <div>
+              <div class="font-semibold text-gray-900 text-sm">${nomeAtleta(r.athleteId)}</div>
+              <div class="text-xs text-gray-400">${posAtleta(r.athleteId)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-3 py-3 text-center text-gray-600 text-xs whitespace-nowrap">${fmtData(r.data || r.date)}</td>
+        <td class="px-3 py-3 text-center">
+          ${(d.tipoAtendimento || r.tipoAtendimento)
+            ? `<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-100">${d.tipoAtendimento || r.tipoAtendimento}</span>`
+            : '<span class="text-gray-300">—</span>'}
+        </td>
+        <td class="px-3 py-3 text-center text-xs whitespace-nowrap">
+          ${(() => {
+            const q = d.quandoOcorreu || r.quandoOcorreu || '';
+            if (!q) return '<span class="text-gray-300">—</span>';
+            const cor = q === 'Pré-treino' ? 'bg-blue-50 text-blue-700 border-blue-100'
+                      : q === 'Pós-treino' ? 'bg-purple-50 text-purple-700 border-purple-100'
+                      : 'bg-orange-50 text-orange-700 border-orange-100';
+            return `<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold border ${cor}">${q}</span>`;
+          })()}
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-600 max-w-[160px]" title="${d.queixa || ''}">${d.queixa || '<span class="text-gray-300">—</span>'}</td>
+        <td class="px-4 py-3 text-xs text-gray-600 max-w-[160px]" title="${d.conduta || ''}">${d.conduta || '<span class="text-gray-300">—</span>'}</td>
+        <td class="px-3 py-3 text-center">
+          <div class="flex items-center justify-center gap-2">
+            <button class="btnEditar text-gray-400 hover:text-blue-600 transition-colors" title="Editar">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+              </svg>
+            </button>
+            <button class="btnExcluir text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wireButtons(tbody);
+  }
+
+  function wireButtons(tbody) {
+    tbody.querySelectorAll('.btnEditar').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.closest('tr').dataset.id;
+        abrirModalEdicao(id);
+      };
+    });
+    tbody.querySelectorAll('.btnExcluir').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.closest('tr').dataset.id;
+        if (!confirm('Excluir este registro?')) return;
+        const backup = registros.slice();
+        registros = registros.filter(r => r._id !== id);
+        renderTudo();
+        try {
+          await deleteDoc(doc(db, "assessments_medical", id));
+          showToast('Registro excluído com sucesso.', 'green');
+        } catch(e) {
+          console.error('Erro ao excluir:', e);
+          registros = backup;
+          renderTudo();
+          showToast('Erro ao excluir o registro: ' + e.message, 'red');
+        }
+      };
+    });
+    tbody.querySelectorAll('.selectStatus').forEach(sel => {
+      sel.onchange = async () => {
+        const id    = sel.closest('tr').dataset.id;
+        const novoStatus = sel.value;
+        const r     = registros.find(x => x._id === id);
+        if (!r) return;
+        sel.disabled = true;
+        try {
+          // Atualiza nos dois caminhos possíveis (dados.status e status raiz)
+          const updateData = {
+            'dados.status':      novoStatus,
+            'dados.statusAtual': novoStatus,
+            'statusAtual':       novoStatus,
+            'status':            novoStatus,
+            updatedAt:           serverTimestamp(),
+          };
+          // Salva dataAlta explícita ao liberar — evita usar updatedAt (que muda a qualquer edição)
+          if (novoStatus === 'liberado' && !r.dataAlta) {
+            updateData.dataAlta = new Date().toLocaleDateString('en-CA');
+          }
+          await updateDoc(doc(db, "assessments_medical", id), updateData);
+          sessionStorage.removeItem('dash_assessments_medical');
+          if (r.dados) { r.dados.status = novoStatus; r.dados.statusAtual = novoStatus; }
+          r.statusAtual = novoStatus;
+          r.status = novoStatus;
+          if (novoStatus === 'liberado' && !r.dataAlta) {
+            r.dataAlta = new Date().toLocaleDateString('en-CA');
+          }
+          renderTudo();
+        } catch(e) {
+          console.error(e);
+          alert('Erro ao atualizar status.');
+        } finally {
+          sel.disabled = false;
+        }
+      };
+    });
+  }
+
+  function atualizarCards(filtrados, tipoLesaoFiltro = '') {
+    // Lesões e atendimentos do período filtrado
+    const lesoesP    = filtrados.filter(isLesao);
+    const atends     = filtrados.filter(isAtendimento);
+
+    // Transição: usa todos os registros (respeita filtro de tipo de lesão)
+    const transicao  = registros.filter(r => {
+      const s = statusDe(r);
+      if (!(s === 'transicao' || s === 'transição') || !isLesao(r)) return false;
+      if (tipoLesaoFiltro && tipoLesaoDe(r) !== tipoLesaoFiltro) return false;
+      return true;
+    });
+    const disponiveis = atletas.length
+      - new Set(transicao.map(r => r.athleteId)).size
+      - new Set(lesoesP.filter(r => statusDe(r) === 'afastado').map(r => r.athleteId)).size;
+
+    // Lesões Ativas: atleta mais recente por afastado (independe do filtro de período; respeita tipo de lesão)
+    const porAtletaAtivo = new Map();
+    registros.filter(r => isLesao(r)).forEach(r => {
+      if (statusDe(r) !== 'afastado') return;
+      if (tipoLesaoFiltro && tipoLesaoDe(r) !== tipoLesaoFiltro) return;
+      const data = r.data || r.date || '';
+      const ant  = porAtletaAtivo.get(r.athleteId);
+      if (!ant || data > (ant.data || ant.date || '')) porAtletaAtivo.set(r.athleteId, r);
+    });
+    document.getElementById('cntLesoesAtivas').textContent = porAtletaAtivo.size;
+
+    document.getElementById('cntAfastados').textContent    = lesoesP.length;
+    document.getElementById('cntTransicao').textContent    = transicao.length;
+    document.getElementById('cntAtendimentos').textContent = atends.length;
+    const dispVal = Math.max(0, disponiveis);
+    const pct = atletas.length > 0 ? Math.round((dispVal / atletas.length) * 100) : 0;
+    document.getElementById('cntLiberados').innerHTML =
+      `${dispVal}<span style="font-size:1rem;font-weight:600;color:#16a34a;margin-left:4px;">${pct}%</span>`;
+  }
+
+  // ── FILTROS ───────────────────────────────────────────────────────────────
+  function configurarFiltros() {
+    document.getElementById('btnFiltrar').onclick = () => renderTudo();
+    document.getElementById('filtroAtleta').onchange = () => renderTudo();
+    document.getElementById('filtroPeriodo').onchange = () => renderTudo();
+    document.getElementById('filtroTipoLesao').onchange = () => renderTudo();
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────────────────
+  function configurarModal() {
+    const modal = document.getElementById('modal');
+
+    document.getElementById('btnNovoRegistro').onclick = () => abrirModalNovo();
+    document.getElementById('btnFecharModal').onclick  = () => fecharModal();
+    document.getElementById('btnCancelar').onclick     = () => fecharModal();
+    modal.onclick = (e) => { if (e.target === modal) fecharModal(); };
+
+    // Toggle campos por tipo de registro
+    document.querySelectorAll('input[name="tipoRegistro"]').forEach(radio => {
+      radio.onchange = () => toggleCampos(radio.value);
+    });
+
+    document.getElementById('btnSalvar').onclick = () => salvar();
+  }
+
+  function toggleCampos(tipo) {
+    document.getElementById('camposLesao').classList.toggle('hidden', tipo !== 'lesao');
+    document.getElementById('camposAtendimento').classList.toggle('hidden', tipo !== 'atendimento');
+    document.getElementById('campoObsLesao').classList.toggle('hidden', tipo !== 'lesao');
+  }
+
+  function abrirModalNovo() {
+    editandoId = null;
+    document.getElementById('modalTitulo').textContent = 'Novo Registro Médico';
+    limparModal();
+    document.getElementById('inputData').value = new Date().toLocaleDateString('en-CA');
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modal').classList.add('flex');
+  }
+
+  function abrirModalEdicao(id) {
+    const r = registros.find(x => x._id === id);
+    if (!r) return;
+    editandoId = id;
+    document.getElementById('modalTitulo').textContent = 'Editar Registro';
+    limparModal();
+
+    const d = r.dados || r;
+    const tipo = (r.tipo === 'atendimento' || r.tipoAtendimento || d.tipoRegistro === 'atendimento')
+      ? 'atendimento' : 'lesao';
+
+    document.querySelector(`input[name="tipoRegistro"][value="${tipo}"]`).checked = true;
+    toggleCampos(tipo);
+
+    document.getElementById('inputAtleta').value  = r.athleteId || '';
+    document.getElementById('inputData').value    = r.data || r.date || '';
+    document.getElementById('inputObs').value     = d.observacao || d.obs || '';
+
+    if (tipo === 'lesao') {
+      document.getElementById('inputTipoLesao').value    = d.tipoLesao || '';
+      document.getElementById('inputRegiao').value        = d.regiao || '';
+      document.getElementById('inputDiasAfastado').value  = d.diasAfastado ?? '';
+      document.getElementById('inputStatus').value        = d.status || d.statusAtual || 'afastado';
+      document.getElementById('inputDataAlta').value      = r.dataAlta || d.dataAlta || '';
+      document.getElementById('inputQuandoLesao').value   = d.quandoOcorreu || r.quandoOcorreu || '';
+    } else {
+      document.getElementById('inputTipoAtendimento').value   = d.tipoAtendimento || r.tipoAtendimento || '';
+      document.getElementById('inputQueixa').value            = d.queixa || '';
+      document.getElementById('inputConduta').value           = d.conduta || '';
+      document.getElementById('inputQuandoAtendimento').value = d.quandoOcorreu || r.quandoOcorreu || '';
+    }
+
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modal').classList.add('flex');
+  }
+
+  function limparModal() {
+    document.getElementById('inputAtleta').value = '';
+    document.getElementById('inputData').value = '';
+    document.getElementById('inputObs').value = '';
+    document.getElementById('inputTipoLesao').value = '';
+    document.getElementById('inputRegiao').value = '';
+    document.getElementById('inputDiasAfastado').value = '';
+    document.getElementById('inputStatus').value = 'afastado';
+    document.getElementById('inputDataAlta').value = '';
+    document.getElementById('inputTipoAtendimento').value = '';
+    document.getElementById('inputQueixa').value = '';
+    document.getElementById('inputConduta').value = '';
+    document.getElementById('inputQuandoLesao').value = '';
+    document.getElementById('inputQuandoAtendimento').value = '';
+    document.getElementById('radioLesao').checked = true;
+    toggleCampos('lesao');
+  }
+
+  function fecharModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modal').classList.remove('flex');
+    editandoId = null;
+  }
+
+  async function salvar() {
+    const atletaId = document.getElementById('inputAtleta').value;
+    const data     = document.getElementById('inputData').value;
+    const obs      = document.getElementById('inputObs').value.trim();
+    const tipo     = document.querySelector('input[name="tipoRegistro"]:checked').value;
+
+    if (!atletaId || !data) {
+      alert('Preencha o atleta e a data.'); return;
+    }
+
+    let payload = {
+      athleteId:  atletaId,
+      clubId:     CLUB_ID,
+      data,
+      tipo,
+      updatedAt:  serverTimestamp(),
+    };
+
+    if (tipo === 'lesao') {
+      const tipoLesao = document.getElementById('inputTipoLesao').value;
+      if (!tipoLesao) { alert('Selecione o tipo de lesão.'); return; }
+      const dataAlta = document.getElementById('inputDataAlta').value || null;
+      payload.dados = {
+        tipoRegistro:  'lesao',
+        tipoLesao,
+        regiao:        document.getElementById('inputRegiao').value,
+        diasAfastado:  document.getElementById('inputDiasAfastado').value || null,
+        status:        document.getElementById('inputStatus').value,
+        statusAtual:   document.getElementById('inputStatus').value,
+        observacao:    obs,
+        quandoOcorreu: document.getElementById('inputQuandoLesao').value || null,
+        dataAlta:      dataAlta || null,
+      };
+      // Also write at root level — multiple code paths read from both locations
+      payload.dataAlta = dataAlta || null;
+    } else {
+      const tipoAtend = document.getElementById('inputTipoAtendimento').value;
+      if (!tipoAtend) { alert('Selecione o tipo de atendimento.'); return; }
+      payload.dados = {
+        tipoRegistro:  'atendimento',
+        tipoAtendimento: tipoAtend,
+        queixa:        document.getElementById('inputQueixa').value.trim(),
+        conduta:       document.getElementById('inputConduta').value.trim(),
+        observacao:    obs,
+        quandoOcorreu: document.getElementById('inputQuandoAtendimento').value || null,
+      };
+      payload.tipoAtendimento = tipoAtend;
+    }
+
+    const btn = document.getElementById('btnSalvar');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    try {
+      if (editandoId) {
+        await updateDoc(doc(db, "assessments_medical", editandoId), payload);
+        const idx = registros.findIndex(r => r._id === editandoId);
+        if (idx !== -1) registros[idx] = { _id: editandoId, ...payload };
+      } else {
+        payload.createdAt = serverTimestamp();
+        const ref = await addDoc(collection(db, "assessments_medical"), payload);
+        registros.unshift({ _id: ref.id, ...payload });
+      }
+      fecharModal();
+      renderTudo();
+    } catch(e) {
+      console.error(e);
+      alert('Erro ao salvar. Verifique o console.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Salvar';
+    }
+  }
+
+  </script>
+
+  <script src="/components/layout.js"></script>
+</body>
+</html>

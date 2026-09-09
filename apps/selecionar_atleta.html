@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ciente IE · Monitoramento</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="./core/authGuard.js"></script>
+  <style>
+    body { background:#f1f5f9; }
+    #actionModal {
+      display:none;position:fixed;inset:0;z-index:9000;
+      background:rgba(0,0,0,0.55);align-items:center;justify-content:center;
+    }
+    #actionModal.open { display:flex; }
+  </style>
+</head>
+
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <div style="background:#1e3a5f;padding:16px 20px;">
+    <h1 style="color:#fff;font-size:18px;font-weight:800;margin:0 0 10px;">Selecionar Atleta</h1>
+    <input id="searchInput" type="text" placeholder="Buscar pelo nome..."
+      style="width:100%;padding:9px 14px;border-radius:10px;border:none;font-size:14px;outline:none;background:#fff;">
+  </div>
+
+  <!-- Grid de figurinhas -->
+  <div id="cardsContainer"
+    style="display:flex;flex-wrap:wrap;gap:10px;padding:14px;justify-content:flex-start;align-items:flex-start;">
+  </div>
+
+  <!-- Modal de ação -->
+  <div id="actionModal" onclick="if(event.target===this)fecharModal()">
+    <div style="background:#fff;width:calc(100% - 32px);max-width:420px;border-radius:20px;padding:24px 20px;position:relative;margin:16px;">
+      <!-- Handle -->
+      <div style="width:40px;height:4px;background:#e5e7eb;border-radius:999px;margin:0 auto 16px;"></div>
+      <!-- Atleta header -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div id="modalFoto" style="width:60px;height:60px;border-radius:50%;background:#2d5080;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;"></div>
+        <div>
+          <p id="modalNome" style="font-size:17px;font-weight:800;color:#111827;margin:0;"></p>
+          <p id="modalSub"  style="font-size:12px;color:#6b7280;margin:2px 0 0;"></p>
+        </div>
+      </div>
+      <!-- Botões -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button id="btnPre"   onclick="_abrirPre()"
+          style="padding:14px;border:none;border-radius:12px;background:#059669;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+          Pré-treino / Jogo
+        </button>
+        <button id="btnPos"   onclick="_abrirPos()"
+          style="padding:14px;border:none;border-radius:12px;background:#dc2626;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+          Pós-treino / Jogo
+        </button>
+        <button id="btnNeuro" onclick="_abrirNeuro()"
+          style="padding:14px;border:none;border-radius:12px;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">
+          NeuroScore
+        </button>
+        <button onclick="fecharModal()"
+          style="padding:12px;border:none;border-radius:12px;background:#f3f4f6;color:#374151;font-size:14px;font-weight:600;cursor:pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./core/firebase.js"></script>
+  <script type="module" src="./selecionar_atleta.js"></script>
+</body>
+</html>

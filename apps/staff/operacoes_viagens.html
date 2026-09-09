@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operações — Viagens · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+<script type="module" src="../components/layout.js"></script>
+<script type="module" src="../core/authGuard.js"></script>
+
+<div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Operações — Viagens</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Gerencie operações logísticas de jogos e concentrações</p>
+    </div>
+    <button id="btnNovaViagem"
+      class="bg-orange-600 hover:bg-orange-700 text-white font-medium px-5 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+      </svg>
+      Nova Viagem
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingViagens" class="flex items-center justify-center py-16 text-gray-400 text-sm">
+    Carregando viagens...
+  </div>
+
+  <!-- Cards por status -->
+  <div id="conteudoViagens" class="hidden space-y-6">
+    <!-- Em andamento -->
+    <div id="secaoEmAndamento" class="hidden">
+      <h2 class="text-sm font-bold uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Em andamento
+      </h2>
+      <div id="cardsEmAndamento" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+    <!-- Confirmadas -->
+    <div id="secaoConfirmada" class="hidden">
+      <h2 class="text-sm font-bold uppercase tracking-widest text-blue-600 mb-3 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-blue-500"></span> Confirmadas
+      </h2>
+      <div id="cardsConfirmada" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+    <!-- Planejamento -->
+    <div id="secooPlanejamento" class="hidden">
+      <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-gray-400"></span> Em planejamento
+      </h2>
+      <div id="cardsPlanejamento" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+    <!-- Concluídas -->
+    <div id="secooConcluida" class="hidden">
+      <h2 class="text-sm font-bold uppercase tracking-widest text-green-600 mb-3 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-green-500"></span> Concluídas
+      </h2>
+      <div id="cardsConcluida" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+    <div id="emptyViagens" class="hidden py-12 text-center text-gray-400 text-sm italic">
+      Nenhuma viagem cadastrada ainda.
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nova Viagem -->
+<div id="modalViagem" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h3 class="font-bold text-gray-800 text-lg">Nova Viagem / Operação</h3>
+      <button id="btnFecharModalViagem" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-5">
+
+      <!-- Jogo vinculado -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Jogo vinculado</label>
+        <div id="jogoVinculadoDisplay" class="w-full border border-orange-300 bg-orange-50 rounded-lg px-3 py-2 text-sm text-orange-800 font-medium hidden"></div>
+        <p id="jogoVinculadoNone" class="text-sm text-gray-400 italic">Nenhum jogo vinculado (criado a partir da lista de jogos)</p>
+      </div>
+
+      <!-- Cidade do jogo (quando fora) -->
+      <div id="blocoCidadeJogo" class="hidden">
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Cidade do Jogo *</label>
+        <input id="cidadeJogo" type="text" placeholder="Ex: São Paulo - SP"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+        <p class="text-xs text-gray-400 mt-1">Jogo fora de casa — informe a cidade de destino.</p>
+      </div>
+
+      <!-- Tipo de operação -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Tipo de Operação *</label>
+        <div class="grid grid-cols-2 gap-2 mt-1">
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="viagemTipo" value="viagem_no_dia" checked class="accent-orange-600">
+            <span><span class="font-medium">Viagem no dia</span><br><span class="text-xs text-gray-400">Saída e retorno no mesmo dia</span></span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="viagemTipo" value="viagem_1_dia_antes" class="accent-orange-600">
+            <span><span class="font-medium">1 dia antes</span><br><span class="text-xs text-gray-400">Viagem na véspera do jogo</span></span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="viagemTipo" value="viagem_2_dias_antes" class="accent-orange-600">
+            <span><span class="font-medium">2 dias antes</span><br><span class="text-xs text-gray-400">Viagem 2 dias antes do jogo</span></span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="viagemTipo" value="concentracao" class="accent-orange-600">
+            <span><span class="font-medium">Concentração</span><br><span class="text-xs text-gray-400">Recolhimento antes do jogo</span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Meio de Transporte -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Meio de Transporte *</label>
+        <div class="grid grid-cols-3 gap-2 mt-1">
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="onibus" checked class="accent-orange-600">
+            <span>🚌 Ônibus</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="van" class="accent-orange-600">
+            <span>🚐 Van</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="aviao" class="accent-orange-600">
+            <span>✈️ Avião</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="trem" class="accent-orange-600">
+            <span>🚆 Trem</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="carro" class="accent-orange-600">
+            <span>🚗 Carro</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer p-2 border rounded-lg hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+            <input type="radio" name="meioTransporte" value="outro" class="accent-orange-600">
+            <span>🔄 Outro</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Período -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Data Início *</label>
+          <input id="viagemInicio" type="datetime-local"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Data Fim *</label>
+          <input id="viagemFim" type="datetime-local"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+        </div>
+      </div>
+
+      <!-- Grupos convocados -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Grupos Convocados</label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="viagemGrupo" value="G1" class="accent-orange-600 w-4 h-4"> G1
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="viagemGrupo" value="G2" class="accent-orange-600 w-4 h-4"> G2
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="viagemGrupo" value="G3" class="accent-orange-600 w-4 h-4"> G3
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="viagemGrupo" value="G4" class="accent-orange-600 w-4 h-4"> G4
+          </label>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Os atletas de cada grupo serão convocados automaticamente (snapshot atual).</p>
+      </div>
+
+      <!-- Hospedagem -->
+      <div class="border-t pt-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Hospedagem (opcional)</p>
+        <div class="space-y-3">
+          <input id="hospHotel" type="text" placeholder="Nome do hotel"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          <input id="hospEndereco" type="text" placeholder="Endereço"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Check-in</label>
+              <input id="hospCheckin" type="datetime-local"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Check-out</label>
+              <input id="hospCheckout" type="datetime-local"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-3">
+      <button id="btnCancelarModalViagem"
+        class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        Cancelar
+      </button>
+      <button id="btnSalvarViagem"
+        class="px-5 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors">
+        Criar Viagem
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-5 right-5 z-[100] hidden">
+  <div id="toastInner" class="px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script type="module">
+import {
+  listarViagens, criarViagem, excluirViagem, gerarParticipantesDeGrupos, gerarChecklistPadrao
+} from '../core/operacoes.service.js?v=2';
+import { auth } from '../core/firebase.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+const uc = JSON.parse(localStorage.getItem('userContext') || '{}');
+const CLUB_ID = uc.clubId || '';
+const UID = uc.uid || '';
+
+// Params do jogo vindo de operacoes_jogos.html
+const params = new URLSearchParams(location.search);
+const jogoRef      = params.get('jogoRef') || '';
+const jogoAdversario = params.get('adversario') || '';
+const jogoData     = params.get('data') || '';
+const jogoHorario  = params.get('horario') || '';
+const jogoGrupos   = params.get('grupos') || '';
+const jogoMando       = params.get('mando') || '';
+const jogoCidadeParam = params.get('cidade') || '';
+const jogoCompeticao  = params.get('competicao') || '';
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, tipo = 'ok') {
+  const el = document.getElementById('toast');
+  const inner = document.getElementById('toastInner');
+  inner.textContent = msg;
+  inner.className = `px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${tipo === 'ok' ? 'bg-green-600' : 'bg-red-600'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmtData(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function badgeStatus(status) {
+  const map = {
+    planejamento: 'bg-gray-100 text-gray-600',
+    confirmada: 'bg-blue-100 text-blue-700',
+    em_andamento: 'bg-amber-100 text-amber-700',
+    concluida: 'bg-green-100 text-green-700',
+  };
+  const label = {
+    planejamento: 'Planejamento',
+    confirmada: 'Confirmada',
+    em_andamento: 'Em andamento',
+    concluida: 'Concluída',
+  };
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${map[status] || 'bg-gray-100 text-gray-600'}">${label[status] || status}</span>`;
+}
+
+function badgeTransporte(t) {
+  const m = { onibus:'🚌 Ônibus', van:'🚐 Van', aviao:'✈️ Avião', trem:'🚆 Trem', carro:'🚗 Carro', outro:'🔄 Outro' };
+  return m[t] ? `<span class="text-xs text-gray-500">${m[t]}</span>` : '';
+}
+
+function badgeTipo(tipo) {
+  const map = {
+    viagem_no_dia:      ['bg-orange-100 text-orange-700', 'Viagem no dia'],
+    viagem_1_dia_antes: ['bg-blue-100 text-blue-700',   'Viagem 1 dia antes'],
+    viagem_2_dias_antes:['bg-indigo-100 text-indigo-700','Viagem 2 dias antes'],
+    concentracao:       ['bg-purple-100 text-purple-700','Concentração'],
+  };
+  const [cls, label] = map[tipo] || ['bg-gray-100 text-gray-600', tipo || '—'];
+  return `<span class="text-xs font-medium px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
+}
+
+function fmtDataStr(s) {
+  if (!s) return null;
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function cardViagem(v) {
+  const inicio = fmtData(v.periodo?.inicio);
+  const fim    = fmtData(v.periodo?.fim);
+  const grupos = v.gruposConvocados?.join(', ') || '—';
+  const temJogo = v.jogoAdversario;
+  return `
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col hover:shadow-md transition-shadow overflow-hidden">
+      <!-- Topo colorido -->
+      <div class="bg-gray-50 border-b border-gray-100 px-4 py-2.5 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+          ${badgeTipo(v.tipoOperacao)}
+          ${v.meioTransporte ? `<span class="text-xs text-gray-400">${badgeTransporte(v.meioTransporte)}</span>` : ''}
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          ${badgeStatus(v.status)}
+          <button class="btnExcluirViagem text-gray-300 hover:text-red-500 transition-colors" data-id="${v.id}" title="Excluir viagem">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- Corpo -->
+      <div class="px-4 py-3 flex flex-col gap-2.5 flex-1">
+        ${temJogo ? `
+        <div class="border-l-2 border-orange-400 pl-3">
+          <p class="font-bold text-gray-800 text-sm leading-tight">vs ${v.jogoAdversario}</p>
+          <div class="flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-400">
+            ${v.jogoData    ? `<span>${fmtDataStr(v.jogoData)}${v.jogoHorario ? ' · '+v.jogoHorario : ''}</span>` : ''}
+            ${v.jogoMando   ? `<span>${v.jogoMando}${v.jogoCidade ? ' · '+v.jogoCidade : ''}</span>` : ''}
+            ${v.jogoCompeticao ? `<span>${v.jogoCompeticao}</span>` : ''}
+          </div>
+        </div>` : ''}
+        <div class="text-xs text-gray-500 space-y-1">
+          <p><span class="font-semibold text-gray-600">Período:</span> ${inicio} → ${fim}</p>
+          <p><span class="font-semibold text-gray-600">Grupos:</span> ${grupos}</p>
+          ${v.hospedagem?.hotel ? `<p><span class="font-semibold text-gray-600">Hotel:</span> ${v.hospedagem.hotel}</p>` : ''}
+        </div>
+      </div>
+      <!-- Rodapé -->
+      <div class="px-4 py-3 border-t border-gray-100 flex justify-end">
+        <a href="/staff/operacoes_detalhe.html?id=${v.id}"
+          class="px-4 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors">
+          Detalhes →
+        </a>
+      </div>
+    </div>`;
+}
+
+// ── Carregar e renderizar ──────────────────────────────────────────────────
+async function carregarDados() {
+  try {
+    const viagens = await listarViagens(CLUB_ID);
+
+    document.getElementById('loadingViagens').classList.add('hidden');
+    document.getElementById('conteudoViagens').classList.remove('hidden');
+
+    if (viagens.length === 0) {
+      document.getElementById('emptyViagens').classList.remove('hidden');
+      return;
+    }
+
+    const grupos = { em_andamento: [], confirmada: [], planejamento: [], concluida: [] };
+    viagens.forEach(v => {
+      const g = grupos[v.status] || grupos.planejamento;
+      g.push(v);
+    });
+
+    const render = (key, secaoId, cardsId) => {
+      if (grupos[key].length === 0) return;
+      document.getElementById(secaoId).classList.remove('hidden');
+      document.getElementById(cardsId).innerHTML = grupos[key].map(v => cardViagem(v)).join('');
+    };
+
+    render('em_andamento', 'secaoEmAndamento', 'cardsEmAndamento');
+    render('confirmada', 'secaoConfirmada', 'cardsConfirmada');
+    render('planejamento', 'secooPlanejamento', 'cardsPlanejamento');
+    render('concluida', 'secooConcluida', 'cardsConcluida');
+
+    // Delegação: botões de excluir viagem
+    document.getElementById('conteudoViagens').addEventListener('click', async e => {
+      const btn = e.target.closest('.btnExcluirViagem');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (!id) return;
+      if (!confirm('Tem certeza que deseja excluir esta viagem? Esta ação não pode ser desfeita.')) return;
+      btn.disabled = true;
+      try {
+        await excluirViagem(id);
+        showToast('Viagem excluída.');
+        await carregarDados();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao excluir viagem.', 'erro');
+        btn.disabled = false;
+      }
+    }, { once: true });
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('loadingViagens').textContent = 'Erro ao carregar dados.';
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function abrirModal() {
+  document.getElementById('modalViagem').classList.remove('hidden');
+}
+
+function fecharModal() {
+  document.getElementById('modalViagem').classList.add('hidden');
+}
+
+async function salvarViagem() {
+  const inicio = document.getElementById('viagemInicio').value;
+  const fim = document.getElementById('viagemFim').value;
+  const tipo = document.querySelector('input[name="viagemTipo"]:checked')?.value;
+  const transporte = document.querySelector('input[name="meioTransporte"]:checked')?.value;
+
+  if (!inicio || !fim || !tipo) {
+    showToast('Preencha data início, fim e tipo de operação.', 'erro');
+    return;
+  }
+
+  const gruposConvocados = [...document.querySelectorAll('input[name="viagemGrupo"]:checked')]
+    .map(el => el.value);
+
+  const hotel = document.getElementById('hospHotel').value.trim();
+  const endereco = document.getElementById('hospEndereco').value.trim();
+  const checkin = document.getElementById('hospCheckin').value;
+  const checkout = document.getElementById('hospCheckout').value;
+
+  const btn = document.getElementById('btnSalvarViagem');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+
+  try {
+    const viagemId = await criarViagem(CLUB_ID, {
+      tipoOperacao: tipo,
+      meioTransporte: transporte || 'onibus',
+      periodo: { inicio, fim },
+      gruposConvocados,
+      hospedagem: { hotel, endereco, checkin: checkin || null, checkout: checkout || null },
+      status: 'planejamento',
+      // Dados do jogo (snapshot do Planejamento)
+      jogoRef: jogoRef || null,
+      jogoAdversario: jogoAdversario || null,
+      jogoData: jogoData || null,
+      jogoHorario: jogoHorario || null,
+      jogoMando: jogoMando || null,
+      jogoCidade:     (jogoMando || '').toLowerCase() === 'fora' ? (document.getElementById('cidadeJogo').value.trim() || null) : null,
+      jogoCompeticao: jogoCompeticao || null,
+    }, UID);
+
+    // Gera participantes dos grupos (snapshot) e checklist padrão em paralelo
+    await Promise.all([
+      gruposConvocados.length > 0 ? gerarParticipantesDeGrupos(viagemId, CLUB_ID, gruposConvocados) : Promise.resolve(),
+      gerarChecklistPadrao(viagemId),
+    ]);
+
+    showToast('Viagem criada com sucesso!');
+    fecharModal();
+    setTimeout(() => { location.href = `/staff/operacoes_detalhe.html?id=${viagemId}`; }, 800);
+  } catch (e) {
+    console.error(e);
+    showToast('Erro ao criar viagem. Tente novamente.', 'erro');
+    btn.disabled = false;
+    btn.textContent = 'Criar Viagem';
+  }
+}
+
+// ── Eventos ────────────────────────────────────────────────────────────────
+document.getElementById('btnNovaViagem').addEventListener('click', abrirModal);
+document.getElementById('btnFecharModalViagem').addEventListener('click', fecharModal);
+document.getElementById('btnCancelarModalViagem').addEventListener('click', fecharModal);
+document.getElementById('btnSalvarViagem').addEventListener('click', salvarViagem);
+document.getElementById('modalViagem').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalViagem')) fecharModal();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+if (!CLUB_ID) {
+  document.getElementById('loadingViagens').textContent = 'Clube não identificado. Faça login novamente.';
+} else {
+  onAuthStateChanged(auth, user => {
+    if (user) carregarDados();
+  });
+  if (jogoRef) {
+    // Mostrar jogo vinculado
+    const display = document.getElementById('jogoVinculadoDisplay');
+    const none = document.getElementById('jogoVinculadoNone');
+    const mandoNorm = jogoMando.toLowerCase();
+    display.textContent = `⚽ vs ${jogoAdversario} — ${jogoData} ${jogoHorario} (${mandoNorm === 'casa' ? 'Casa' : 'Fora'})`;
+    display.classList.remove('hidden');
+    none.classList.add('hidden');
+
+    // Mostrar campo cidade se fora de casa
+    if (mandoNorm === 'fora' || mandoNorm === 'neutro') {
+      document.getElementById('blocoCidadeJogo').classList.remove('hidden');
+      if (jogoCidadeParam) document.getElementById('cidadeJogo').value = jogoCidadeParam;
+    }
+
+    // Pré-selecionar grupos
+    if (jogoGrupos) {
+      jogoGrupos.split(',').map(g => g.trim()).forEach(g => {
+        const cb = document.querySelector(`input[name="viagemGrupo"][value="${g}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    // Pré-preencher datas
+    if (jogoData) {
+      document.getElementById('viagemInicio').value = `${jogoData}T${jogoHorario || '10:00'}`;
+      document.getElementById('viagemFim').value = `${jogoData}T23:59`;
+    }
+    abrirModal();
+  }
+}
+</script>
+</body>
+</html>

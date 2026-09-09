@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Planejamento por Grupos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-4">
+
+<h1 class="text-2xl font-bold mb-4">Planejamento Semanal por Grupo</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+  <input id="dataInicio" type="date" class="border p-2">
+  <input id="semanaAno" disabled class="border p-2 bg-gray-100">
+  <select id="grupo" class="border p-2">
+    <option>QNJ</option><option>QJ</option>
+    <option>SSJ</option><option>ACR</option>
+  </select>
+  <select id="tipoTreino" class="border p-2">
+    <option>Campo</option><option>Físico</option><option>Complementar</option>
+  </select>
+  <button id="btnPreencher" class="bg-blue-600 text-white rounded px-4">
+    Preencher Semana
+  </button>
+</div>
+
+<div class="flex justify-end mb-4">
+  <button id="btnSalvar" class="bg-green-600 text-white px-6 py-2 rounded">
+    Salvar Planejamento
+  </button>
+</div>
+
+<table class="w-full bg-white rounded shadow text-sm text-center">
+<thead class="bg-gray-100">
+<tr>
+<th>Dia</th><th>Tipo</th><th>Horário</th>
+<th>Atividade</th><th>Obs</th>
+<th>Volume</th><th>Intensidade</th><th>Controle</th>
+</tr>
+</thead>
+<tbody id="tabelaSemana"></tbody>
+</table>
+
+<!-- MODAL -->
+<div id="modal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+  <div class="bg-white w-full max-w-6xl p-4 rounded shadow">
+    <h2 class="text-lg font-semibold mb-3">Preencher semana</h2>
+
+    <table class="w-full text-sm border">
+      <thead class="bg-gray-100">
+        <tr>
+          <th>Dia</th><th>Horário</th><th>Atividade</th>
+          <th>Obs</th><th>Volume</th>
+          <th>Intensidade</th><th>Controle</th>
+        </tr>
+      </thead>
+      <tbody id="modalBody"></tbody>
+    </table>
+
+    <div class="flex justify-end gap-3 mt-4">
+      <button class="px-4 py-2 bg-gray-300 rounded"
+        onclick="modal.classList.add('hidden')">
+        Cancelar
+      </button>
+      <button id="btnAplicar"
+        class="px-4 py-2 bg-blue-600 text-white rounded">
+        Aplicar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { db, auth } from "../core/firebase.js";
+import {
+  addDoc,
+  serverTimestamp,
+  collection
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+async function init() {
+
+  /* GARANTE USUÁRIO LOGADO */
+  const user = await new Promise(resolve => {
+    onAuthStateChanged(auth, u => u && resolve(u));
+  });
+
+  const dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  let plano = {};
+  dias.forEach(d => plano[d] = []);
+
+  dataInicio.onchange = () => {
+    const d = new Date(dataInicio.value);
+    semanaAno.value = `S${getISOWeek(d)}-${d.getFullYear()}`;
+  };
+
+  function getISOWeek(d) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil((((t - y) / 86400000) + 1) / 7);
+  }
+
+  /* ABRIR MODAL */
+  btnPreencher.onclick = () => {
+    plano = {};
+    dias.forEach(d => plano[d] = []);
+    modalBody.innerHTML = "";
+
+    dias.forEach(dia => {
+      modalBody.innerHTML += `
+        <tr>
+          <td>${dia}</td>
+          <td><input type="time" class="horario border w-full"></td>
+          <td><input class="atividade border w-full"></td>
+          <td><input class="obs border w-full"></td>
+          <td><input type="number" class="volume border w-full"></td>
+          <td>
+            <select class="intensidade border w-full">
+              <option></option><option>Baixa</option>
+              <option>Moderada</option><option>Alta</option>
+            </select>
+          </td>
+          <td>
+            <select class="controle border w-full">
+              <option></option><option>Volume</option>
+              <option>Densidade</option><option>Qualidade</option>
+              <option>Intensidade</option>
+            </select>
+          </td>
+        </tr>`;
+    });
+
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  };
+
+  /* APLICAR */
+  btnAplicar.onclick = () => {
+    modalBody.querySelectorAll("tr").forEach((tr, i) => {
+      const horario = tr.querySelector(".horario").value;
+      const atividade = tr.querySelector(".atividade").value;
+      if (!horario && !atividade) return;
+
+      plano[dias[i]].push({
+        tipo: tipoTreino.value,
+        horario,
+        atividade,
+        obs: tr.querySelector(".obs").value,
+        volume: tr.querySelector(".volume").value,
+        intensidade: tr.querySelector(".intensidade").value,
+        controle: tr.querySelector(".controle").value
+      });
+    });
+
+    modal.classList.add("hidden");
+    render();
+  };
+
+  function render() {
+    tabelaSemana.innerHTML = "";
+    dias.forEach(d => {
+      plano[d].forEach(s => {
+        tabelaSemana.innerHTML += `
+<tr>
+  <td>${d}</td><td>${s.tipo}</td><td>${s.horario}</td>
+  <td>${s.atividade}</td><td>${s.obs}</td>
+  <td>${s.volume}</td><td>${s.intensidade}</td><td>${s.controle}</td>
+</tr>`;
+      });
+    });
+  }
+
+  btnSalvar.onclick = async () => {
+    await addDoc(collection(db, "assessments_planning"), {
+      clubId: user.uid,
+      week: semanaAno.value,
+      grupo: grupo.value,
+      sessions: plano,
+      createdAt: serverTimestamp()
+    });
+    alert("✅ Planejamento salvo");
+  };
+
+}
+
+init();
+</script>
+
+</body>
+</html>

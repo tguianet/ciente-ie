@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ajuda · Ciente IE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="../core/authGuard.js"></script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .nav-link { transition: all .15s; }
+    .nav-link.ativo { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    .nav-link:hover:not(.ativo) { background: #f9fafb; }
+    .secao { scroll-margin-top: 24px; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .badge-staff   { background: #dbeafe; color: #1d4ed8; }
+    .badge-atleta  { background: #ffedd5; color: #c2410c; }
+    .badge-admin   { background: #f3e8ff; color: #7e22ce; }
+    .badge-medico  { background: #dcfce7; color: #15803d; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR NAV -->
+  <aside class="hidden lg:flex flex-col w-64 flex-shrink-0 bg-white border-r border-gray-200 sticky top-0 h-screen overflow-y-auto">
+    <div class="p-5 border-b border-gray-100">
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Ciente IE</div>
+      <div class="text-lg font-bold text-gray-900">Central de Ajuda</div>
+    </div>
+    <nav class="p-3 flex flex-col gap-0.5 text-sm text-gray-600">
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-2">Visão Geral</div>
+      <a href="#dashboard"    class="nav-link px-3 py-2 rounded-lg">📊 Dashboard</a>
+      <a href="#prontidao"    class="nav-link px-3 py-2 rounded-lg">🎯 Prontidão & Carga</a>
+      <a href="#elenco"       class="nav-link px-3 py-2 rounded-lg">👥 Perfil do Elenco</a>
+      <a href="#atleta"       class="nav-link px-3 py-2 rounded-lg">👤 Perfil do Atleta</a>
+      <a href="#relatorios"   class="nav-link px-3 py-2 rounded-lg">📄 Relatórios</a>
+
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-3">Coleta de Dados</div>
+      <a href="#coleta-pre"   class="nav-link px-3 py-2 rounded-lg">🌅 Pré-Treino</a>
+      <a href="#coleta-pos"   class="nav-link px-3 py-2 rounded-lg">🌆 Pós-Treino</a>
+      <a href="#neuroscore"   class="nav-link px-3 py-2 rounded-lg">🧠 NeuroScore</a>
+      <a href="#hrv"          class="nav-link px-3 py-2 rounded-lg">💓 HRV</a>
+
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-3">Avaliações</div>
+      <a href="#av-funcional" class="nav-link px-3 py-2 rounded-lg">🦵 Funcional</a>
+      <a href="#av-fisica"    class="nav-link px-3 py-2 rounded-lg">🏃 Física</a>
+      <a href="#av-big5"      class="nav-link px-3 py-2 rounded-lg">🧩 Big Five</a>
+
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-3">Departamentos</div>
+      <a href="#medico"       class="nav-link px-3 py-2 rounded-lg">🏥 Gestão Médica</a>
+      <a href="#nutricao"     class="nav-link px-3 py-2 rounded-lg">🥗 Nutrição</a>
+      <a href="#gps"          class="nav-link px-3 py-2 rounded-lg">📡 GPS</a>
+      <a href="#scout"        class="nav-link px-3 py-2 rounded-lg">🎬 Scout</a>
+      <a href="#ia"           class="nav-link px-3 py-2 rounded-lg">🤖 Analista IA</a>
+
+      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-3">Administração</div>
+      <a href="#cadastro"     class="nav-link px-3 py-2 rounded-lg">➕ Cadastrar Atleta</a>
+    </nav>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <main class="flex-1 p-6 max-w-3xl mx-auto">
+
+    <!-- HEADER -->
+    <div class="mb-8">
+      <a href="/staff/dashboard.html" class="text-sm text-blue-600 hover:underline">← Voltar ao Dashboard</a>
+      <h1 class="text-3xl font-bold text-gray-900 mt-3">Central de Ajuda</h1>
+      <p class="text-gray-500 mt-1">Guia completo de todas as funcionalidades da plataforma Ciente IE.</p>
+    </div>
+
+    <!-- BADGES LEGENDA -->
+    <div class="bg-white border border-gray-200 rounded-xl p-4 mb-8 flex flex-wrap gap-3 text-sm">
+      <span class="text-gray-500 font-medium self-center">Quem usa:</span>
+      <span class="badge badge-staff">Staff / Comissão</span>
+      <span class="badge badge-atleta">Atleta</span>
+      <span class="badge badge-medico">Departamento Médico</span>
+      <span class="badge badge-admin">Administrador</span>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         VISÃO GERAL
+    ══════════════════════════════════════════════════════ -->
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Visão Geral</h2>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">📊</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Dashboard</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Tela inicial da plataforma. Mostra em tempo real a situação de prontidão de todo o elenco para tomada de decisão rápida antes do treino ou jogo.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Situação do elenco:</strong> Atletas agrupados por status — Crítico, Atenção, Liberado, Afastado e Transição — com contadores no topo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Cards individuais:</strong> Clique em qualquer atleta para ver um resumo de suas métricas do dia.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Briefing Pré-Treino:</strong> Gera um resumo textual automático da situação do grupo para passar para a comissão.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Filtros:</strong> Por categoria (Sub-20, Profissional) e por tempo no jogo (≥45 min / menos de 45 min).</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRONTIDÃO -->
+    <section id="prontidao" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🎯</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Prontidão & Carga</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Visão analítica detalhada do dia. Exibe as métricas de cada atleta em colunas, permitindo comparar o elenco completo numa única tabela.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>IGP (Índice Global de Prontidão):</strong> Nota de 0 a 100 que resume o estado geral do atleta no dia.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>ISP (Índice Semanal de Adaptação):</strong> Avalia a resposta do atleta à carga da semana — Alto, Regular, Limitado ou Insuficiente.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Colunas de monitoramento:</strong> Subjetivo (Hooper), Autonômico (HRV), Neuromuscular (CMJ), Cognitivo (NeuroScore), Emocional e Carga.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Banner de Microciclo:</strong> Indica automaticamente o dia relativo ao jogo (MD-3, MD-1, MD+1, etc.).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatórios rápidos:</strong> Pós-Jogo, Diário e Semanal diretamente na tela.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFIL DO ELENCO -->
+    <section id="elenco" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">👥</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Perfil do Elenco</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Galeria visual de todos os atletas do clube com acesso às avaliações por departamento.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Figurinhas:</strong> Grid com foto, nome e posição de cada atleta. Clique para acessar o perfil individual.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Visões por departamento:</strong> Alterna entre Depto Médico, Avaliação Funcional, Antropométrica, Física, Performance e Personalidade.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Exportar PDF:</strong> Gera um relatório visual do elenco no formato selecionado.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFIL DO ATLETA -->
+    <section id="atleta" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">👤</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Perfil do Atleta</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Dashboard individual de cada atleta com histórico de monitoramento e avaliações completas.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Aba Monitoramento:</strong> Métricas da semana atual, gráficos de evolução dos últimos 28 dias (IGP, Hooper, CMJ, HRV, Carga) e status de lesão.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Aba Avaliações:</strong> Dados de antropometria, avaliação física, funcional e psicológica (Big Five).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Gráficos interativos:</strong> Clique nos indicadores para alternar o gráfico principal entre IGP, Hooper, CMJ e HRV.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RELATÓRIOS -->
+    <section id="relatorios" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">📄</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Relatórios</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Hub centralizado para geração de todos os relatórios em PDF.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Status Diário:</strong> Situação atual do elenco por categoria e tempo no jogo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatório do Dia:</strong> Detalhamento das métricas de uma data específica.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatório Semanal:</strong> Evolução do elenco na semana selecionada (últimas 16 semanas disponíveis).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatório Pré-Jogo:</strong> Análise de prontidão ajustada para o contexto competitivo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatório Pós-Jogo:</strong> Análise da resposta fisiológica ao jogo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Relatório Geral:</strong> Compilação completa ou essencial por período (Preparatório, Competitivo ou Todos).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Exportar Dados:</strong> Baixa todos os dados do clube em formato JSON para análise externa.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         COLETA DE DADOS
+    ══════════════════════════════════════════════════════ -->
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Coleta de Dados</h2>
+
+    <!-- PRÉ-TREINO -->
+    <section id="coleta-pre" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🌅</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Pré-Treino / Jogo</h3>
+            <span class="badge badge-atleta">Atleta</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Coleta de dados subjetivos e físicos antes da atividade. Deve ser preenchida pelo atleta (ou pela comissão) no início do dia de treino ou jogo.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Escala Hooper (1 a 7):</strong> O atleta avalia Sono, Estresse, Fadiga, Dor Muscular e Humor em uma escala colorida — verde (ótimo) a vermelho (péssimo).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Mapa Corporal:</strong> Interface visual do corpo humano (frente e costas) onde o atleta toca as regiões com dor. Se não houver dor, marca "Sem dor localizada".</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Peso (kg):</strong> Peso pré-treino para cálculo de perda hídrica.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Salto CMJ (cm):</strong> Altura do salto vertical medida antes do treino, indicador neuromuscular.</span></div>
+          </div>
+          <div class="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+            💡 Acesse por: Menu principal → Selecionar Atleta → escolha o atleta → Pré-treino / Jogo
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PÓS-TREINO -->
+    <section id="coleta-pos" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🌆</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Pós-Treino / Jogo</h3>
+            <span class="badge badge-atleta">Atleta</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Coleta de percepção de esforço e carga após a atividade. Deve ser preenchida logo ao final do treino ou jogo.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>PSE — Percepção de Esforço (0 a 10):</strong> O atleta avalia o esforço geral da sessão em uma escala de "Repouso" (0) a "Esforço Máximo" (10).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Tempo Total (min):</strong> Duração da participação na atividade. Usado para calcular a carga de treino (PSE × Tempo).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Concentração de Esforço (1 a 5):</strong> Frequência de estímulos de alta intensidade durante a sessão.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Qualidade do Treino (1 a 5):</strong> Percepção do atleta sobre a qualidade da sessão — influencia o ISP semanal.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Peso Pós (kg):</strong> Opcional. Permite calcular a variação hídrica com o peso pré-treino.</span></div>
+          </div>
+          <div class="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+            💡 Acesse por: Menu principal → Selecionar Atleta → escolha o atleta → Pós-treino / Jogo
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEUROSCORE -->
+    <section id="neuroscore" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🧠</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">NeuroScore</h3>
+            <span class="badge badge-atleta">Atleta</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Teste cognitivo de atenção e velocidade de processamento. O atleta deve clicar nos números de 1 a 25 em ordem, o mais rápido possível.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Modo Livre:</strong> Sem pressão de tempo. O sistema registra o tempo total e os erros cometidos.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Modo Sob Pressão:</strong> Com timer de 30 segundos, exigindo mais velocidade e precisão.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Métricas registradas:</strong> Tempo total, número de erros, acurácia e estabilidade de desempenho.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Resultado:</strong> Classificação de Excelente a Muito Baixa com nota de 0 a 100 — salva automaticamente ao completar o teste.</span></div>
+          </div>
+          <div class="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+            💡 Acesse por: Menu principal → Selecionar Atleta → escolha o atleta → NeuroScore
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HRV -->
+    <section id="hrv" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">💓</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">HRV — Variabilidade da Frequência Cardíaca</h3>
+            <span class="badge badge-medico">Departamento Médico</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Medição da variabilidade cardíaca via cinta Polar H10 por Bluetooth. Permite monitorar até 4 atletas simultaneamente.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Conexão Bluetooth:</strong> Clique em "Conectar" no card do atleta e selecione o sensor Polar correspondente.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Medição:</strong> 10 segundos de calibração + 60 segundos de coleta com pulso animado em tempo real.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Métricas:</strong> RMSSD, ln RR, RR Médio, FC Média — indicadores padrão de recuperação autonômica.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Prontidão Autonômica:</strong> Nota de 0 a 100 calculada com modelo Bayesiano (considera histórico individual do atleta) ou escala absoluta.</span></div>
+          </div>
+          <div class="mt-4 bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-700">
+            ⚠️ Requer sensor Polar H10 e navegador compatível com Bluetooth (Chrome, Edge). Não funciona no Safari.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         AVALIAÇÕES
+    ══════════════════════════════════════════════════════ -->
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Avaliações</h2>
+
+    <!-- FUNCIONAL -->
+    <section id="av-funcional" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🦵</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Avaliação Funcional</h3>
+            <span class="badge badge-medico">Departamento Médico</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Registro de força muscular, flexibilidade e mobilidade articular de cada atleta.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Força Muscular (kg):</strong> Quadríceps e Isquiotibiais, direito e esquerdo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Flexibilidade (encurtamento):</strong> Avaliação de Quadríceps e Iliopsoas — Normal, Moderado ou Alto.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Mobilidade (°):</strong> Ângulos de Quadril, Tornozelo e Posteriores, bilateral.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FÍSICA -->
+    <section id="av-fisica" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🏃</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Avaliação Física</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Registro de testes de performance e composição corporal com cálculo automático de percentual de gordura.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Testes de Performance:</strong> Velocidade 30m (s), Agilidade T-Test (s), Salto Horizontal (cm), Yo-Yo (nível).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Composição Corporal — Método Navy:</strong> Cálculo automático de % Gordura, Massa Magra e Massa Gorda a partir de circunferências corporais.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Antropometria:</strong> Estatura (cm), Peso (kg) e % de gordura manual (se preferir inserir diretamente).</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BIG FIVE -->
+    <section id="av-big5" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🧩</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Avaliação Psicológica — Big Five (BFI-44)</h3>
+            <span class="badge badge-medico">Departamento Médico</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Inventário de personalidade com 44 questões que avalia os 5 grandes traços psicológicos do atleta.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>44 questões</strong> respondidas em escala de 1 (Discordo Totalmente) a 5 (Concordo Totalmente).</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>5 traços avaliados:</strong> Extroversão, Amabilidade, Conscienciosidade, Estabilidade Emocional e Abertura a Experiências.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Classificação automática:</strong> Cada traço recebe uma classificação — Baixa, Moderada ou Alta — com base na média das respostas.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span>Os resultados aparecem no Perfil do Atleta, aba Avaliações.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         DEPARTAMENTOS
+    ══════════════════════════════════════════════════════ -->
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Departamentos</h2>
+
+    <!-- MÉDICO -->
+    <section id="medico" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🏥</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Gestão Médica</h3>
+            <span class="badge badge-medico">Departamento Médico</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Registro e acompanhamento de lesões e atendimentos do elenco. Controla o status de afastamento de cada atleta.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Resumo no topo:</strong> Lesões Ativas, Lesões no Período, Atletas em Transição, Atendimentos e % Disponíveis.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Registro de Lesão:</strong> Data, tipo, região do corpo, dias de afastamento, data prevista de liberação e se ocorreu em treino ou jogo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Registro de Atendimento:</strong> Data, tipo de atendimento, queixa e conduta adotada.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Mudança de status:</strong> Altere diretamente na tabela entre Afastado, Transição e Liberado — reflete imediatamente no Dashboard.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Filtros:</strong> Por atleta, período (7, 30, 60, 90 dias ou todos) e tipo de lesão.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NUTRIÇÃO -->
+    <section id="nutricao" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🥗</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Nutrição</h3>
+            <span class="badge badge-medico">Departamento Médico</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Gestão de pesagem e protocolo de reposição hídrica e suplementação do elenco.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Protocolo do dia:</strong> Painel com recomendações coletivas de nutrição para a sessão.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Tabela de pesagem:</strong> Peso Pré, Peso Pós, Variação e Recomendações individuais para cada atleta.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Cálculo de perda hídrica:</strong> Integra com os pesos registrados nas coletas Pré e Pós-treino automaticamente.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GPS -->
+    <section id="gps" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">📡</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">GPS</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Importação e visualização de dados de carga externa dos coletes GPS (Polar Team Pro e Catapult OpenField).</p>
+
+          <p class="text-sm font-semibold text-gray-700 mb-2">Importar Dados GPS</p>
+          <div class="space-y-2 text-sm mb-4">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Passo 1 — Arquivo:</strong> Selecione a data, o fornecedor (Polar ou Catapult) e o tipo de sessão (Treino ou Jogo). Arraste o arquivo CSV/XLS.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Passo 2 — Mapeamento (Catapult):</strong> Confirme qual coluna do arquivo corresponde a cada campo do sistema.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Passo 3 — Vinculação:</strong> O sistema faz o match automático entre os nomes do arquivo e os atletas cadastrados.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Passo 4 — Revisar:</strong> Confira os dados antes de salvar (Dist Total, HSR, Vel Máx, Sprints, Carga).</span></div>
+          </div>
+
+          <p class="text-sm font-semibold text-gray-700 mb-2">GPS Data — Tabela do Elenco</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Sessão única, semana ou acumulado de jogos:</strong> Alterne a visão pelo toggle no topo.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Filtro por posição:</strong> Goleiros, Laterais, Zagueiros, Volantes, Meias, Pontas, Centro-Avantes.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Cards de resumo:</strong> Dist Média, HSR, Vel Máx e Dist Sprint com histórico em sparkline.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Médias por posição:</strong> Tabela comparativa de carga externa entre as posições do elenco.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCOUT -->
+    <section id="scout" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-4">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">🎬</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Scout</h3>
+            <span class="badge badge-staff">Staff / Comissão</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Módulo de análise e registro de dados de partidas para análise de desempenho tático e individual.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span>Registro de eventos durante ou após partidas para alimentar a análise de desempenho do elenco.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span>Os dados coletados aqui aparecem nas seções de Performance do Perfil do Atleta.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         ADMINISTRAÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Administração</h2>
+
+    <!-- CADASTRAR ATLETA -->
+    <section id="cadastro" class="secao bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+      <div class="flex items-start gap-4">
+        <div class="text-3xl">➕</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-1">
+            <h3 class="text-xl font-bold text-gray-900">Cadastrar Atleta</h3>
+            <span class="badge badge-admin">Administrador</span>
+          </div>
+          <p class="text-gray-500 text-sm mb-4">Tela para criar, editar e desativar atletas do clube.</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Campos do cadastro:</strong> Nome completo, Data de nascimento, Posição, Categoria (Sub-20 ou Profissional) e Foto.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Gerenciar:</strong> Busca por nome, filtro por categoria e status (Ativos, Inativos ou Todos). Botões de editar e excluir em cada linha.</span></div>
+            <div class="flex gap-2"><span class="text-gray-400 w-5">▸</span><span><strong>Foto:</strong> Upload de imagem JPG ou PNG até 5 MB. Aparece no Dashboard, Perfil e coletas.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RODAPÉ -->
+    <div class="text-center text-xs text-gray-400 pb-8">
+      Ciente IE · Inteligência Esportiva · <a href="/staff/dashboard.html" class="hover:underline text-blue-400">Voltar ao Dashboard</a>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Scrollspy simples
+  const links = document.querySelectorAll('.nav-link');
+  const secoes = document.querySelectorAll('.secao');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('ativo'));
+        const link = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (link) link.classList.add('ativo');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  secoes.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

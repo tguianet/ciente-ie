@@ -1,0 +1,247 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    // Checa se o usuário está autenticado
+    function logado() {
+      return request.auth != null;
+    }
+
+    // Lê o documento do usuário no Firestore (users/{uid})
+    function meuDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Retorna o clubId do usuário autenticado
+    function meuClub() {
+      return meuDoc().clubId;
+    }
+
+    // Retorna true se o usuário é staff ou admin
+    function isStaff() {
+      return logado() && meuDoc().role in ['staff', 'admin'];
+    }
+
+    // Retorna true se o documento pertence ao mesmo clube do usuário
+    function mesmoClub(clubId) {
+      return logado() && meuClub() == clubId;
+    }
+
+
+    // ── users ──────────────────────────────────────────────────────────────────
+    // Leitura: usuário lê o próprio documento; admin lê todos
+    // Escrita: somente admin — impede que qualquer usuário altere role, clubId ou teamId
+    match /users/{uid} {
+      allow read:                    if logado() && (request.auth.uid == uid || meuDoc().role == 'admin');
+      allow create, update, delete:  if logado() && meuDoc().role == 'admin';
+    }
+
+
+    // ── athletes ───────────────────────────────────────────────────────────────
+    // Qualquer usuário do clube pode ler; apenas staff pode criar/editar/deletar
+    match /athletes/{athleteId} {
+      allow read:          if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:        if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── daily_metrics ──────────────────────────────────────────────────────────
+    // Atletas e staff do clube podem ler e escrever (coleta pré/pós e HRV)
+    // Nota: resource == null quando o documento não existe; permitimos leitura de
+    // docs inexistentes para usuários logados (necessário para o padrão getDoc+setDoc).
+    match /daily_metrics/{docId} {
+      allow read:   if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create: if logado() && request.resource.data.clubId == meuClub();
+      allow update: if logado() && resource.data.clubId == meuClub();
+      allow delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── scout_partidas ─────────────────────────────────────────────────────────
+    // Dados de partidas — atletass e staff podem gravar (coleta pós-jogo)
+    match /scout_partidas/{docId} {
+      allow read:   if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create: if logado() && request.resource.data.clubId == meuClub();
+      allow update: if logado() && resource.data.clubId == meuClub();
+      allow delete: if isStaff() && resource.data.clubId == meuClub();
+
+      // Subcoleção de eventos da partida
+      match /events/{eventId} {
+        allow read, write: if logado() && mesmoClub(get(/databases/$(database)/documents/scout_partidas/$(docId)).data.clubId);
+      }
+    }
+
+
+    // ── assessments_medical ────────────────────────────────────────────────────
+    // Apenas staff acessa registros médicos (atletas não podem ler dados de colegas)
+    match /assessments_medical/{docId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── assessments_functional ─────────────────────────────────────────────────
+    match /assessments_functional/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── assessments_planning ───────────────────────────────────────────────────
+    match /assessments_planning/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── rtp_progress ───────────────────────────────────────────────────────────
+    match /rtp_progress/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── microciclo_dias ────────────────────────────────────────────────────────
+    // Rótulos manuais de dia do microciclo — escritos pelo planejamento (staff)
+    // Doc ID: {date}_{clubId} — campo clubId presente no documento
+    match /microciclo_dias/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update:         if isStaff() && resource.data.clubId == meuClub();
+      allow delete:         if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── scout_checkpoints ──────────────────────────────────────────────────────
+    // Um documento por clube — staff salva e recupera checkpoint de partida
+    match /scout_checkpoints/{clubId} {
+      allow read, write: if isStaff() && meuClub() == clubId;
+    }
+
+
+    // ── ai_usage ───────────────────────────────────────────────────────────────
+    // Contador de uso da IA por clube — staff lê e escreve o próprio clube
+    match /ai_usage/{clubId} {
+      allow read, write: if isStaff() && meuClub() == clubId;
+    }
+
+
+    // ── ai_queries ─────────────────────────────────────────────────────────────
+    // Histórico de perguntas ao Analista IA — staff lê e escreve o próprio clube
+    match /ai_queries/{clubId}/historico/{queryId} {
+      allow read, write: if isStaff() && meuClub() == clubId;
+    }
+
+
+    // ── clubs ──────────────────────────────────────────────────────────────────
+    // Admin lê todos os clubes; staff/atleta lê apenas o próprio clube
+    match /clubs/{clubId} {
+      allow read:           if logado() && (meuDoc().role == 'admin' || meuClub() == clubId);
+      allow create:         if logado() && meuDoc().role == 'admin';
+      allow update, delete: if logado() && meuDoc().role == 'admin';
+
+      // Sessões GPS — staff lê e escreve o próprio clube
+      match /sessoes/{sessionId} {
+        allow read, write: if isStaff() && meuClub() == clubId;
+      }
+
+      // Configurações do clube (mapeamento Catapult, mapeamento de nomes, etc.)
+      match /configuracoes/{configId} {
+        allow read, write: if isStaff() && meuClub() == clubId;
+      }
+    }
+
+
+    // ── jogos (módulo Operações) ───────────────────────────────────────────────
+    match /jogos/{jogoId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── viagens (módulo Operações) ─────────────────────────────────────────────
+    match /viagens/{viagemId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+
+      match /participantes/{partId} {
+        allow read, write: if isStaff() && meuClub() == get(/databases/$(database)/documents/viagens/$(viagemId)).data.clubId;
+      }
+      match /itinerario/{eventoId} {
+        allow read, write: if isStaff() && meuClub() == get(/databases/$(database)/documents/viagens/$(viagemId)).data.clubId;
+      }
+      match /checklist/{itemId} {
+        allow read, write: if isStaff() && meuClub() == get(/databases/$(database)/documents/viagens/$(viagemId)).data.clubId;
+      }
+    }
+
+
+    // ── julgamentos (cartões / suspensões) ────────────────────────────────────
+    match /julgamentos/{docId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── daily_recommendations ─────────────────────────────────────────────────
+    // Motor de recomendação — doc ID: {athleteId}_{date}
+    // Staff lê e escreve; campo clubId no documento garante isolamento por clube.
+    match /daily_recommendations/{docId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── motor_state ────────────────────────────────────────────────────────────
+    // Estado de histerese por atleta — doc ID: {clubId}_{athleteId}
+    // Staff lê e escreve apenas o próprio clube (clubId embutido no docId).
+    match /motor_state/{docId} {
+      allow read:           if resource == null ? isStaff() : isStaff() && resource.data.clubId == meuClub();
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── athlete_sessions ───────────────────────────────────────────────────────
+    // Sessões de treino vinculadas a atletas (criadas pelo planejamento)
+    match /athlete_sessions/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if logado() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── vbt_sessions (subcoleção legada) ───────────────────────────────────────
+    match /clubes/{clubId}/atletas/{atletaId}/vbt_sessions/{sessionId} {
+      allow read, write: if logado() && meuClub() == clubId;
+    }
+
+
+    // ── cardapios ──────────────────────────────────────────────────────────────
+    match /cardapios/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+
+    // ── suplementacao ──────────────────────────────────────────────────────────
+    match /suplementacao/{docId} {
+      allow read:           if resource == null ? logado() : mesmoClub(resource.data.clubId);
+      allow create:         if isStaff() && request.resource.data.clubId == meuClub();
+      allow update, delete: if isStaff() && resource.data.clubId == meuClub();
+    }
+
+  }
+}

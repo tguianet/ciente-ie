@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#007bff">
+    <title>Ciente - Prontidão HRV</title>
+
+    <style>
+        :root {
+            --app-height: 100vh;
+            --vh: 1vh;
+            --version: '3.0';
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #eef1f3;
+            margin: 0;
+            padding: 10px;
+            color: #222;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 5px 0 15px 0;
+            color: #1a1a1a;
+            text-align: center;
+            width: 100%;
+            padding: 0;
+        }
+
+        #athletes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: 10px;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            display: flex;
+            gap: 12px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            height: fit-content;
+            min-height: 200px;
+        }
+
+        .left {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .left select {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 5px;
+            border: 1px solid #bbb;
+            margin-bottom: 8px;
+            font-size: 12px;
+            background: white;
+            height: 32px;
+            font-weight: 500;
+        }
+
+        .left button {
+            width: 100%;
+            padding: 7px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 7px;
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .connect { background: #007bff; color:#fff; }
+        .connect.connected { background: #009b2e !important; }
+        .start { background: #ff9800; color:white; }
+        .start:disabled { background: #c77b00; cursor: not-allowed; opacity: 0.7; }
+        .finish { background: #d91b61; color:white; display:none; }
+
+        .status {
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 6px;
+            color: #222;
+            padding: 5px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            text-align: center;
+            line-height: 1.2;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .right {
+            width: calc(100% - 132px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+            min-height: 100px;
+        }
+
+        .live-data {
+            flex: 1;
+        }
+
+        .live-data p {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .live-data span {
+            font-weight: 700;
+            font-size: 15px;
+            color: #007bff;
+        }
+
+        .results-mini {
+            font-size: 10px;
+            font-weight: 600;
+            visibility: hidden;
+            line-height: 1.2;
+            text-align: left;
+            padding: 5px 6px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 4px;
+            border-left: 3px solid #007bff;
+            max-width: 140px;
+        }
+
+        .score-circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+            max-width: 100px;
+        }
+
+        .scoreCircle {
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            font-size: 22px;
+            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden;
+            color: #fff;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+            border: 2px solid white;
+            margin-bottom: 5px;
+        }
+
+        .interp {
+            font-size: 10px;
+            font-weight: 700;
+            visibility: hidden;
+            text-align: center;
+            line-height: 1.2;
+            padding: 4px 5px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.95);
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 100px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .pulseRow {
+            display: none;
+            gap: 3px;
+            align-items: flex-end;
+            height: 25px;
+            justify-content: center;
+            margin: 6px 0;
+        }
+
+        .pulseBar {
+            width: 6px;
+            height: 15px;
+            background: #ff2b2b;
+            animation: pulse 0.7s ease-in-out infinite alternate;
+            border-radius: 2px 2px 0 0;
+        }
+
+        @keyframes pulse {
+            0% { height: 6px; opacity: 0.6; }
+            100% { height: 20px; opacity: 1; }
+        }
+
+        .results-full {
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.3;
+            text-align: left;
+            padding: 6px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            width: 100%;
+            margin-top: 6px;
+            display: none;
+        }
+
+        button:hover { filter: brightness(0.92); }
+        button:active { transform: scale(0.97); }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(238, 241, 243, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-size: 16px;
+            color: #007bff;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #ddd;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-banner {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 767px) {
+            body { padding: 8px; }
+            #athletes {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(4, auto);
+                gap: 8px;
+            }
+            .card {
+                width: 100%;
+                min-width: unset;
+                flex-direction: column;
+                padding: 10px;
+                min-height: auto;
+            }
+            .left { width: 100%; margin-bottom: 8px; }
+            .right { width: 100%; }
+            .data-row {
+                flex-direction: column;
+                gap: 8px;
+                min-height: auto;
+            }
+            .scoreCircle {
+                width: 70px;
+                height: 70px;
+                font-size: 20px;
+            }
+            h1 { font-size: 18px; margin-bottom: 10px; }
+        }
+
+        @media (min-width: 768px) and (max-width: 1024px) {
+            #athletes { gap: 8px; }
+            .card { padding: 10px; gap: 10px; min-height: 190px; }
+            .left { width: 110px; }
+            .right { width: calc(100% - 120px); }
+            .scoreCircle { width: 70px; height: 70px; font-size: 20px; }
+            .interp { font-size: 9px; padding: 3px 4px; }
+        }
+
+        @media (min-width: 1025px) {
+            body { padding: 15px; }
+            #athletes { gap: 12px; max-width: 1300px; }
+            .card { padding: 14px; min-height: 210px; }
+            .left { width: 130px; }
+            .right { width: calc(100% - 142px); }
+            .scoreCircle { width: 80px; height: 80px; font-size: 24px; }
+            h1 { font-size: 22px; margin-bottom: 20px; }
+        }
+
+        .version-info {
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            font-size: 9px;
+            color: #999;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 6px;
+            border-radius: 8px;
+            z-index: 999;
+            border: 1px solid #eee;
+            font-family: monospace;
+        }
+
+        .save-status {
+            font-size: 10px;
+            margin-top: 5px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            text-align: center;
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: none;
+        }
+        .save-status.saving { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div>Carregando atletas...</div>
+    </div>
+    
+    <div id="errorContainer"></div>
+
+    <div class="version-info">v3.0</div>
+    
+    <h1>🏥 Ciente - Prontidão HRV - 4 Atletas</h1>
+    <div id="athletes"></div>
+
+    <script type="module">
+        import { db, auth } from "./core/firebase.js";
+        import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+        const APP_VERSION = '3.0';
+        let athletesList = [];
+        let CLUB_ID = null;
+        let athletesMap = {};
+        const MONITOR_TIME = 60;
+        const CALIBRATION = 10;
+
+        // DADOS MOCKADOS PARA TESTE (remova quando Firebase estiver configurado)
+        const MOCK_ATHLETES = [
+            { id: "athlete_001", nome: "João Silva" },
+            { id: "athlete_002", nome: "Pedro Santos" },
+            { id: "athlete_003", nome: "Lucas Oliveira" },
+            { id: "athlete_004", nome: "Maria Costa" }
+        ];
+
+        let monitoringData = [];
+        for (let i = 0; i < 4; i++) {
+            monitoringData.push({
+                rrData: [],
+                hrData: [],
+                heartChar: null,
+                device: null,
+                server: null,
+                timer: null,
+                isMonitoring: false,
+                isCalibrating: false, // true durante os primeiros CALIBRATION segundos — RRs descartados
+                timeRemaining: 0,
+                isConnected: false,
+                lastHR: null,
+                lastRR: null,
+                deviceName: null
+            });
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById("loadingOverlay");
+            if (overlay) {
+                overlay.classList.add("hidden");
+            }
+        }
+
+        function waitForAuthReady() {
+            return new Promise((resolve, reject) => {
+                // Timeout de 10 segundos para não ficar preso
+                const timeout = setTimeout(() => {
+                    reject(new Error("Timeout aguardando autenticação"));
+                }, 10000);
+
+                if (auth.currentUser) {
+                    clearTimeout(timeout);
+                    return resolve(auth.currentUser);
+                }
+
+                const unsub = onAuthStateChanged(auth, (user) => {
+                    clearTimeout(timeout);
+                    unsub();
+                    if (user) {
+                        resolve(user);
+                    } else {
+                        reject(new Error("Usuário não autenticado"));
+                    }
+                });
+            });
+        }
+
+        async function carregarAtletas() {
+    try {
+        console.log("🔍 Tentando buscar atletas no Firebase...");
+
+        const user = auth.currentUser;
+
+if (!user) {
+    throw new Error("Usuário não autenticado");
+}
+
+const userSnap = await getDoc(doc(db, "users", user.uid));
+const userData = userSnap.data();
+
+if (!userData?.clubId) {
+    throw new Error("Usuário sem clubId");
+}
+CLUB_ID = userData.clubId;
+
+        const q = query(
+            collection(db, "athletes"),
+            where("clubId", "==", userData.clubId)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        athletesList = [];
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+
+            if (data.nome) {
+                athletesList.push({
+                    id: docSnap.id,
+                    nome: data.nome
+                });
+            }
+        });
+
+        if (athletesList.length === 0) {
+            throw new Error("Nenhum atleta encontrado para este clube");
+        }
+
+        console.log("✅ Atletas carregados:", athletesList);
+
+    } catch (error) {
+        console.warn("⚠️ Usando dados mockados devido a erro:", error.message);
+        athletesList = MOCK_ATHLETES;
+    }
+}
+
+        async function upsertDailyMetrics({ athleteId, date, block, data }) {
+            if (!CLUB_ID) {
+                // fallback: tenta userContext
+                const uctx = JSON.parse(localStorage.getItem("userContext") || "{}");
+                CLUB_ID = uctx?.clubId ?? null;
+            }
+            if (!CLUB_ID) {
+                throw new Error("clubId ausente no contexto");
+            }
+
+            if (!athleteId || !date) {
+                throw new Error("athleteId ou date inválidos");
+            }
+
+            const docId = `${athleteId}_${date}`;
+            const ref = doc(db, "daily_metrics", docId);
+
+            await setDoc(ref, {
+                athleteId,
+                date,
+                clubId: CLUB_ID,
+
+                meta: {
+                    updatedAt: new Date(),
+                    origem: ["hrv_app_v3"]
+                },
+
+                [block]: {
+                    ...data
+                }
+
+            }, { merge: true });
+
+            return docId;
+        }
+
+        function buildUI() {
+            const container = document.getElementById("athletes");
+            container.innerHTML = '';
+
+            for (let i = 0; i < 4; i++) {
+                const optionsHtml = athletesList
+                    .map(a => `<option value="${a.id}">${a.nome}</option>`)
+                    .join('');
+
+                container.insertAdjacentHTML("beforeend", `
+                    <div class="card">
+                        <div class="left">
+                            <select id="athleteSelect${i}">
+                                ${optionsHtml}
+                            </select>
+
+                            <button id="connect${i}" class="connect">Conectar</button>
+                            <button id="start${i}" class="start" disabled>Iniciar</button>
+                            <button id="finish${i}" class="finish">Finalizar</button>
+
+                            <p id="status${i}" class="status">Aguardando...</p>
+                            <div id="saveStatus${i}" class="save-status" style="display:none;"></div>
+                        </div>
+
+                        <div class="right">
+                            <div class="data-row">
+                                <div class="live-data">
+                                    <p><b>FC:</b> <span id="fc${i}">--</span> bpm</p>
+                                    <p><b>RR:</b> <span id="rr${i}">--</span> ms</p>
+
+                                    <div class="pulseRow" id="pulse${i}">
+                                        <div class="pulseBar"></div>
+                                        <div class="pulseBar"></div>
+                                        <div class="pulseBar"></div>
+                                        <div class="pulseBar"></div>
+                                        <div class="pulseBar"></div>
+                                    </div>
+
+                                    <div id="resultsMini${i}" class="results-mini"></div>
+                                </div>
+
+                                <div class="score-circle-container">
+                                    <div id="circle${i}" class="scoreCircle"></div>
+                                    <div id="interp${i}" class="interp"></div>
+                                </div>
+                            </div>
+
+                            <div id="resultsFull${i}" class="results-full"></div>
+                        </div>
+                    </div>
+                `);
+
+                document.getElementById(`connect${i}`).onclick = () => connectPolar(i);
+                document.getElementById(`start${i}`).onclick = () => startMonitoring(i);
+                document.getElementById(`finish${i}`).onclick = () => cancelMonitoring(i);
+            }
+        }
+
+        async function connectPolar(i) {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: "Polar" }],
+                    optionalServices: [0x180D]
+                });
+
+                const server = await device.gatt.connect();
+
+                monitoringData[i].device = device;
+                monitoringData[i].server = server;
+                monitoringData[i].deviceName = device.name || "Polar";
+
+                let svc = await server.getPrimaryService(0x180D);
+                monitoringData[i].heartChar = await svc.getCharacteristic(0x2A37);
+                await monitoringData[i].heartChar.startNotifications();
+                
+                const currentAthleteIndex = i;
+                monitoringData[i].heartChar.addEventListener("characteristicvaluechanged", (e) => parseHR(e, currentAthleteIndex));
+
+                setStatus(i, `📡 ${monitoringData[i].deviceName}`);
+                document.getElementById(`connect${i}`).classList.add("connected");
+                document.getElementById(`connect${i}`).innerHTML = "Conectado";
+                document.getElementById(`start${i}`).disabled = false;
+                monitoringData[i].isConnected = true;
+
+            } catch (err) {
+                if (err.name === "NotFoundError") {
+                    console.log("🔕 Seleção de dispositivo cancelada pelo usuário");
+                    setStatus(i, "Conexão cancelada");
+                } else {
+                    console.error("Erro Bluetooth:", err);
+                    setStatus(i, "Erro ao conectar");
+                }
+                monitoringData[i].isConnected = false;
+            }
+        }
+
+        function disconnectPolar(i) {
+            try {
+                const md = monitoringData[i];
+
+                if (md.heartChar) {
+                    md.heartChar.stopNotifications().catch(() => {});
+                    md.heartChar = null;
+                }
+
+                if (md.server && md.server.connected) {
+                    md.server.disconnect();
+                }
+
+                if (md.device && md.device.gatt?.connected) {
+                    md.device.gatt.disconnect();
+                }
+
+                md.device = null;
+                md.server = null;
+                md.isConnected = false;
+
+                const btn = document.getElementById(`connect${i}`);
+                btn.classList.remove("connected");
+                btn.innerHTML = "Conectar";
+
+                // Mantém o nome da cinta visível no status após desconectar
+                const deviceName = md.deviceName;
+                if (deviceName) {
+                    setStatus(i, `📡 ${deviceName} (desconectado)`);
+                }
+
+                console.log(`🔌 Polar desconectado (card ${i})`);
+
+            } catch (e) {
+                console.warn("Erro ao desconectar Polar:", e);
+            }
+        }
+
+        function parseHR(e, i) {
+            const v = e.target.value;
+            if (!v) return;
+
+            let flags = v.getUint8(0);
+            let hr = (flags & 1) ? v.getUint16(1, true) : v.getUint8(1);
+
+            document.getElementById(`fc${i}`).textContent = hr;
+            monitoringData[i].lastHR = hr;
+
+            // Acumula FC apenas fora da calibração
+            if (monitoringData[i].isMonitoring && !monitoringData[i].isCalibrating) {
+                monitoringData[i].hrData.push(hr);
+            }
+
+            // Lê TODOS os intervalos RR presentes no pacote BLE (pode vir mais de um)
+            let pos = (flags & 1) ? 3 : 2;
+            if (flags & 0x10) {
+                while (pos + 1 < v.byteLength) {
+                    let rr = v.getUint16(pos, true);
+                    pos += 2;
+
+                    document.getElementById(`rr${i}`).textContent = rr;
+                    monitoringData[i].lastRR = rr;
+
+                    // Acumula RR apenas fora da calibração
+                    if (monitoringData[i].isMonitoring && !monitoringData[i].isCalibrating) {
+                        // Filtro básico de artefato: descarta RRs fisiologicamente impossíveis
+                        if (rr >= 300 && rr <= 2000) {
+                            monitoringData[i].rrData.push(rr);
+                        }
+                    }
+                }
+            }
+        }
+
+        function startMonitoring(i) {
+            monitoringData[i].rrData = [];
+            monitoringData[i].hrData = [];
+            monitoringData[i].isMonitoring = true;
+            monitoringData[i].isCalibrating = true; // bloqueia coleta durante calibração
+            monitoringData[i].timeRemaining = CALIBRATION + MONITOR_TIME;
+
+            if (monitoringData[i].lastHR !== null) {
+                document.getElementById(`fc${i}`).textContent = monitoringData[i].lastHR;
+            }
+            if (monitoringData[i].lastRR !== null) {
+                document.getElementById(`rr${i}`).textContent = monitoringData[i].lastRR;
+            }
+
+            setStatus(i, "Calibrando...");
+            document.getElementById(`pulse${i}`).style.display = "flex";
+            document.getElementById(`start${i}`).disabled = true;
+            document.getElementById(`connect${i}`).disabled = true;
+            document.getElementById(`finish${i}`).style.display = "block";
+            hideSaveStatus(i);
+
+            document.getElementById(`circle${i}`).style.visibility = "hidden";
+            document.getElementById(`interp${i}`).style.visibility = "hidden";
+            document.getElementById(`resultsMini${i}`).style.visibility = "hidden";
+            document.getElementById(`resultsFull${i}`).style.display = "none";
+
+            if (monitoringData[i].timer) {
+                clearInterval(monitoringData[i].timer);
+            }
+
+            monitoringData[i].timer = setInterval(() => {
+                if (!monitoringData[i].isMonitoring) {
+                    clearInterval(monitoringData[i].timer);
+                    return;
+                }
+
+                monitoringData[i].timeRemaining--;
+
+                const remaining = monitoringData[i].timeRemaining;
+
+                if (remaining > MONITOR_TIME) {
+                    // Ainda calibrando
+                    setStatus(i, `Calibrando (${remaining - MONITOR_TIME}s)`);
+                } else {
+                    // Calibração encerrada — libera coleta real
+                    if (monitoringData[i].isCalibrating) {
+                        monitoringData[i].isCalibrating = false;
+                        monitoringData[i].rrData = [];   // garante array limpo
+                        monitoringData[i].hrData = [];
+                        console.log(`✅ Calibração encerrada — iniciando coleta real (card ${i})`);
+                    }
+                    setStatus(i, `Analisando (${remaining}s)`);
+                }
+
+                if (remaining <= 0) {
+                    clearInterval(monitoringData[i].timer);
+                    monitoringData[i].isMonitoring = false;
+                    finishMonitoring(i);
+                }
+            }, 1000);
+        }
+
+        function cancelMonitoring(i) {
+            disconnectPolar(i);
+            console.log(`Cancelando monitoramento do atleta ${i}`);
+            monitoringData[i].isMonitoring = false;
+            
+            if (monitoringData[i].timer) {
+                clearInterval(monitoringData[i].timer);
+                monitoringData[i].timer = null;
+            }
+            
+            resetUI(i);
+            setStatus(i, "Aguardando...");
+            hideSaveStatus(i);
+        }
+
+        function finishMonitoring(i) {
+            console.log(`Finalizando monitoramento automático do atleta ${i}`);
+            document.getElementById(`pulse${i}`).style.display = "none";
+            
+            if (monitoringData[i].rrData.length >= 3) {
+                calculateAndDisplayResults(i);
+                disconnectPolar(i);
+            } else {
+                resetUI(i);
+                setStatus(i, "Dados insuficientes");
+                hideSaveStatus(i);
+            }
+        }
+
+        // Remove intervalos RR que desviam >20% da mediana local (janela de 5)
+        // Elimina artefatos elétricos e duplos picos da Polar sem descartar dados reais
+        function filterArtifacts(rrArray) {
+            if (rrArray.length < 5) return rrArray;
+            const median = (arr) => {
+                const sorted = [...arr].sort((a, b) => a - b);
+                return sorted[Math.floor(sorted.length / 2)];
+            };
+            return rrArray.filter((rr, idx) => {
+                const win = rrArray.slice(Math.max(0, idx - 4), Math.min(rrArray.length, idx + 5));
+                const med = median(win);
+                return Math.abs(rr - med) / med < 0.20;
+            });
+        }
+
+        function calcLnRR(rr) {
+            if (rr.length < 3) return 0;
+            const clean = filterArtifacts(rr);
+            if (clean.length < 3) return 0;
+            let diffs = clean.slice(1).map((v, i) => (v - clean[i]) ** 2);
+            return +(Math.log(Math.sqrt(diffs.reduce((a, b) => a + b) / diffs.length))).toFixed(2);
+        }
+
+        // ─── ESCALA ABSOLUTA RECALIBRADA (fallback para n < MIN_HISTORY) ────────────
+        // Referência: Buchheit (2014), Plews et al. (2013)
+        // Calibrada para alinhar com z-score: ln=3.5→65 (nível habitual = Estável)
+        // ln=3.0→50, ln=4.0→80, ln=4.5→92
+        function lnToScoreAbsoluto(ln) {
+            let score;
+            if (ln < 2.5) {
+                score = 5  + ((ln - 1.5) * 30);  // 1.5→5  … 2.5→35
+            } else if (ln < 3.0) {
+                score = 35 + ((ln - 2.5) * 30);  // 2.5→35 … 3.0→50
+            } else if (ln < 3.5) {
+                score = 50 + ((ln - 3.0) * 30);  // 3.0→50 … 3.5→65
+            } else if (ln < 4.0) {
+                score = 65 + ((ln - 3.5) * 30);  // 3.5→65 … 4.0→80
+            } else if (ln < 4.5) {
+                score = 80 + ((ln - 4.0) * 24);  // 4.0→80 … 4.5→92
+            } else {
+                score = 92 + Math.min((ln - 4.5) * 5, 5); // 4.5→92 … →97
+            }
+            return Math.round(Math.max(5, Math.min(score, 97)));
+        }
+
+        // ─── MODELO BAYESIANO: busca histórico individual no Firestore ────────────
+        // Retorna { mu, sigma, n } ou null se sem dados suficientes
+        const MIN_HISTORY = 7;   // mínimo de medições para ativar modelo bayesiano
+        const HISTORY_DAYS = 28; // janela de lookback
+
+        async function fetchLnHistory(athleteId) {
+            try {
+                const today = new Date();
+                const cutoff = new Date(today);
+                cutoff.setDate(cutoff.getDate() - HISTORY_DAYS);
+                const cutoffStr = cutoff.toLocaleDateString('en-CA');
+
+                // Busca daily_metrics do atleta na janela
+                const q = query(
+                    collection(db, "daily_metrics"),
+                    where("athleteId", "==", athleteId),
+                    where("date", ">=", cutoffStr)
+                );
+                const snap = await getDocs(q);
+
+                const values = [];
+                snap.forEach(d => {
+                    const hrv = d.data()?.hrv;
+                    if (hrv?.lnRR && typeof hrv.lnRR === "number" && hrv.lnRR > 1.0) {
+                        values.push(hrv.lnRR);
+                    }
+                });
+
+                if (values.length < MIN_HISTORY) return null;
+
+                const mu = values.reduce((a, b) => a + b, 0) / values.length;
+                const sigma = Math.sqrt(
+                    values.reduce((acc, v) => acc + (v - mu) ** 2, 0) / values.length
+                );
+
+                // Evita sigma degenerado
+                return { mu, sigma: Math.max(sigma, 0.15), n: values.length };
+            } catch (err) {
+                console.warn("fetchLnHistory falhou, usando escala absoluta:", err.message);
+                return null;
+            }
+        }
+
+        // ─── SCORE BAYESIANO ─────────────────────────────────────────────────────
+        // z = (lnHoje - µ) / σ
+        // Sigmoid: z=0 → 65 (nível habitual = Estável), z=+1 → ~84, z=-1 → ~36
+        function lnToScoreBayesiano(ln, mu, sigma) {
+            const z = (ln - mu) / sigma;
+            const score = 20 + 80 / (1 + Math.exp(-1.4 * z));
+            return Math.round(Math.max(5, Math.min(score, 97)));
+        }
+
+        async function calculateAndDisplayResults(i) {
+            const rawRR = monitoringData[i].rrData;
+            const cleanRR = rawRR.length >= 5 ? filterArtifacts(rawRR) : rawRR;
+            const artifactsRemoved = rawRR.length - cleanRR.length;
+            if (artifactsRemoved > 0) {
+                console.warn(`[HRV ${i}] Artefatos removidos: ${artifactsRemoved} de ${rawRR.length} RRs (${((artifactsRemoved/rawRR.length)*100).toFixed(0)}%)`);
+            }
+            let ln = calcLnRR(monitoringData[i].rrData);
+            let rmssd = Math.exp(ln).toFixed(2);
+            let meanRR = monitoringData[i].rrData.length > 0 ?
+                Math.round(monitoringData[i].rrData.reduce((a, b) => a + b, 0) / monitoringData[i].rrData.length) : 0;
+            let meanHR = monitoringData[i].hrData.length > 0 ?
+                Math.round(monitoringData[i].hrData.reduce((a, b) => a + b, 0) / monitoringData[i].hrData.length) : 0;
+
+            document.getElementById(`fc${i}`).textContent = monitoringData[i].lastHR || meanHR;
+            document.getElementById(`rr${i}`).textContent = monitoringData[i].lastRR || meanRR;
+
+            // ── Tenta modelo bayesiano ──────────────────────────────────────────
+            const athleteId = document.getElementById(`athleteSelect${i}`).value;
+            const hist = await fetchLnHistory(athleteId);
+
+            let score, metodo, metodoLabel;
+            if (hist) {
+                score = lnToScoreBayesiano(ln, hist.mu, hist.sigma);
+                metodo = "bayesiano";
+                metodoLabel = `Bayesiano (n=${hist.n}, µ=${hist.mu.toFixed(2)}, σ=${hist.sigma.toFixed(2)})`;
+                console.log(`[HRV ${i}] Modelo bayesiano — z=${((ln - hist.mu) / hist.sigma).toFixed(2)}, score=${score}`);
+            } else {
+                score = lnToScoreAbsoluto(ln);
+                metodo = "absoluto";
+                metodoLabel = `Escala absoluta (histórico < ${MIN_HISTORY} dias)`;
+                console.log(`[HRV ${i}] Escala absoluta (sem histórico suficiente) — ln=${ln}, score=${score}`);
+            }
+
+            let status = "";
+            if (score <= 32) status = "muito_baixa";
+            else if (score <= 52) status = "baixa";
+            else if (score < 70) status = "moderada";
+            else if (score <= 87) status = "boa";
+            else status = "excelente";
+
+            const statusMap = {
+                "muito_baixa": { bg: "#d32f2f", text: "Muito Baixa" },
+                "baixa":       { bg: "#f57c00", text: "Baixa"      },
+                "moderada":    { bg: "#fbc02d", text: "Moderada"   },
+                "boa":         { bg: "#388e3c", text: "Boa"        },
+                "excelente":   { bg: "#1976d2", text: "Excelente"  }
+            };
+
+            const statusInfo = statusMap[status];
+
+            let circle      = document.getElementById(`circle${i}`);
+            let interp      = document.getElementById(`interp${i}`);
+            let resultsMini = document.getElementById(`resultsMini${i}`);
+            let resultsFull = document.getElementById(`resultsFull${i}`);
+
+            resultsMini.innerHTML = `ln: ${ln}<br>RR: ${meanRR}ms`;
+            resultsMini.style.visibility = "visible";
+
+            circle.textContent = score;
+            circle.style.background = statusInfo.bg;
+            circle.style.visibility = "visible";
+
+            interp.textContent = statusInfo.text;
+            interp.style.visibility = "visible";
+
+            resultsFull.innerHTML = `
+                <b>Resultados:</b><br>
+                Ln RR: ${ln}<br>
+                RMSSD: ${rmssd}ms<br>
+                RR Médio: ${meanRR}ms<br>
+                FC Média: ${meanHR}bpm<br>
+                Prontidão: ${statusInfo.text}<br>
+                <span style="color:#888;font-size:9px;">${metodoLabel}</span>
+            `;
+            resultsFull.style.display = "block";
+
+            showSaveStatus(i, "💾 Salvando...");
+
+            try {
+                const today = new Date().toLocaleDateString('en-CA');
+
+                await upsertDailyMetrics({
+                    athleteId,
+                    date: today,
+                    block: "hrv",
+                    data: {
+                        lnRR: ln,
+                        rmssd: parseFloat(rmssd),
+                        meanRR,
+                        meanHR,
+                        score,
+                        status,
+                        metodo,
+                        ...(hist ? { mu: hist.mu, sigma: hist.sigma, histN: hist.n } : {}),
+                        rrCount: cleanRR.length,
+                        rrCountRaw: rawRR.length,
+                        rrArtifacts: artifactsRemoved,
+                        rrData: cleanRR,
+                        deviceName: monitoringData[i].deviceName || null,
+                        recordedAt: new Date().toISOString()
+                    }
+                });
+
+                showSaveStatus(i, "✅ Salvo no Firebase");
+            } catch (err) {
+                console.error("Erro ao salvar HRV:", err);
+                showSaveStatus(i, "⚠️ Erro ao salvar: " + err.message);
+            }
+        }
+
+        function saveCSV(i, ln, meanRR, meanHR, score) {
+            if (monitoringData[i].rrData.length < 3) return;
+            const athlete = document.getElementById(`athleteSelect${i}`).value;
+            const csv = "RR\n" + monitoringData[i].rrData.join("\n");
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+            a.download = `${athlete}_HRV_${new Date().toLocaleDateString('en-CA')}.csv`;
+            a.click();
+        }
+
+        function resetUI(i) {
+            monitoringData[i].rrData = [];
+            monitoringData[i].hrData = [];
+            monitoringData[i].isMonitoring = false;
+            monitoringData[i].isCalibrating = false;
+            
+            if (monitoringData[i].timer) {
+                clearInterval(monitoringData[i].timer);
+                monitoringData[i].timer = null;
+            }
+            
+            document.getElementById(`pulse${i}`).style.display = "none";
+            document.getElementById(`circle${i}`).style.visibility = "hidden";
+            document.getElementById(`interp${i}`).style.visibility = "hidden";
+            document.getElementById(`resultsMini${i}`).style.visibility = "hidden";
+            document.getElementById(`resultsFull${i}`).style.display = "none";
+            
+            document.getElementById(`start${i}`).disabled = !monitoringData[i].isConnected;
+            document.getElementById(`finish${i}`).style.display = "none";
+            document.getElementById(`connect${i}`).disabled = false;
+            
+            if (!monitoringData[i].isConnected) {
+                document.getElementById(`fc${i}`).textContent = "--";
+                document.getElementById(`rr${i}`).textContent = "--";
+            } else {
+                if (monitoringData[i].lastHR !== null) {
+                    document.getElementById(`fc${i}`).textContent = monitoringData[i].lastHR;
+                }
+                if (monitoringData[i].lastRR !== null) {
+                    document.getElementById(`rr${i}`).textContent = monitoringData[i].lastRR;
+                }
+            }
+        }
+
+        function setStatus(i, m) {
+            document.getElementById(`status${i}`).textContent = m;
+        }
+
+        function showSaveStatus(i, m) {
+            const el = document.getElementById(`saveStatus${i}`);
+            el.textContent = m;
+            el.style.display = "block";
+            el.classList.remove("saving");
+        }
+
+        function hideSaveStatus(i) {
+            const el = document.getElementById(`saveStatus${i}`);
+            el.style.display = "none";
+        }
+
+        // INICIALIZAÇÃO COM PROTEÇÃO CONTRA LOOP
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                console.log("🚀 Iniciando aplicação HRV...");
+                
+                // Tenta carregar do Firebase com timeout
+                try {
+                    await waitForAuthReady();
+                    await carregarAtletas();
+                } catch (firebaseError) {
+                    console.warn("⚠️ Erro ao carregar Firebase, usando dados mockados:", firebaseError.message);
+                    athletesList = MOCK_ATHLETES;
+                }
+
+                // Constrói a UI
+                buildUI();
+                
+                // Remove o loading overlay
+                hideLoadingOverlay();
+                console.log("✅ Aplicação carregada com sucesso!");
+                
+            } catch (error) {
+                console.error("❌ Erro na inicialização:", error);
+                hideLoadingOverlay();
+                alert("Erro ao iniciar HRV. Verifique o console.");
+            }
+        });
+
+    </script>
+</body>
+</html>

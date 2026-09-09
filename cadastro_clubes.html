@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciente IE — Cadastro de Clube</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #080b10;
+    --surface: #0e1219;
+    --border:  #1c2230;
+    --border2: #253040;
+    --accent:  #00d4ff;
+    --green:   #00e5a0;
+    --red:     #ff4d6a;
+    --yellow:  #ffc542;
+    --text:    #dde4ef;
+    --muted:   #5a6a82;
+    --mono:    'DM Mono', monospace;
+    --sans:    'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
+  .logo-mark { width: 42px; height: 42px; background: var(--accent); clip-path: polygon(0 0,100% 0,100% 70%,70% 100%,0 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-mark span { font-family: var(--mono); font-size: 13px; font-weight: 500; color: #000; }
+  .logo-text h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+  .logo-text p { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; font-family: var(--mono); }
+
+  .steps { display: flex; align-items: center; margin-bottom: 40px; }
+  .step { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 16px; border-radius: 6px; transition: background 0.2s; }
+  .step:hover { background: rgba(255,255,255,0.03); }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: var(--muted); transition: all 0.3s; flex-shrink: 0; }
+  .step.active .step-num { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+  .step.done .step-num { border-color: var(--green); background: var(--green); color: #000; font-weight: 700; }
+  .step-label { font-size: 13px; color: var(--muted); font-weight: 600; transition: color 0.3s; }
+  .step.active .step-label { color: var(--text); }
+  .step.done .step-label { color: var(--green); }
+  .step-divider { flex: 1; height: 1px; background: var(--border); margin: 0 4px; }
+
+  .panel { display: none; animation: fadeIn 0.25s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .panel-title { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 6px; letter-spacing: -0.5px; }
+  .panel-sub { font-size: 13px; color: var(--muted); margin-bottom: 32px; font-family: var(--mono); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px; margin-bottom: 16px; }
+  .card-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; font-family: var(--mono); }
+
+  .notice { border-radius: 8px; padding: 14px 16px; font-size: 12px; font-family: var(--mono); margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.7; }
+  .notice.info { background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2); color: var(--accent); }
+  .notice.warn { background: rgba(255,197,66,0.06); border: 1px solid rgba(255,197,66,0.2); color: var(--yellow); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width:580px) { .grid2,.grid3 { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-family: var(--mono); }
+  .field input, .field select { background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 10px 12px; color: var(--text); font-size: 14px; font-family: var(--sans); transition: border-color 0.2s, box-shadow 0.2s; outline: none; width: 100%; appearance: none; }
+  .field input::placeholder { color: var(--muted); opacity: 0.6; }
+  .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
+  .field input[readonly] { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+  .field .hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 12px; }
+
+  /* credential boxes */
+  .cred-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width:580px) { .cred-grid { grid-template-columns: 1fr; } }
+  .cred-box { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 16px; }
+  .cred-box .cb-role { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; font-family: var(--mono); margin-bottom: 10px; }
+  .cred-box.staff  .cb-role { color: var(--yellow); }
+  .cred-box.atleta .cb-role { color: var(--green); }
+  .cred-box .cb-row { display: flex; justify-content: space-between; font-size: 12px; font-family: var(--mono); padding: 5px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .cred-box .cb-row:last-child { border-bottom: none; }
+  .cred-box .cb-row .k { color: var(--muted); flex-shrink: 0; }
+  .cred-box .cb-row .v { color: var(--text); text-align: right; word-break: break-all; }
+
+  /* senha section */
+  .senha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  @media (max-width:580px) { .senha-grid { grid-template-columns: 1fr; } }
+  .senha-box { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 16px; }
+  .senha-box .sb-role { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; font-family: var(--mono); margin-bottom: 12px; }
+  .senha-box.staff  .sb-role { color: var(--yellow); }
+  .senha-box.atleta .sb-role { color: var(--green); }
+  .senha-box .sb-email { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-bottom: 10px; }
+  .senha-box input { background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: var(--mono); outline: none; width: 100%; transition: border-color 0.2s; }
+  .senha-box input:focus { border-color: var(--accent); }
+
+  /* color */
+  .color-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; flex-shrink: 0; }
+  .color-swatch.selected { border-color: #fff; transform: scale(1.15); }
+
+  .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
+  .btn { padding: 11px 24px; border-radius: 6px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; font-family: var(--sans); transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+  .btn-ghost { background: none; border: 1.5px solid var(--border2); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #00eaff; }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-success:hover { background: #00ffb3; }
+
+  .progress-wrap { display: none; padding: 40px 0; }
+  .progress-wrap.active { display: block; }
+  .spinner { width: 44px; height: 44px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-msg { font-size: 14px; color: var(--muted); font-family: var(--mono); text-align: center; margin-bottom: 20px; }
+  .progress-log { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; max-height: 200px; overflow-y: auto; }
+  .log-line { margin-bottom: 5px; }
+  .log-line.ok   { color: var(--green); }
+  .log-line.err  { color: var(--red); }
+  .log-line.info { color: var(--accent); }
+
+  .success-wrap { display: none; text-align: center; padding: 40px 0; }
+  .success-wrap.active { display: block; }
+  .success-icon { font-size: 52px; margin-bottom: 16px; }
+  .success-wrap h2 { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .success-wrap p { font-size: 13px; color: var(--muted); font-family: var(--mono); margin-bottom: 24px; }
+  .success-creds { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 500px; margin: 0 auto 24px; text-align: left; }
+  @media (max-width:580px) { .success-creds { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo-mark"><span>CI</span></div>
+    <div class="logo-text">
+      <h1>Ciente IE</h1>
+      <p>Onboarding de Clube</p>
+    </div>
+  </header>
+
+  <div class="steps">
+    <div class="step active" id="step-1"><div class="step-num">1</div><div class="step-label">Autenticação</div></div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-2"><div class="step-num">2</div><div class="step-label">Clube</div></div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-3"><div class="step-num">3</div><div class="step-label">Revisão</div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="panel active" id="panel-1">
+    <div class="panel-title">Autenticação Admin</div>
+    <div class="panel-sub">// login com conta admin do projeto</div>
+
+    <div class="notice warn">
+      ⚠ Antes de usar este app, atualize temporariamente a regra <code>clubs</code> no Firebase Console:<br>
+      <code>allow write: if isAuth();</code><br>
+      Após o cadastro, reverta para <code>allow write: if false;</code>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Firebase — ciente-inteligencia-espo-cba43</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Email Admin</label>
+          <input id="fb-email" type="email" placeholder="guilherme@ciente.com.br" />
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input id="fb-senha" type="password" placeholder="••••••••" />
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="conectar()">Conectar →</button>
+    </div>
+    <div id="fb-status" style="margin-top:12px; font-size:12px; font-family:var(--mono); color:var(--muted);"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="panel" id="panel-2">
+    <div class="panel-title">Dados do Clube</div>
+    <div class="panel-sub">// clubs/{clubId} + 2 usuários Auth</div>
+
+    <div class="card">
+      <div class="card-title">Identificação</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Nome do Clube</label>
+          <input id="clube-nome" type="text" placeholder="Mirassol FC" />
+        </div>
+        <div class="field">
+          <label>Club ID (slug)</label>
+          <input id="clube-id" type="text" placeholder="mirassol" />
+          <span class="hint">// gerado automaticamente</span>
+        </div>
+        <div class="field">
+          <label>Cidade</label>
+          <input id="clube-cidade" type="text" placeholder="Mirassol" />
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <div class="select-wrap">
+            <select id="clube-estado">
+              <option value="">Selecione</option>
+              <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+              <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+              <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+              <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+              <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+              <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+              <option selected>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Divisão / Competição</label>
+          <div class="select-wrap">
+            <select id="clube-divisao">
+              <option value="">Selecione</option>
+              <option>Série A</option><option>Série B</option><option>Série C</option>
+              <option>Série D</option><option>Copa Paulista</option>
+              <option>Campeonato Estadual</option><option>Base Sub-20</option>
+              <option>Base Sub-17</option><option>Base Sub-15</option><option>Outro</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Emoji / Ícone</label>
+          <input id="clube-emoji" type="text" placeholder="⚽" maxlength="2" style="font-size:20px;" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cor Principal</div>
+      <div class="color-row" id="color-row"></div>
+      <input type="hidden" id="clube-cor" value="#00d4ff" />
+    </div>
+
+    <div class="card">
+      <div class="card-title">Configurações de Monitoramento</div>
+      <div class="grid3">
+        <div class="field">
+          <label>Sessões / Semana</label>
+          <input id="cfg-sessoes" type="number" min="1" max="14" value="6" />
+        </div>
+        <div class="field">
+          <label>Janela ACWR (dias)</label>
+          <input id="cfg-acwr" type="number" min="14" max="42" value="28" />
+        </div>
+        <div class="field">
+          <label>Fuso Horário</label>
+          <div class="select-wrap">
+            <select id="cfg-tz">
+              <option value="America/Sao_Paulo" selected>America/Sao_Paulo</option>
+              <option value="America/Manaus">America/Manaus</option>
+              <option value="America/Belem">America/Belem</option>
+              <option value="America/Fortaleza">America/Fortaleza</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Senhas de Acesso</div>
+      <div class="senha-grid">
+        <div class="senha-box staff">
+          <div class="sb-role">Staff / Comissão</div>
+          <div class="sb-email" id="prev-staff-email">—</div>
+          <input id="senha-staff" type="text" placeholder="Senha do staff (mín. 6)" />
+        </div>
+        <div class="senha-box atleta">
+          <div class="sb-role">Atleta (compartilhado)</div>
+          <div class="sb-email" id="prev-atleta-email">—</div>
+          <input id="senha-atleta" type="text" placeholder="Senha do atleta (mín. 6)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(1)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goReview()">Revisar →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" id="panel-3">
+    <div class="panel-title">Revisão Final</div>
+    <div class="panel-sub">// confirme antes de criar</div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="spinner"></div>
+      <div class="progress-msg" id="progress-msg">Inicializando...</div>
+      <div class="progress-log" id="progress-log"></div>
+    </div>
+
+    <div class="success-wrap" id="success-wrap">
+      <div class="success-icon">✅</div>
+      <h2>Clube criado!</h2>
+      <p>Guarde as credenciais abaixo.</p>
+      <div class="success-creds" id="success-creds"></div>
+      <button class="btn btn-ghost" onclick="reiniciar()" style="margin:0 auto;">Cadastrar outro clube</button>
+    </div>
+
+    <div id="review-content">
+      <div class="card" id="review-card"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Voltar</button>
+        <button class="btn btn-success" onclick="confirmarCriacao()">🚀 Criar Clube</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD9gvY2TtH_MFIqbotCiCse8UFL0V13peI",
+  authDomain:        "ciente-inteligencia-espo-cba43.firebaseapp.com",
+  projectId:         "ciente-inteligencia-espo-cba43",
+  storageBucket:     "ciente-inteligencia-espo-cba43.firebasestorage.app",
+  messagingSenderId: "921319294892",
+  appId:             "1:921319294892:web:7a5ff0283abb7323c19c09"
+};
+
+let fbApp, fbAuth, fbDb;
+let adminEmail = '', adminSenha = '';
+let selectedColor = '#00d4ff';
+
+const COLORS = ['#00d4ff','#00e5a0','#ffc542','#ff4d6a','#a855f7','#f97316','#3b82f6','#ec4899','#ffffff','#64748b'];
+
+window.goStep = goStep; window.goReview = goReview;
+window.conectar = conectar; window.confirmarCriacao = confirmarCriacao; window.reiniciar = reiniciar;
+
+// colors
+(function() {
+  const row = document.getElementById('color-row');
+  COLORS.forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (c === selectedColor ? ' selected' : '');
+    s.style.background = c;
+    s.onclick = () => {
+      selectedColor = c;
+      document.getElementById('clube-cor').value = c;
+      document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+      s.classList.add('selected');
+    };
+    row.appendChild(s);
+  });
+})();
+
+// auto-slug + email preview
+document.getElementById('clube-nome').addEventListener('input', e => {
+  const slug = slugify(e.target.value);
+  document.getElementById('clube-id').value = slug;
+  updatePreview(slug);
+});
+document.getElementById('clube-id').addEventListener('input', e => updatePreview(e.target.value.trim()));
+
+function slugify(v) {
+  return v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'').replace(/^_|_$/g,'');
+}
+function updatePreview(slug) {
+  document.getElementById('prev-staff-email').textContent  = slug ? `${slug}@ciente.ie`      : '—';
+  document.getElementById('prev-atleta-email').textContent = slug ? `atleta${slug}@ciente.ie` : '—';
+}
+
+// steps
+function goStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(`panel-${i}`).classList.toggle('active', i === n);
+    const s = document.getElementById(`step-${i}`);
+    s.classList.remove('active','done');
+    if (i === n) s.classList.add('active');
+    else if (i < n) s.classList.add('done');
+  }
+}
+
+function goReview() {
+  const nome        = document.getElementById('clube-nome').value.trim();
+  const slug        = document.getElementById('clube-id').value.trim();
+  const senhaStaff  = document.getElementById('senha-staff').value.trim();
+  const senhaAtleta = document.getElementById('senha-atleta').value.trim();
+
+  if (!nome)                       { alert('Informe o nome do clube.'); return; }
+  if (!slug)                       { alert('Informe o Club ID.'); return; }
+  if (senhaStaff.length < 6)       { alert('Senha do staff: mínimo 6 caracteres.'); return; }
+  if (senhaAtleta.length < 6)      { alert('Senha do atleta: mínimo 6 caracteres.'); return; }
+  if (senhaStaff === senhaAtleta)  { alert('As senhas precisam ser diferentes.'); return; }
+
+  buildReview();
+  goStep(3);
+}
+
+// auth
+async function conectar() {
+  adminEmail = document.getElementById('fb-email').value.trim();
+  adminSenha = document.getElementById('fb-senha').value;
+  if (!adminEmail || !adminSenha) { setFbStatus('⚠ Informe email e senha.','warn'); return; }
+  setFbStatus('Conectando...','info');
+  try {
+    getApps().forEach(a => { if (a.name === 'ciente-onboard') deleteApp(a); });
+    fbApp  = initializeApp(FIREBASE_CONFIG, 'ciente-onboard');
+    fbAuth = getAuth(fbApp);
+    fbDb   = getFirestore(fbApp);
+    const cred = await signInWithEmailAndPassword(fbAuth, adminEmail, adminSenha);
+    setFbStatus('✅ ' + cred.user.email, 'ok');
+    setTimeout(() => goStep(2), 400);
+  } catch(e) { setFbStatus('❌ ' + e.message, 'err'); }
+}
+
+function setFbStatus(msg, type) {
+  const el = document.getElementById('fb-status');
+  el.textContent = msg;
+  el.style.color = { ok:'var(--green)', err:'var(--red)', warn:'var(--yellow)', info:'var(--accent)' }[type] || 'var(--muted)';
+}
+
+// review
+function buildReview() {
+  const slug        = document.getElementById('clube-id').value.trim();
+  const nome        = document.getElementById('clube-nome').value.trim();
+  const cidade      = document.getElementById('clube-cidade').value.trim();
+  const estado      = document.getElementById('clube-estado').value;
+  const divisao     = document.getElementById('clube-divisao').value;
+  const emoji       = document.getElementById('clube-emoji').value || '⚽';
+  const cor         = document.getElementById('clube-cor').value;
+  const senhaStaff  = document.getElementById('senha-staff').value.trim();
+  const senhaAtleta = document.getElementById('senha-atleta').value.trim();
+
+  document.getElementById('review-card').innerHTML = `
+    <div class="card-title">Resumo</div>
+    <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;margin-bottom:20px;">
+      <div style="width:48px;height:48px;border-radius:10px;background:${cor}22;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">${emoji}</div>
+      <div>
+        <div style="font-size:18px;font-weight:800;color:#fff;">${nome}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:3px;">${slug} · ${cidade}${estado?'/'+estado:''} · ${divisao}</div>
+      </div>
+    </div>
+    <div class="cred-grid">
+      <div class="cred-box staff">
+        <div class="cb-role">Staff / Comissão</div>
+        <div class="cb-row"><span class="k">email</span><span class="v">${slug}@ciente.ie</span></div>
+        <div class="cb-row"><span class="k">senha</span><span class="v">${senhaStaff}</span></div>
+        <div class="cb-row"><span class="k">role</span><span class="v">staff</span></div>
+      </div>
+      <div class="cred-box atleta">
+        <div class="cb-role">Atleta (compartilhado)</div>
+        <div class="cb-row"><span class="k">email</span><span class="v">atleta${slug}@ciente.ie</span></div>
+        <div class="cb-row"><span class="k">senha</span><span class="v">${senhaAtleta}</span></div>
+        <div class="cb-row"><span class="k">role</span><span class="v">atleta</span></div>
+      </div>
+    </div>
+  `;
+}
+
+// create
+async function confirmarCriacao() {
+  if (!fbAuth || !fbDb) { alert('Firebase não conectado.'); return; }
+
+  document.getElementById('review-content').style.display = 'none';
+  document.getElementById('progress-wrap').classList.add('active');
+
+  const slug        = document.getElementById('clube-id').value.trim();
+  const nome        = document.getElementById('clube-nome').value.trim();
+  const cidade      = document.getElementById('clube-cidade').value.trim();
+  const estado      = document.getElementById('clube-estado').value;
+  const divisao     = document.getElementById('clube-divisao').value;
+  const emoji       = document.getElementById('clube-emoji').value || '⚽';
+  const cor         = document.getElementById('clube-cor').value;
+  const sessoes     = parseInt(document.getElementById('cfg-sessoes').value) || 6;
+  const acwr        = parseInt(document.getElementById('cfg-acwr').value) || 28;
+  const tz          = document.getElementById('cfg-tz').value;
+  const senhaStaff  = document.getElementById('senha-staff').value.trim();
+  const senhaAtleta = document.getElementById('senha-atleta').value.trim();
+
+  const log = document.getElementById('progress-log');
+  function addLog(msg, type='') {
+    const d = document.createElement('div');
+    d.className = 'log-line ' + type;
+    d.textContent = msg;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+  function setMsg(m) { document.getElementById('progress-msg').textContent = m; }
+
+  // 1. clubs/{slug}
+  addLog('[ 1/3 ] Criando clubs/' + slug, 'info');
+  setMsg('Criando clube...');
+  try {
+    await setDoc(doc(fbDb, 'clubs', slug), {
+      clubId: slug, nome, cidade, estado, divisao, emoji, cor,
+      config: { sessoesSemanais: sessoes, janelaACWR: acwr, timezone: tz },
+      criadoEm: serverTimestamp(), ativo: true
+    });
+    addLog('✅ clubs/' + slug, 'ok');
+  } catch(e) { addLog('❌ ' + e.message, 'err'); setMsg('Erro.'); return; }
+
+  // 2. usuários
+  addLog('[ 2/3 ] Criando usuários...', 'info');
+  setMsg('Criando usuários...');
+
+  const users = [
+    { email: `${slug}@ciente.ie`,       role: 'staff',  senha: senhaStaff,  nome: 'Staff ' + nome },
+    { email: `atleta${slug}@ciente.ie`, role: 'atleta', senha: senhaAtleta, nome: 'Atleta ' + nome }
+  ];
+
+  for (const u of users) {
+    addLog('→ ' + u.email);
+    try {
+      const cred = await createUserWithEmailAndPassword(fbAuth, u.email, u.senha);
+      const uid  = cred.user.uid;
+      await setDoc(doc(fbDb, 'users', uid), {
+        uid, nome: u.nome, email: u.email,
+        role: u.role, clubId: slug,
+        ativo: true, criadoEm: serverTimestamp()
+      });
+      addLog('✅ ' + u.email + ' [' + u.role + ']', 'ok');
+      await signOut(fbAuth);
+      await signInWithEmailAndPassword(fbAuth, adminEmail, adminSenha);
+    } catch(e) {
+      addLog('❌ ' + u.email + ': ' + e.message, 'err');
+      try { await signOut(fbAuth); await signInWithEmailAndPassword(fbAuth, adminEmail, adminSenha); } catch(_){}
+    }
+  }
+
+  addLog('[ 3/3 ] Concluído.', 'info');
+
+  setTimeout(() => {
+    document.getElementById('progress-wrap').classList.remove('active');
+    document.getElementById('success-wrap').classList.add('active');
+    document.getElementById('success-creds').innerHTML = `
+      <div class="cred-box staff">
+        <div class="cb-role">Staff / Comissão</div>
+        <div class="cb-row"><span class="k">email</span><span class="v">${slug}@ciente.ie</span></div>
+        <div class="cb-row"><span class="k">senha</span><span class="v">${senhaStaff}</span></div>
+      </div>
+      <div class="cred-box atleta">
+        <div class="cb-role">Atleta</div>
+        <div class="cb-row"><span class="k">email</span><span class="v">atleta${slug}@ciente.ie</span></div>
+        <div class="cb-row"><span class="k">senha</span><span class="v">${senhaAtleta}</span></div>
+      </div>
+    `;
+  }, 500);
+}
+
+function reiniciar() {
+  document.getElementById('progress-log').innerHTML = '';
+  document.getElementById('success-wrap').classList.remove('active');
+  document.getElementById('review-content').style.display = 'block';
+  goStep(2);
+}
+</script>
+</body>
+</html>

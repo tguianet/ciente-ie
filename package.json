@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "build": "node build.js",
+    "deploy": "node build.js && firebase deploy --only hosting"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "firebase": "^12.17.0",
+    "terser": "^5.50.0"
+  }
+}

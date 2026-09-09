@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth() {
+      return request.auth != null;
+    }
+    /* ================= USERS ================= */
+    match /users/{uid} {
+      allow read, write: if isAuth() && request.auth.uid == uid;
+    }
+    /* ================= ATHLETES ================= */
+    match /athletes/{id} {
+      allow read, write: if isAuth();
+    }
+    /* ================= DAILY METRICS ================= */
+    match /daily_metrics/{id} {
+      allow read, write: if isAuth();
+    }
+    /* ================= AVALIAÇÕES ================= */
+    match /assessments_functional/{id} {
+      allow read, write: if isAuth();
+    }
+    /* ================= DEPTO MEDICO ================= */
+    match /assessments_medical/{id} {
+      allow read, write: if isAuth();
+    }
+    /* ================= SCOUT ================= */
+    match /scout_partidas/{id} {
+      allow read, write: if isAuth();
+    }
+    match /scout_partidas/{id}/events/{eventId} {
+      allow read, write: if isAuth();
+    }
+    match /scout_checkpoints/{clubId} {
+      allow read, write: if isAuth();
+    }
+    /* ================= PLANEJAMENTO ================= */
+    match /assessments_planning/{id} {
+      allow read, write: if isAuth();
+    }
+  }
+}

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Ciente IE · Relatórios</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF libs necessárias para os modais de prontidão -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+<!-- Inputs ocultos lidos pelo prontidao.js -->
+<input type="date" id="filtroData" style="display:none;">
+<select id="filtroPosicao" style="display:none;"><option value=""></option></select>
+
+<div class="flex-1 flex flex-col">
+
+  <header class="bg-white border-b px-6 py-4 pl-14 md:pl-6 flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Relatórios</h1>
+      <p class="text-sm text-gray-500" id="statusCarregamento">Carregando dados...</p>
+    </div>
+    <button id="btnExportarDados" title="Exportar todos os dados para JSON"
+      class="flex items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 hover:text-gray-800 transition whitespace-nowrap">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+      </svg>
+      Exportar dados
+    </button>
+  </header>
+
+  <main class="flex-1 p-6 max-w-4xl">
+
+    <!-- Linha superior: 3 relatórios principais -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">🟢</div>
+        <div>
+          <div class="font-bold text-gray-900">Status Diário</div>
+          <div class="text-sm text-gray-500 mt-1">Situação atual do elenco — atletas críticos, em atenção, liberados, afastados e em transição.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="dashFiltroCategoria" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Grupo</label>
+          <select id="dashFiltroGrupo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todos</option>
+            <option value="Geral">Geral</option>
+            <option value="G1">G1</option>
+            <option value="G2">G2</option>
+            <option value="G3">G3</option>
+            <option value="G4">G4</option>
+            <option value="Transição - RTP">Transição - RTP</option>
+            <option value="Restrição">Restrição</option>
+          </select>
+        </div>
+        <button id="btnStatusDiario" disabled
+          class="mt-auto w-full bg-slate-300 text-slate-500 text-sm font-semibold py-2 px-4 rounded-lg transition cursor-not-allowed">
+          Carregando...
+        </button>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">📋</div>
+        <div>
+          <div class="font-bold text-gray-900">Relatório do Dia</div>
+          <div class="text-sm text-gray-500 mt-1">Prontidão individual e coletiva do dia — Hooper, HRV, CMJ, NeuroScore e IGP.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Data</label>
+          <input type="date" id="dataRelatorioDia"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="filtroCategoria" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Grupo</label>
+          <select id="filtroGrupo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todos</option>
+            <option value="Geral">Geral</option>
+            <option value="G1">G1</option>
+            <option value="G2">G2</option>
+            <option value="G3">G3</option>
+            <option value="G4">G4</option>
+            <option value="Transição - RTP">Transição - RTP</option>
+            <option value="Restrição">Restrição</option>
+          </select>
+        </div>
+        <button id="btnDia" disabled
+          class="mt-auto w-full bg-slate-300 text-slate-500 text-sm font-semibold py-2 px-4 rounded-lg transition cursor-not-allowed">
+          Carregando...
+        </button>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">📅</div>
+        <div>
+          <div class="font-bold text-gray-900">Relatório Semanal</div>
+          <div class="text-sm text-gray-500 mt-1">Visão semanal do elenco — ISP, microciclo, carga, departamento médico e Return to Play.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Semana</label>
+          <select id="dataRelatorioSemanal"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="filtroCategoriaSemanal"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <button id="btnSemanal" disabled
+          class="mt-auto w-full bg-slate-300 text-slate-500 text-sm font-semibold py-2 px-4 rounded-lg transition cursor-not-allowed">
+          Carregando...
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Linha inferior: 3 relatórios -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">🏟️</div>
+        <div>
+          <div class="font-bold text-gray-900">Relatório Pré-Jogo</div>
+          <div class="text-sm text-gray-500 mt-1">Prontidão do elenco ajustada para contexto de jogo — score, alertas por sistema e decisão de utilização.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="filtroCategPreJogo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+            <option>Sub-20</option>
+            <option>Profissional</option>
+          </select>
+        </div>
+        <button id="btnPreJogo"
+          class="mt-auto w-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition cursor-pointer">
+          Gerar PDF
+        </button>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">⚽</div>
+        <div>
+          <div class="font-bold text-gray-900">Relatório Pós-Jogo</div>
+          <div class="text-sm text-gray-500 mt-1">Análise da resposta competitiva — Índice de Performance, comparação com pré-jogo e direcionamento D+1/D+2.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="filtroCategPosJogo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+            <option>Sub-20</option>
+            <option>Profissional</option>
+          </select>
+        </div>
+        <button id="btnPosJogo" disabled
+          class="mt-auto w-full bg-slate-300 text-slate-500 text-sm font-semibold py-2 px-4 rounded-lg transition cursor-not-allowed">
+          Carregando...
+        </button>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
+        <div class="text-2xl">📊</div>
+        <div>
+          <div class="font-bold text-gray-900">Relatório Geral</div>
+          <div class="text-sm text-gray-500 mt-1">Relatório de Fim de Fase — campanha completa por período com análise médica, de treinamento e scout.</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Categoria</label>
+          <select id="filtroCategGeral" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="">Todas</option>
+            <option>Sub-20</option>
+            <option>Profissional</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <div class="flex flex-col gap-0.5 flex-1">
+            <label class="text-xs font-semibold text-gray-600">De</label>
+            <input type="date" id="dataInicioGeral" class="w-full border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400">
+          </div>
+          <div class="flex flex-col gap-0.5 flex-1">
+            <label class="text-xs font-semibold text-gray-600">Até</label>
+            <input type="date" id="dataFimGeral" class="w-full border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400">
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-gray-600">Escopo</label>
+          <select id="filtroEscopoGeral" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white">
+            <option value="completo">Completo (todas as páginas)</option>
+            <option value="essencial">Essencial (5 páginas-chave)</option>
+            <option value="elenco">Elenco — Montagem de Plantel</option>
+            <option value="temporada">Temporada Completa (Fase 1 + Fase 2)</option>
+          </select>
+        </div>
+        <div id="fase2InicioWrapper" class="flex-col gap-1" style="display:none;">
+          <label class="text-xs font-semibold text-gray-600">Início da Fase 2 (Mata-mata)</label>
+          <input type="date" id="dataFase2Inicio" class="w-full border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-400">
+        </div>
+        <button id="btnGeralRelatorios"
+          class="mt-auto w-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition">
+          Gerar PDF
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal seleção de período — Relatório Geral -->
+<div id="modalPeriodoRelatorio" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1a1a18;">Relatório Geral</h3>
+    <p style="margin:0 0 20px;font-size:13px;color:#666;">Escolha o período para o Relatório de Fim de Fase:</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-periodo" data-periodo="preparatorio"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:14px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Preparatório
+      </button>
+      <button class="btn-periodo" data-periodo="competitivo"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:14px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Competitivo
+      </button>
+      <button class="btn-periodo" data-periodo="todos"
+        style="padding:10px 16px;border-radius:8px;border:1.5px solid #d1cfc8;background:#f8f7f3;font-size:14px;font-weight:600;cursor:pointer;text-align:left;color:#2c2c2a;">
+        Todos
+      </button>
+    </div>
+    <button id="btnCancelarPeriodo"
+      style="margin-top:16px;width:100%;padding:8px;border:none;background:none;color:#888;font-size:13px;cursor:pointer;">
+      Cancelar
+    </button>
+  </div>
+</div>
+
+<script type="module">
+  import { gerarRelatorioGeral } from './relatorio_geral.js';
+  import { abrirModalConfirmacaoPDF, abrirModalRelatorioSemanal, abrirRelatorioPosJogoPDF } from './prontidao.js';
+  import { gerarStatusDiarioPDF, abrirStatusDiario } from './dashboard.js';
+  import { abrirRelatorioPreJogo } from './prejogo.js';
+
+  // ── Inicializa os filtros ──────────────────────────────────────────────────
+  const hoje = new Date().toLocaleDateString('en-CA');
+  const elDia    = document.getElementById('dataRelatorioDia');
+  const elSemanal = document.getElementById('dataRelatorioSemanal');
+  const elFiltro  = document.getElementById('filtroData');
+  if (elDia)    elDia.value    = hoje;
+  if (elFiltro) elFiltro.value = hoje;
+
+  // Popula select de semanas (últimas 16 semanas)
+  (function popularSemanasSelect() {
+    if (!elSemanal) return;
+    function getMonday(d) {
+      const dt = new Date(d); dt.setHours(0,0,0,0);
+      const dow = dt.getDay();
+      dt.setDate(dt.getDate() - (dow === 0 ? 6 : dow - 1));
+      return dt;
+    }
+    function getISOWeek(dt) {
+      const utc = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+      utc.setUTCDate(utc.getUTCDate() + 4 - (utc.getUTCDay() || 7));
+      const ys = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+      return Math.ceil((((utc - ys) / 86400000) + 1) / 7);
+    }
+    const seg0 = getMonday(new Date());
+    for (let i = 15; i >= 0; i--) {
+      const seg = new Date(seg0);
+      seg.setDate(seg0.getDate() - i * 7);
+      const val  = seg.toLocaleDateString('en-CA');
+      const wn   = getISOWeek(seg);
+      const dd   = String(seg.getDate()).padStart(2, '0');
+      const mm   = String(seg.getMonth() + 1).padStart(2, '0');
+      const aaaa = seg.getFullYear();
+      const opt  = document.createElement('option');
+      opt.value       = val;
+      opt.textContent = `Semana ${wn} · ${dd}/${mm}/${aaaa}`;
+      if (i === 0) opt.selected = true;
+      elSemanal.appendChild(opt);
+    }
+  })();
+
+  function sincronizarFiltroData(dataSrc) {
+    const val = dataSrc?.value || hoje;
+    if (elFiltro) elFiltro.value = val;
+  }
+
+  // ── Botões de prontidão: habilitam após prontidaoReady ─────────────────────
+  function habilitarBtn(id, label, fn, dataSrc) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = false;
+    btn.textContent = label;
+    btn.classList.replace('bg-slate-300','bg-slate-800');
+    btn.classList.replace('text-slate-500','text-white');
+    btn.classList.replace('cursor-not-allowed','cursor-pointer');
+    btn.classList.add('hover:bg-slate-700');
+    btn.onclick = async () => {
+      if (dataSrc) sincronizarFiltroData(dataSrc);
+      btn.disabled = true;
+      btn.textContent = 'Abrindo...';
+      try { await fn(); }
+      catch(err) { console.error(err); alert('Erro ao abrir relatório. Verifique o console.'); }
+      finally { btn.disabled = false; btn.textContent = label; }
+    };
+  }
+
+  let prontidaoOk = false;
+  let dashboardOk = false;
+  function atualizarStatus() {
+    if (prontidaoOk && dashboardOk)
+      document.getElementById('statusCarregamento').textContent = 'Dados carregados — escolha um relatório';
+  }
+
+  document.addEventListener('prontidaoReady', () => {
+    prontidaoOk = true;
+    atualizarStatus();
+    habilitarBtn('btnDia',     'Gerar PDF', abrirModalConfirmacaoPDF,    elDia);
+    habilitarBtn('btnSemanal', 'Gerar PDF', abrirModalRelatorioSemanal,  elSemanal);
+    habilitarBtn('btnPosJogo', 'Gerar PDF', () => abrirRelatorioPosJogoPDF(document.getElementById('filtroCategPosJogo')?.value || ''));
+  });
+
+  document.addEventListener('dashboardReady', () => {
+    dashboardOk = true;
+    atualizarStatus();
+    habilitarBtn('btnStatusDiario', 'Gerar PDF', abrirStatusDiario);
+  });
+
+  // ── Relatório Pré-Jogo: funciona direto aqui ─────────────────────────────
+  const btnPreJogo = document.getElementById('btnPreJogo');
+  btnPreJogo.addEventListener('click', async () => {
+    btnPreJogo.disabled = true;
+    btnPreJogo.textContent = '⏳ Carregando…';
+    const catPreJogo = document.getElementById('filtroCategPreJogo')?.value || '';
+    try { await abrirRelatorioPreJogo(catPreJogo); }
+    catch(err) { console.error(err); alert('Erro ao gerar relatório pré-jogo. Verifique o console.'); }
+    finally { btnPreJogo.disabled = false; btnPreJogo.textContent = 'Gerar PDF'; }
+  });
+
+  // ── Relatório Geral: funciona direto aqui ──────────────────────────────────
+  const modal = document.getElementById('modalPeriodoRelatorio');
+  const btnGeral = document.getElementById('btnGeralRelatorios');
+
+  // Toggle fase2 input visibility
+  document.getElementById('filtroEscopoGeral')?.addEventListener('change', function() {
+    const wrapper = document.getElementById('fase2InicioWrapper');
+    if (wrapper) wrapper.style.display = this.value === 'temporada' ? 'flex' : 'none';
+  });
+
+  btnGeral.addEventListener('click', async () => {
+    const escopo = document.getElementById('filtroEscopoGeral')?.value || 'completo';
+    // Temporada pula o modal — sempre usa fase competitiva
+    if (escopo === 'temporada') {
+      const catGeral = document.getElementById('filtroCategGeral')?.value || '';
+      const dataInicio = document.getElementById('dataInicioGeral')?.value || '';
+      const dataFim = document.getElementById('dataFimGeral')?.value || '';
+      const dataFase2Inicio = document.getElementById('dataFase2Inicio')?.value || '';
+      btnGeral.disabled = true;
+      btnGeral.textContent = '⏳ Carregando…';
+      try { await gerarRelatorioGeral('competitivo', catGeral, 'temporada', dataInicio, dataFim, dataFase2Inicio); }
+      catch(err) { console.error(err); alert('Erro ao gerar relatório.'); }
+      finally { btnGeral.disabled = false; btnGeral.textContent = 'Gerar PDF'; }
+      return;
+    }
+    modal.style.display = 'flex';
+  });
+  document.getElementById('btnCancelarPeriodo').addEventListener('click', () => { modal.style.display = 'none'; });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+
+  document.querySelectorAll('.btn-periodo').forEach(b => {
+    b.addEventListener('click', async () => {
+      const periodo = b.dataset.periodo;
+      const catGeral = document.getElementById('filtroCategGeral')?.value || '';
+      const escopo = document.getElementById('filtroEscopoGeral')?.value || 'completo';
+      const dataInicio = document.getElementById('dataInicioGeral')?.value || '';
+      const dataFim = document.getElementById('dataFimGeral')?.value || '';
+      const dataFase2Inicio = document.getElementById('dataFase2Inicio')?.value || '';
+      modal.style.display = 'none';
+      btnGeral.disabled = true;
+      btnGeral.textContent = '⏳ Carregando…';
+      try { await gerarRelatorioGeral(periodo, catGeral, escopo, dataInicio, dataFim, dataFase2Inicio); }
+      catch(err) { console.error(err); alert('Erro ao gerar relatório.'); }
+      finally { btnGeral.disabled = false; btnGeral.textContent = 'Gerar PDF'; }
+    });
+  });
+</script>
+
+<script type="module">
+  import { db } from '/core/firebase.js';
+  import {
+    collection, query, where, getDocs
+  } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+
+  const btn = document.getElementById('btnExportarDados');
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Exportando...`;
+
+    try {
+      const uc = JSON.parse(localStorage.getItem('userContext') || '{}');
+      const clubId = uc.clubId || null;
+      if (!clubId) throw new Error('clubId não encontrado no userContext.');
+
+      const w = (col) => query(collection(db, col), where('clubId', '==', clubId));
+
+      const [athSnap, metricsSnap, medSnap, scoutSnap] = await Promise.all([
+        getDocs(w('athletes')),
+        getDocs(w('daily_metrics')),
+        getDocs(w('assessments_medical')),
+        getDocs(w('scout_partidas')),
+      ]);
+
+      const toArr = snap => snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+
+      const payload = {
+        exportado_em: new Date().toISOString(),
+        clube: { id: clubId, nome: uc.clubName || null },
+        atletas: toArr(athSnap),
+        monitoramento_diario: toArr(metricsSnap),
+        registros_medicos: toArr(medSnap),
+        partidas_scout: toArr(scoutSnap),
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `ciente_dados_${new Date().toLocaleDateString('en-CA')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro na exportação:', err);
+      alert('Erro ao exportar dados: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg> Exportar dados`;
+    }
+  });
+</script>
+
+<script src="/components/layout.js"></script>
+<script type="module" src="/core/authGuard.js"></script>
+
+</body>
+</html>

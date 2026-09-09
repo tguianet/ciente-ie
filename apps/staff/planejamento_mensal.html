@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Planejamento Mensal · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .cell-fora { background: #f9fafb; }
+    .chip { display:flex; align-items:center; gap:3px; font-size:10px; font-weight:700;
+            padding:2px 7px; border-radius:6px; white-space:nowrap; line-height:1.4; margin-bottom:2px; }
+    .grid-mensal { border-collapse: collapse; width:100%; table-layout: fixed; }
+    .grid-mensal th, .grid-mensal td { border:1px solid #e5e7eb; vertical-align:top; }
+    .grid-mensal th { background:#1e3a5f; color:#fff; font-size:11px; font-weight:700;
+                      text-align:center; padding:8px 4px; white-space:nowrap; }
+    .col-sem  { width:68px; }
+    .col-grp  { width:42px; }
+    .col-day  { min-width:100px; }
+    .td-sem   { background:#1e3a5f; color:#fff; text-align:center; padding:6px 4px;
+                vertical-align:middle; border-right:2px solid #374151; }
+    .td-grp   { background:#f1f5f9; font-size:11px; font-weight:800; color:#374151;
+                text-align:center; padding:6px 2px; vertical-align:middle; }
+    .td-day   { padding:4px 5px; min-height:48px; }
+    .td-day.fora { background:#f9fafb; }
+    .td-day .num { font-size:9px; color:#d1d5db; font-weight:600; display:block; margin-bottom:3px; }
+    .td-day .num.hoje { color:#2563eb; font-weight:800; }
+    .td-day .num.mes  { color:#6b7280; }
+    .week-sep td { border-top:3px solid #374151 !important; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+
+<div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+
+  <!-- Header -->
+  <div style="background:#1e3a5f;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1">
+      <h1 style="font-size:18px;font-weight:800;margin:0;">Planejamento Mensal</h1>
+    </div>
+    <!-- Navegação de mês -->
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="btnMesAnterior" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+      <span id="lblMes" style="font-size:15px;font-weight:700;min-width:150px;text-align:center;"></span>
+      <button id="btnProxMes" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+    </div>
+    <a href="/staff/planejamento.html" style="font-size:12px;color:rgba(255,255,255,.65);text-decoration:none;flex-shrink:0;">← Vista Semanal</a>
+  </div>
+
+  <!-- Legenda -->
+  <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+    <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Tipo:</span>
+    <span class="chip" style="background:#dbeafe;color:#1d4ed8;">Campo</span>
+    <span class="chip" style="background:#dcfce7;color:#15803d;">Físico</span>
+    <span class="chip" style="background:#f3e8ff;color:#7c3aed;">Complementar</span>
+    <span class="chip" style="background:#fee2e2;color:#b91c1c;">Jogo</span>
+  </div>
+
+  <!-- Conteúdo -->
+  <div style="flex:1;overflow:auto;padding:16px 20px;" id="conteudoMensal">
+    <p style="font-size:13px;color:#9ca3af;text-align:center;padding:40px 0;">Carregando...</p>
+  </div>
+
+</div>
+
+<script src="/components/layout.js"></script>
+<script type="module">
+import { db, auth } from '/core/firebase.js';
+import {
+  collection, getDocs, getDoc, doc, query, where
+} from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+// ── Estado ──────────────────────────────────────────────────
+let CLUB_ID = null;
+let mesAtual  = new Date().getMonth();
+let anoAtual  = new Date().getFullYear();
+let planData  = {}; // weekKey → sessions object
+
+const DIAS_SEMANA = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const MESES_PT    = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const GRUPOS_ORDEM = ['Geral','G1','G2','G3','G4','Transição - RTP','Restrição'];
+
+// ── Cores ────────────────────────────────────────────────────
+const COR_TIPO = {
+  'Campo':        { bg:'#dbeafe', text:'#1d4ed8' },
+  'Físico':       { bg:'#dcfce7', text:'#15803d' },
+  'Complementar': { bg:'#f3e8ff', text:'#7c3aed' },
+  'Jogo':         { bg:'#fee2e2', text:'#b91c1c' },
+};
+
+// ── ISO Week helpers ─────────────────────────────────────────
+function isoWeekData(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const y = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return { week: Math.ceil((((d - y) / 86400000) + 1) / 7), year: d.getUTCFullYear() };
+}
+
+function weekMonday(weekNum, weekYear) {
+  const jan4 = new Date(Date.UTC(weekYear, 0, 4));
+  const w1mon = new Date(jan4);
+  w1mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1));
+  const mon = new Date(w1mon);
+  mon.setUTCDate(w1mon.getUTCDate() + (weekNum - 1) * 7);
+  return mon;
+}
+
+function getWeeksInMonth(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const weeks = [];
+  const seen  = new Set();
+  let d = new Date(firstDay);
+  while (d <= lastDay) {
+    const { week, year: wYear } = isoWeekData(d);
+    const key = `S${week}-${wYear}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      const monday = weekMonday(week, wYear);
+      const sunday = new Date(monday);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
+      weeks.push({ weekNum: week, weekYear: wYear, key, monday, sunday });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return weeks;
+}
+
+// ── Carregar dados ───────────────────────────────────────────
+async function carregarMes() {
+  const container = document.getElementById('conteudoMensal');
+  container.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:40px 0;">Carregando...</p>';
+  planData = {};
+
+  const weeks = getWeeksInMonth(anoAtual, mesAtual);
+
+  await Promise.all(weeks.map(async ({ key }) => {
+    try {
+      const snap = await getDoc(doc(db, 'assessments_planning', `${key}_${CLUB_ID}`));
+      if (snap.exists()) planData[key] = snap.data().sessions || {};
+    } catch(e) { /* silencioso */ }
+  }));
+
+  renderMes(weeks);
+}
+
+// ── Render ───────────────────────────────────────────────────
+function renderMes(weeks) {
+  const container = document.getElementById('conteudoMensal');
+  const hoje = new Date();
+  const hojeStr = hoje.toLocaleDateString('en-CA');
+
+  // Coletar grupos presentes no mês
+  const gruposMes = new Set();
+  weeks.forEach(({ key }) => {
+    const sessions = planData[key] || {};
+    Object.values(sessions).forEach(arr => {
+      (arr || []).forEach(s => { if (s.grupo) gruposMes.add(s.grupo); });
+    });
+  });
+  // Ordenar conforme lista canônica
+  const grupos = GRUPOS_ORDEM.filter(g => gruposMes.has(g));
+  if (!grupos.length) grupos.push('Geral', 'G1', 'G2', 'G3', 'G4');
+
+  let html = `
+  <table class="grid-mensal">
+    <thead>
+      <tr>
+        <th class="col-sem">Semana</th>
+        <th class="col-grp">Grupo</th>
+        ${DIAS_SEMANA.map(d => `<th class="col-day">${d}</th>`).join('')}
+      </tr>
+    </thead>
+    <tbody>`;
+
+  weeks.forEach(({ weekNum, weekYear, key, monday }, wi) => {
+    const sessions = planData[key] || {};
+    const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6);
+
+    // Datas dos 7 dias da semana
+    const dias7 = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setUTCDate(monday.getUTCDate() + i);
+      return d;
+    });
+
+    // Formatação do intervalo da semana
+    const fmtDia = d => `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+    const intervalo = `${fmtDia(monday)} – ${fmtDia(sunday)}`;
+
+    grupos.forEach((grp, gi) => {
+      const isFirst = gi === 0;
+      html += `<tr${isFirst && wi > 0 ? ' class="week-sep"' : ''}>`;
+
+      // Coluna semana (rowspan para todos os grupos)
+      if (isFirst) {
+        html += `
+        <td class="td-sem" rowspan="${grupos.length}">
+          <div style="font-size:11px;font-weight:800;margin-bottom:2px;">S${weekNum}</div>
+          <div style="font-size:9px;opacity:.75;font-weight:600;line-height:1.4;">${intervalo}</div>
+        </td>`;
+      }
+
+      // Coluna grupo
+      const corGrp = { Geral:'#6b7280', G1:'#2563eb', G2:'#059669', G3:'#7c3aed', G4:'#0369a1', 'Transição - RTP':'#be123c', 'Restrição':'#dc2626' };
+      html += `<td class="td-grp" style="color:${corGrp[grp]||'#374151'};">${grp}</td>`;
+
+      // Colunas de dias (Seg→Dom = monday+0 → monday+6)
+      dias7.forEach((data, di) => {
+        const diaNome = DIAS_SEMANA[di]; // Seg, Ter, ...
+        const dataStr = data.toISOString().slice(0, 10);
+        const noMes   = data.getUTCMonth() === mesAtual && data.getUTCFullYear() === anoAtual;
+        const isHoje  = dataStr === hojeStr;
+
+        const sessoesDia = (sessions[diaNome] || []).filter(s =>
+          (s.grupo || 'Geral') === grp
+        ).sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
+
+        html += `<td class="td-day${!noMes ? ' fora' : ''}">`;
+        html += `<span class="num${isHoje ? ' hoje' : noMes ? ' mes' : ''}">${data.getUTCDate()}</span>`;
+
+        sessoesDia.forEach(s => {
+          const cor = COR_TIPO[s.tipo] || { bg:'#f3f4f6', text:'#6b7280' };
+          const label = s.atividade
+            ? s.atividade.length > 18 ? s.atividade.slice(0, 16) + '…' : s.atividade
+            : s.tipo || '—';
+          html += `<div class="chip" style="background:${cor.bg};color:${cor.text};margin-bottom:3px;max-width:100%;overflow:hidden;" title="${s.atividade || s.tipo || ''}${s.intensidade ? ' · '+s.intensidade : ''}${s.horario ? ' '+s.horario : ''}">`;
+          html += `<span style="font-size:9px;opacity:.75;">${(s.tipo||'').slice(0,1)}</span>${label}`;
+          html += `</div>`;
+        });
+
+        html += `</td>`;
+      });
+
+      html += `</tr>`;
+    });
+  });
+
+  html += `</tbody></table>`;
+
+  if (!weeks.length) {
+    container.innerHTML = '<p style="font-size:13px;color:#9ca3af;text-align:center;padding:40px 0;">Nenhuma semana encontrada para este mês.</p>';
+    return;
+  }
+
+  container.innerHTML = html;
+}
+
+// ── Navegação ────────────────────────────────────────────────
+function atualizarLabel() {
+  document.getElementById('lblMes').textContent = `${MESES_PT[mesAtual]} ${anoAtual}`;
+}
+
+document.getElementById('btnMesAnterior').addEventListener('click', () => {
+  mesAtual--;
+  if (mesAtual < 0) { mesAtual = 11; anoAtual--; }
+  atualizarLabel();
+  if (CLUB_ID) carregarMes();
+});
+
+document.getElementById('btnProxMes').addEventListener('click', () => {
+  mesAtual++;
+  if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
+  atualizarLabel();
+  if (CLUB_ID) carregarMes();
+});
+
+// ── Auth + Init ──────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = '/login.html'; return; }
+  const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+  CLUB_ID = ctx.clubId ?? null;
+  if (!CLUB_ID) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    CLUB_ID = snap.exists() ? snap.data().clubId : null;
+  }
+  atualizarLabel();
+  if (CLUB_ID) carregarMes();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Importar Planilha GPS · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="/components/layout.js"></script>
+  <script type="module" src="/core/authGuard.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+  <div id="sidebar-container"></div>
+
+  <div class="flex-1 flex flex-col min-h-screen">
+
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Importar Planilha GPS</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Importação pontual · Controle GPS Diário + Jogos</p>
+      </div>
+      <a href="/staff/gps_grupo.html" class="text-sm text-cyan-600 hover:text-cyan-700 font-medium">
+        Ver tabela do elenco →
+      </a>
+    </header>
+
+    <div class="flex-1 px-6 py-6 max-w-4xl w-full mx-auto">
+
+      <!-- STEP 1: Upload -->
+      <div id="step1" class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">1. Selecionar arquivo Excel</h2>
+        <p class="text-sm text-gray-500 mb-4">
+          Arquivo esperado: <strong>Controle de GPS - DIÁRIO.xlsx</strong><br>
+          Serão lidas as abas <em>Controle GPS Diário</em> (treinos) e <em>Evolução GPS Jogos</em> (partidas).
+        </p>
+        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-cyan-400 hover:bg-cyan-50 transition-colors">
+          <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <span id="fileLabel" class="text-sm text-gray-500">Clique para selecionar o arquivo .xlsx</span>
+          <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden"/>
+        </label>
+        <div id="step1Error" class="mt-3 text-sm text-red-600 hidden"></div>
+      </div>
+
+      <!-- STEP 2: Name matching -->
+      <div id="step2" class="bg-white rounded-xl border border-gray-200 p-6 mb-4 hidden">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">2. Confirmar atletas</h2>
+        <p class="text-sm text-gray-500 mb-4">
+          Verifique e ajuste o vínculo entre os nomes da planilha e os atletas cadastrados na plataforma.
+          Selecione "Ignorar" para atletas que não devem ser importados.
+        </p>
+        <div id="matchTable" class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-2 pr-4 font-medium text-gray-600 w-1/3">Nome na planilha</th>
+                <th class="text-left py-2 pr-4 font-medium text-gray-600 w-1/4">Abrev.</th>
+                <th class="text-left py-2 font-medium text-gray-600">Atleta na plataforma</th>
+              </tr>
+            </thead>
+            <tbody id="matchRows"></tbody>
+          </table>
+        </div>
+        <div class="mt-5 flex gap-3">
+          <button id="btnConfirmMatch"
+            class="px-5 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 transition-colors">
+            Confirmar e visualizar dados
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Preview -->
+      <div id="step3" class="bg-white rounded-xl border border-gray-200 p-6 mb-4 hidden">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">3. Pré-visualização</h2>
+        <p class="text-sm text-gray-500 mb-4">Sessões que serão criadas/atualizadas no banco de dados.</p>
+
+        <div id="previewStats" class="grid grid-cols-3 gap-4 mb-5"></div>
+
+        <div class="max-h-72 overflow-y-auto border border-gray-100 rounded-lg">
+          <table class="w-full text-sm border-collapse">
+            <thead class="sticky top-0 bg-gray-50">
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-2 px-3 font-medium text-gray-600">Data</th>
+                <th class="text-left py-2 px-3 font-medium text-gray-600">Tipo</th>
+                <th class="text-left py-2 px-3 font-medium text-gray-600">Atletas</th>
+                <th class="text-right py-2 px-3 font-medium text-gray-600">Registros</th>
+              </tr>
+            </thead>
+            <tbody id="previewRows"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-5 flex gap-3">
+          <button id="btnImport"
+            class="px-5 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 transition-colors">
+            Importar para o banco de dados
+          </button>
+          <button id="btnBackToMatch"
+            class="px-5 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
+            Voltar
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Progress / Done -->
+      <div id="step4" class="bg-white rounded-xl border border-gray-200 p-6 hidden">
+        <h2 class="text-base font-semibold text-gray-900 mb-4">4. Importando...</h2>
+        <div class="mb-3">
+          <div class="flex justify-between text-sm text-gray-600 mb-1">
+            <span id="progressLabel">Aguardando...</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="progressBar" class="bg-cyan-600 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+          </div>
+        </div>
+        <div id="importLog" class="mt-4 max-h-64 overflow-y-auto text-xs text-gray-500 space-y-0.5 font-mono"></div>
+        <div id="importDone" class="hidden mt-5">
+          <div class="flex items-center gap-2 text-green-700 font-medium mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Importação concluída!
+          </div>
+          <a href="/staff/gps_grupo.html"
+             class="inline-block px-5 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 transition-colors">
+            Ver tabela GPS do elenco →
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from '/core/firebase.js';
+    import { collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+    import { salvarSessaoGPS, salvarMapeamentoNomes, buscarMapeamentoNomes } from '/core/gps.service.js';
+
+    /* ── Helpers ────────────────────────────────────────────────── */
+    function normalizar(texto) {
+      if (!texto) return '';
+      return String(texto).trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ');
+    }
+
+    function parseDataPlanilha(str) {
+      // "23-Feb", "1-Apr", etc. → "YYYY-MM-DD" (assume year 2025)
+      if (!str) return null;
+      const meses = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
+                      jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+      const m = String(str).trim().match(/^(\d+)-([A-Za-z]+)$/);
+      if (!m) return null;
+      const mes = meses[m[2].toLowerCase()];
+      if (!mes) return null;
+      const dia = String(parseInt(m[1])).padStart(2, '0');
+      return `2025-${String(mes).padStart(2,'0')}-${dia}`;
+    }
+
+    function num(v) {
+      const n = parseFloat(String(v).replace(',', '.'));
+      return isNaN(n) ? null : n;
+    }
+
+    /* ── Estado global ──────────────────────────────────────────── */
+    let atletasFirestore = [];   // [{ id, nome }]
+    let mapeamentoSalvo  = {};   // { "nome planilha": atletaId }
+    let atletasPlanilha  = [];   // [{ abbr, nome }] — únicos da planilha
+    let sessoesParaImportar = []; // resultado final
+
+    const clubId = JSON.parse(localStorage.getItem('userContext') || '{}').clubId || '';
+    // Planilha personalizada exclusiva da Ponte Preta
+    if (clubId !== 'ponte_preta') {
+      document.querySelector('.flex-1.flex.flex-col').innerHTML =
+        '<div class="flex flex-1 items-center justify-center"><p class="text-gray-400 text-sm">Esta funcionalidade não está disponível para o seu clube.</p></div>';
+    }
+
+    /* ── Carrega atletas do Firestore ──────────────────────────── */
+    async function carregarAtletas() {
+      const snap = await getDocs(query(collection(db, 'athletes'), where('clubId', '==', clubId)));
+      atletasFirestore = snap.docs.map(d => ({ id: d.id, nome: d.data().nome || '' }));
+      mapeamentoSalvo  = await buscarMapeamentoNomes(clubId) || {};
+    }
+
+    /* ── Match automático por similaridade ─────────────────────── */
+    function melhorMatch(nomePlanilha) {
+      // 1. Usa mapeamento salvo se existir
+      const normPlanilha = normalizar(nomePlanilha);
+      if (mapeamentoSalvo[normPlanilha]) {
+        const a = atletasFirestore.find(a => a.id === mapeamentoSalvo[normPlanilha]);
+        if (a) return { atletaId: a.id, atletaNome: a.nome, confianca: 'salvo' };
+      }
+
+      // 2. Match por palavras
+      const palavras = normPlanilha.split(' ').filter(p => p.length > 1);
+      let melhor = null, melhorScore = 0;
+
+      for (const at of atletasFirestore) {
+        const normAt = normalizar(at.nome);
+        const score = palavras.filter(p => normAt.includes(p)).length / palavras.length;
+        if (score > melhorScore) { melhor = at; melhorScore = score; }
+      }
+
+      if (melhor && melhorScore >= 0.5) {
+        return { atletaId: melhor.id, atletaNome: melhor.nome, confianca: melhorScore >= 1 ? 'exato' : 'parcial' };
+      }
+      return null;
+    }
+
+    /* ── Parser da aba "Controle GPS Diário" ───────────────────── */
+    function parsarGPSDiario(data) {
+      const row0 = data[0] || [];
+      const row2 = data[2] || [];
+
+      // Encontra todas as colunas "Minutos" na linha 2
+      const minCols = [];
+      for (let i = 0; i < row2.length; i++) {
+        if (String(row2[i] || '').trim() === 'Minutos') minCols.push(i);
+      }
+
+      // Para cada coluna Minutos, determina a data
+      const diasComData = [];
+      for (const minCol of minCols) {
+        const dateStr = row0[minCol + 9];
+        const date = parseDataPlanilha(dateStr);
+        if (!date) continue;
+        diasComData.push({ date, minCol });
+      }
+
+      // Elimina duplicatas de date (primeiro encontrado vence)
+      const datasVistas = new Set();
+      const dias = [];
+      for (const d of diasComData) {
+        if (!datasVistas.has(d.date)) { datasVistas.add(d.date); dias.push(d); }
+      }
+
+      // Linhas de atletas: col 5 = abbr, col 6 = nome (linha 4 em diante)
+      const atletasLinhas = [];
+      for (let r = 4; r < data.length; r++) {
+        const row = data[r] || [];
+        const nome = String(row[6] || '').trim();
+        const abbr = String(row[5] || '').trim();
+        if (!nome || nome === 'AUSÊNCIA' || nome === 'DM' || nome === 'DESCANSO') continue;
+        atletasLinhas.push({ row: r, nome, abbr });
+      }
+
+      // Extrai dados
+      const sessoesPorData = {};
+      for (const { date, minCol } of dias) {
+        for (const { row: r, nome, abbr } of atletasLinhas) {
+          const rowData = data[r] || [];
+          const minutos = num(rowData[minCol]);
+          if (!minutos || minutos <= 0) continue;
+
+          if (!sessoesPorData[date]) sessoesPorData[date] = [];
+          sessoesPorData[date].push({
+            nomeOriginalArquivo: nome,
+            abbr,
+            duracaoMin:              minutos,
+            distanciaTotal:          num(rowData[minCol + 1]),
+            distanciaPorMin:         num(rowData[minCol + 3]),
+            distanciaAltaVelocidade: num(rowData[minCol + 5]),
+            altaMMin:                num(rowData[minCol + 7]),
+            playerLoad:              num(rowData[minCol + 9]),
+            pse:                     num(rowData[minCol + 10]),
+            psr:                     num(rowData[minCol - 1]),
+            tipoSessao:              'treino',
+          });
+        }
+      }
+      return sessoesPorData;
+    }
+
+    /* ── Parser da aba "Evolução GPS Jogos" ─────────────────────── */
+    function parsarGPSJogos(data) {
+      const row0 = data[0] || [];
+      const row2 = data[2] || [];
+
+      // Encontra colunas "Min" (jogos)
+      const minCols = [];
+      for (let i = 0; i < row2.length; i++) {
+        if (String(row2[i] || '').trim() === 'Min') minCols.push(i);
+      }
+
+      const diasComData = [];
+      for (const minCol of minCols) {
+        const dateStr = row0[minCol + 6];
+        const date = parseDataPlanilha(dateStr);
+        if (!date) continue;
+        diasComData.push({ date, minCol });
+      }
+
+      // Deduplicar datas
+      const datasVistas = new Set();
+      const dias = [];
+      for (const d of diasComData) {
+        if (!datasVistas.has(d.date)) { datasVistas.add(d.date); dias.push(d); }
+      }
+
+      // Atletas: col 5 = abbr, col 6 = nome (linha 3 em diante)
+      const atletasLinhas = [];
+      for (let r = 3; r < data.length; r++) {
+        const row = data[r] || [];
+        const nome = String(row[6] || '').trim();
+        const abbr = String(row[5] || '').trim();
+        if (!nome) continue;
+        atletasLinhas.push({ row: r, nome, abbr });
+      }
+
+      const sessoesPorData = {};
+      for (const { date, minCol } of dias) {
+        for (const { row: r, nome, abbr } of atletasLinhas) {
+          const rowData = data[r] || [];
+          const minutos = num(rowData[minCol]);
+          if (!minutos || minutos <= 0) continue;
+
+          if (!sessoesPorData[date]) sessoesPorData[date] = [];
+          sessoesPorData[date].push({
+            nomeOriginalArquivo: nome,
+            abbr,
+            duracaoMin:              minutos,
+            distanciaTotal:          num(rowData[minCol + 1]),
+            distanciaPorMin:         num(rowData[minCol + 2]),
+            distanciaAltaVelocidade: num(rowData[minCol + 3]),
+            altaMMin:                num(rowData[minCol + 4]),
+            playerLoad:              num(rowData[minCol + 5]),
+            sprints:                 num(rowData[minCol + 6]),
+            tipoSessao:              'jogo',
+          });
+        }
+      }
+      return sessoesPorData;
+    }
+
+    /* ── Step 1: Upload do arquivo ──────────────────────────────── */
+    await carregarAtletas();
+
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('fileLabel').textContent = file.name;
+      document.getElementById('step1Error').classList.add('hidden');
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array' });
+
+        const sheetDiario = wb.Sheets['Controle GPS Diário'];
+        const sheetJogos  = wb.Sheets['Evolução GPS Jogos'];
+
+        if (!sheetDiario && !sheetJogos) {
+          throw new Error('Abas "Controle GPS Diário" e "Evolução GPS Jogos" não encontradas no arquivo.');
+        }
+
+        const dataDiario = sheetDiario ? XLSX.utils.sheet_to_json(sheetDiario, { header: 1, raw: false }) : [];
+        const dataJogos  = sheetJogos  ? XLSX.utils.sheet_to_json(sheetJogos,  { header: 1, raw: false }) : [];
+
+        const soesTreino = parsarGPSDiario(dataDiario);
+        const soesJogo   = parsarGPSJogos(dataJogos);
+
+        // Mescla: jogo tem prioridade sobre treino na mesma data
+        const todasSessoes = { ...soesTreino };
+        for (const [date, registros] of Object.entries(soesJogo)) {
+          todasSessoes[date] = registros; // substitui ou adiciona
+        }
+
+        // Coleta nomes únicos da planilha
+        const nomesUnicos = new Map(); // nome → abbr
+        for (const registros of Object.values(todasSessoes)) {
+          for (const r of registros) {
+            if (!nomesUnicos.has(r.nomeOriginalArquivo)) {
+              nomesUnicos.set(r.nomeOriginalArquivo, r.abbr);
+            }
+          }
+        }
+        atletasPlanilha = [...nomesUnicos.entries()].map(([nome, abbr]) => ({ nome, abbr }))
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+        // Guarda sessões no estado global para uso posterior
+        window._todasSessoes = todasSessoes;
+
+        // Monta tela de matching
+        montarMatchingUI();
+
+      } catch (err) {
+        document.getElementById('step1Error').textContent = 'Erro ao ler arquivo: ' + err.message;
+        document.getElementById('step1Error').classList.remove('hidden');
+      }
+    });
+
+    /* ── Step 2: Matching UI ────────────────────────────────────── */
+    function montarMatchingUI() {
+      const tbody = document.getElementById('matchRows');
+      tbody.innerHTML = '';
+
+      const opcoesHTML = atletasFirestore
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .map(a => `<option value="${a.id}">${a.nome}</option>`)
+        .join('');
+
+      for (const { nome, abbr } of atletasPlanilha) {
+        const match = melhorMatch(nome);
+        const confiancaTag = match
+          ? match.confianca === 'salvo' ? '<span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-1">salvo</span>'
+          : match.confianca === 'exato' ? '<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-1">auto</span>'
+          : '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded ml-1">parcial</span>'
+          : '';
+
+        const selectedId = match ? match.atletaId : '';
+
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr class="border-b border-gray-100" data-nome-planilha="${nome.replace(/"/g, '&quot;')}">
+            <td class="py-2.5 pr-4">
+              <span class="font-medium text-gray-800">${nome}</span>${confiancaTag}
+            </td>
+            <td class="py-2.5 pr-4 text-gray-400 text-xs font-mono">${abbr}</td>
+            <td class="py-2.5">
+              <select class="match-select w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <option value="">— Ignorar —</option>
+                ${opcoesHTML}
+              </select>
+            </td>
+          </tr>
+        `);
+
+        // Seleciona o match automático
+        if (selectedId) {
+          tbody.querySelector('tr:last-child select').value = selectedId;
+        }
+      }
+
+      document.getElementById('step2').classList.remove('hidden');
+      document.getElementById('step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ── Step 3: Preview ────────────────────────────────────────── */
+    document.getElementById('btnConfirmMatch').addEventListener('click', () => {
+      // Coleta o mapeamento confirmado pelo usuário
+      const mapeamento = {}; // atletaId → { nome, abbr }
+      const novoMapeamentoSalvo = {};
+
+      document.querySelectorAll('#matchRows tr').forEach(tr => {
+        const nomePlanilha = tr.dataset.nomePlanilha;
+        const atletaId = tr.querySelector('select').value;
+        if (!atletaId) return;
+        const atleta = atletasFirestore.find(a => a.id === atletaId);
+        mapeamento[nomePlanilha] = { atletaId, atletaNome: atleta?.nome || '' };
+        novoMapeamentoSalvo[normalizar(nomePlanilha)] = atletaId;
+      });
+
+      // Salva mapeamento para uso futuro
+      salvarMapeamentoNomes(clubId, novoMapeamentoSalvo).catch(() => {});
+
+      // Constrói sessões finais com atletaId resolvido
+      const todasSessoes = window._todasSessoes;
+      sessoesParaImportar = [];
+
+      for (const [date, registros] of Object.entries(todasSessoes)) {
+        const porAtleta = [];
+        for (const reg of registros) {
+          const match = mapeamento[reg.nomeOriginalArquivo];
+          if (!match) continue; // ignorado pelo usuário
+
+          const entry = {
+            atletaId:                match.atletaId,
+            nomeOriginalArquivo:     reg.nomeOriginalArquivo,
+            duracaoMin:              reg.duracaoMin,
+            distanciaTotal:          reg.distanciaTotal,
+            distanciaPorMin:         reg.distanciaPorMin,
+            distanciaAltaVelocidade: reg.distanciaAltaVelocidade,
+            cargaExterna:            reg.playerLoad ? { tipo: 'playerload', valor: reg.playerLoad } : null,
+            tipoSessao:              reg.tipoSessao,
+          };
+          if (reg.altaMMin != null) entry.altaDistMMin = reg.altaMMin;
+          if (reg.pse      != null) entry.pse          = reg.pse;
+          if (reg.psr      != null) entry.psr          = reg.psr;
+          porAtleta.push(entry);
+        }
+        if (porAtleta.length === 0) continue;
+        sessoesParaImportar.push({ date, porAtleta });
+      }
+
+      sessoesParaImportar.sort((a, b) => a.date.localeCompare(b.date));
+      montarPreviewUI();
+    });
+
+    function montarPreviewUI() {
+      const totalSessoes  = sessoesParaImportar.length;
+      const totalRegistros = sessoesParaImportar.reduce((s, x) => s + x.porAtleta.length, 0);
+      const totalTreinos  = sessoesParaImportar.filter(s => s.porAtleta[0]?.tipoSessao === 'treino').length;
+      const totalJogos    = sessoesParaImportar.filter(s => s.porAtleta[0]?.tipoSessao === 'jogo').length;
+
+      document.getElementById('previewStats').innerHTML = `
+        <div class="bg-cyan-50 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-cyan-700">${totalSessoes}</div>
+          <div class="text-xs text-cyan-600 mt-0.5">datas com dados</div>
+        </div>
+        <div class="bg-purple-50 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-purple-700">${totalRegistros}</div>
+          <div class="text-xs text-purple-600 mt-0.5">registros GPS</div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+          <div class="text-2xl font-bold text-gray-700">${totalTreinos}T / ${totalJogos}J</div>
+          <div class="text-xs text-gray-500 mt-0.5">treinos / jogos</div>
+        </div>
+      `;
+
+      const tbody = document.getElementById('previewRows');
+      tbody.innerHTML = '';
+      for (const { date, porAtleta } of sessoesParaImportar) {
+        const tipo = porAtleta[0]?.tipoSessao || 'treino';
+        const tipoBadge = tipo === 'jogo'
+          ? '<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Jogo</span>'
+          : '<span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Treino</span>';
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr class="border-b border-gray-100">
+            <td class="py-2 px-3 text-gray-700 font-mono text-xs">${date}</td>
+            <td class="py-2 px-3">${tipoBadge}</td>
+            <td class="py-2 px-3 text-gray-600 text-xs">${porAtleta.map(a => a.nomeOriginalArquivo).join(', ')}</td>
+            <td class="py-2 px-3 text-right text-gray-700 font-medium">${porAtleta.length}</td>
+          </tr>
+        `);
+      }
+
+      document.getElementById('step3').classList.remove('hidden');
+      document.getElementById('step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('btnBackToMatch').addEventListener('click', () => {
+      document.getElementById('step3').classList.add('hidden');
+    });
+
+    /* ── Step 4: Import ─────────────────────────────────────────── */
+    document.getElementById('btnImport').addEventListener('click', async () => {
+      document.getElementById('step3').classList.add('hidden');
+      document.getElementById('step4').classList.remove('hidden');
+      document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+
+      const log = document.getElementById('importLog');
+      const bar = document.getElementById('progressBar');
+      const pct = document.getElementById('progressPct');
+      const lbl = document.getElementById('progressLabel');
+
+      const total = sessoesParaImportar.length;
+      let feitos = 0, erros = 0;
+
+      for (const { date, porAtleta } of sessoesParaImportar) {
+        try {
+          const tipoSessao = porAtleta[0]?.tipoSessao || 'treino';
+          await salvarSessaoGPS(clubId, date, { porAtleta, tipoSessao });
+          feitos++;
+          log.insertAdjacentHTML('beforeend',
+            `<div class="text-green-600">✓ ${date} — ${porAtleta.length} atletas</div>`);
+        } catch (err) {
+          erros++;
+          log.insertAdjacentHTML('beforeend',
+            `<div class="text-red-500">✗ ${date} — ${err.message}</div>`);
+        }
+
+        const p = Math.round(((feitos + erros) / total) * 100);
+        bar.style.width = p + '%';
+        pct.textContent = p + '%';
+        lbl.textContent = `${feitos + erros} de ${total} sessões...`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      lbl.textContent = `Concluído: ${feitos} importadas, ${erros} erros.`;
+      document.getElementById('importDone').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>

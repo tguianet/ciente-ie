@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operações — Jogos · Ciente IE</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+<script type="module" src="../components/layout.js"></script>
+<script type="module" src="../core/authGuard.js"></script>
+
+<div class="flex-1 pt-14 md:pt-6 pl-14 md:pl-6 pr-4 md:pr-6 pb-6 min-w-0">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Operações — Jogos</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Jogos importados do Planejamento</p>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+    <div class="px-5 py-3 border-b flex items-center gap-3">
+      <span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
+      <h2 class="font-bold text-gray-700">Calendário de Jogos</h2>
+      <span id="cntJogos" class="text-xs font-bold text-orange-700 bg-orange-100 rounded-full px-2 py-0.5">0</span>
+    </div>
+    <div id="loadingJogos" class="flex items-center justify-center py-12 text-gray-400 text-sm">
+      Carregando...
+    </div>
+    <table id="tabelaJogos" class="w-full text-sm hidden">
+      <thead class="bg-gray-50 border-b text-xs text-gray-500 uppercase tracking-wide">
+        <tr>
+          <th class="px-4 py-3 text-left">Data</th>
+          <th class="px-4 py-3 text-left">Horário</th>
+          <th class="px-4 py-3 text-left">Adversário</th>
+          <th class="px-4 py-3 text-left">Competição</th>
+          <th class="px-4 py-3 text-left">Grupos</th>
+          <th class="px-4 py-3 text-left">Mando</th>
+          <th class="px-4 py-3 text-left">Local / Cidade</th>
+          <th class="px-4 py-3 text-left">Viagem</th>
+        </tr>
+      </thead>
+      <tbody id="bodyJogos"></tbody>
+    </table>
+    <div id="emptyJogos" class="hidden py-12 text-center text-gray-400 text-sm italic">
+      Nenhum jogo encontrado no Planejamento. Cadastre jogos na página de Planejamento.
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-5 right-5 z-[100] hidden">
+  <div id="toastInner" class="px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script type="module">
+import { db, auth } from '../core/firebase.js';
+import {
+  collection, getDocs, query, where
+} from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+const uc = JSON.parse(localStorage.getItem('userContext') || '{}');
+const CLUB_ID = uc.clubId || '';
+
+function showToast(msg, tipo = 'ok') {
+  const el = document.getElementById('toast');
+  const inner = document.getElementById('toastInner');
+  inner.textContent = msg;
+  inner.className = `px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${tipo === 'ok' ? 'bg-green-600' : 'bg-red-600'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+function fmtData(str) {
+  if (!str) return '—';
+  const [y, m, d] = str.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function badgeMando(local) {
+  if (!local) return '—';
+  return local === 'Casa'
+    ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Casa</span>'
+    : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">Fora</span>';
+}
+
+async function carregarJogos() {
+  try {
+    // Busca todos os docs de planejamento do clube
+    const q = query(collection(db, 'assessments_planning'), where('clubId', '==', CLUB_ID));
+    const snap = await getDocs(q);
+
+    // Extrai e desduplicar jogos por data+adversario
+    const jogoMap = new Map();
+    snap.docs.forEach(d => {
+      const jogos = d.data().jogos || [];
+      jogos.forEach(j => {
+        if (!j.data || !j.adversario) return;
+        const key = `${j.data}_${j.adversario}`;
+        if (!jogoMap.has(key)) jogoMap.set(key, { ...j, docId: d.id });
+      });
+    });
+
+    // Busca viagens para verificar quais jogos já têm viagem + pegar cidade
+    const viagensSnap = await getDocs(query(collection(db, 'viagens'), where('clubId', '==', CLUB_ID)));
+    const viagensPorJogo = {};
+    viagensSnap.docs.forEach(v => {
+      const d = v.data();
+      if (d.jogoRef) viagensPorJogo[d.jogoRef] = { id: v.id, cidade: d.jogoCidade || null };
+    });
+
+    document.getElementById('loadingJogos').classList.add('hidden');
+
+    const jogos = [...jogoMap.values()].sort((a, b) => b.data.localeCompare(a.data));
+    document.getElementById('cntJogos').textContent = jogos.length;
+
+    if (jogos.length === 0) {
+      document.getElementById('emptyJogos').classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('tabelaJogos').classList.remove('hidden');
+
+    const tbody = document.getElementById('bodyJogos');
+    tbody.innerHTML = jogos.map(j => {
+      const key = `${j.data}_${j.adversario}`;
+      const viagem = viagensPorJogo[key];
+      const grupos = Array.isArray(j.grupo) ? j.grupo.join(', ') : (j.grupo || '—');
+      // j.local = "Casa" ou "Fora" (campo do Planejamento)
+      const mandoLocal = j.local || '—';
+      const cidade = j.local === 'Casa' ? 'Casa' : (j.cidade || viagem?.cidade || '—');
+      const viagemCell = viagem
+        ? `<a href="/staff/operacoes_detalhe.html?id=${viagem.id}" class="text-blue-600 hover:underline text-xs font-medium">Ver viagem</a>`
+        : `<a href="/staff/operacoes_viagens.html?jogoRef=${encodeURIComponent(key)}&adversario=${encodeURIComponent(j.adversario)}&data=${encodeURIComponent(j.data)}&horario=${encodeURIComponent(j.horario||'')}&grupos=${encodeURIComponent(grupos)}&mando=${encodeURIComponent(j.local||'')}&competicao=${encodeURIComponent(j.competicao||'')}&cidade=${encodeURIComponent(j.cidade||'')}"
+             class="text-orange-600 hover:underline text-xs font-medium">Criar viagem</a>`;
+      return `
+        <tr class="border-b last:border-0 hover:bg-gray-50 transition-colors">
+          <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-700">${fmtData(j.data)}</td>
+          <td class="px-4 py-3 text-gray-600">${j.horario || '—'}</td>
+          <td class="px-4 py-3 font-semibold text-gray-800">${j.adversario}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">${j.competicao || j.tipo || '—'}</td>
+          <td class="px-4 py-3 text-gray-600 text-xs">${grupos}</td>
+          <td class="px-4 py-3">${badgeMando(mandoLocal)}</td>
+          <td class="px-4 py-3 text-xs text-gray-600">${cidade}</td>
+          <td class="px-4 py-3">${viagemCell}</td>
+        </tr>`;
+    }).join('');
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('loadingJogos').textContent = 'Erro ao carregar jogos.';
+  }
+}
+
+if (!CLUB_ID) {
+  document.getElementById('loadingJogos').textContent = 'Clube não identificado. Faça login novamente.';
+} else {
+  onAuthStateChanged(auth, user => {
+    if (user) carregarJogos();
+  });
+}
+</script>
+</body>
+</html>

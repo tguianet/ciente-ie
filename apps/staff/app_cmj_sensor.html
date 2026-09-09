@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ciente IE · CMJ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --preto:#0a0a0a; --branco:#f5f4f0;
+    --cinza:#1a1a1a; --cinza2:#2a2a2a; --cinza3:#3a3a3a; --cinza-texto:#6b7280;
+    --verde:#22c55e; --verde-dark:#16a34a;
+    --amarelo:#eab308; --vermelho:#ef4444; --azul:#3b82f6; --acento:#a3e635;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--preto);color:var(--branco);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+  /* LOADING / ERRO */
+  #telaLoading,#telaErro{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center;}
+  #telaErro{display:none;}
+  .spinner{width:40px;height:40px;border:3px solid var(--cinza3);border-top-color:var(--acento);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .erro-titulo{font-size:18px;font-weight:800;color:var(--vermelho);}
+  .erro-msg{font-size:13px;color:var(--cinza-texto);line-height:1.5;}
+
+  /* TELA PRINCIPAL */
+  #telaMain{display:none;min-height:100vh;flex-direction:column;background:#0d0d0d;}
+  .c-header{padding:16px 20px;border-bottom:1px solid var(--cinza2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .c-body{flex:1;padding:20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;}
+  .label{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cinza-texto);margin-bottom:8px;}
+
+  /* BADGE MOVESENSE */
+  .badge-ms{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:20px;transition:all .3s;}
+  .badge-ms.off{color:var(--cinza-texto);background:var(--cinza2);border:1px solid var(--cinza3);}
+  .badge-ms.on{color:var(--acento);background:#1a2000;border:1px solid var(--acento);}
+
+  /* CARD BLE */
+  .ble-card{background:var(--cinza);border:1px solid var(--cinza3);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color .3s;}
+  .ble-card.conectado{border-color:var(--acento);}
+  .ble-card.erro{border-color:var(--vermelho);}
+  .ble-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--cinza3);transition:background .3s;}
+  .ble-card.conectando .ble-dot{background:var(--amarelo);animation:blink .8s ease-in-out infinite;}
+  .ble-card.conectado .ble-dot{background:var(--acento);}
+  .ble-card.erro .ble-dot{background:var(--vermelho);}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .ble-info{flex:1;min-width:0;}
+  .ble-nome{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ble-sub{font-size:11px;color:var(--cinza-texto);margin-top:2px;}
+  .btn-ble{padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:all .15s;}
+
+  /* SELECT ATLETA */
+  .atleta-select{width:100%;background:var(--cinza);border:1px solid var(--cinza3);color:var(--branco);font-size:15px;font-weight:600;padding:14px 16px;border-radius:12px;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;}
+  .atleta-select:focus{border-color:var(--azul);}
+
+  /* CALIBRAÇÃO */
+  .cal-row{display:flex;align-items:center;gap:12px;background:var(--cinza);border:1px solid var(--cinza3);border-radius:12px;padding:14px 16px;}
+  .cal-info{flex:1;}
+  .cal-label{font-size:12px;font-weight:700;}
+  .cal-desc{font-size:11px;color:var(--cinza-texto);margin-top:2px;}
+  .cal-ctrl{display:flex;align-items:center;gap:10px;}
+  .cal-btn{width:32px;height:32px;border-radius:50%;border:none;background:var(--cinza3);color:var(--branco);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;transition:all .15s;}
+  .cal-btn:active{background:var(--cinza-texto);transform:scale(.92);}
+  .cal-val{font-size:18px;font-weight:900;color:var(--acento);min-width:42px;text-align:center;}
+
+  /* BOTÕES */
+  .btn-primary{width:100%;padding:16px;background:var(--azul);color:var(--branco);border:none;border-radius:12px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;}
+  .btn-primary:active{transform:scale(.97);background:#2563eb;}
+  .btn-primary:disabled{background:var(--cinza2);color:var(--cinza-texto);cursor:not-allowed;}
+  .btn-verde{flex:1;padding:16px;background:var(--verde);color:var(--preto);border:none;border-radius:12px;font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+  .btn-verde:active{transform:scale(.97);}
+  .btn-verde:disabled{background:var(--cinza2);color:var(--cinza-texto);cursor:not-allowed;}
+  .btn-outline-vm{flex:1;padding:16px;background:transparent;color:var(--vermelho);border:1px solid var(--vermelho);border-radius:12px;font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+  .btn-outline-vm:active{transform:scale(.97);}
+
+  /* STATUS */
+  .status-card{background:var(--cinza);border:1px solid var(--cinza3);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color .3s;}
+  .status-card.gravando{border-color:var(--amarelo);}
+  .status-card.completo{border-color:var(--verde);}
+  .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--cinza-texto);}
+  .status-card.gravando .status-dot{background:var(--amarelo);animation:blink .8s ease-in-out infinite;}
+  .status-card.completo .status-dot{background:var(--verde);}
+  .status-info{flex:1;}
+  .status-label{font-size:12px;font-weight:700;}
+  .status-sub{font-size:11px;color:var(--cinza-texto);margin-top:2px;}
+
+  /* SALTO CARDS */
+  .saltos-row{display:flex;gap:8px;}
+  .salto-card{flex:1;background:var(--cinza);border:1px solid var(--cinza3);border-radius:10px;padding:12px 8px;text-align:center;transition:all .3s;}
+  .salto-card.ativo{border-color:var(--amarelo);background:#1c1400;}
+  .salto-card.feito{border-color:var(--verde);background:#001a00;}
+  .sc-num{font-size:9px;font-weight:700;color:var(--cinza-texto);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+  .sc-val{font-size:24px;font-weight:900;color:var(--cinza-texto);line-height:1;}
+  .salto-card.feito .sc-val{color:var(--verde);}
+  .salto-card.ativo .sc-val{color:var(--amarelo);}
+  .sc-cm{font-size:10px;color:var(--cinza-texto);font-weight:600;}
+  .sc-desc{font-size:9px;color:var(--cinza-texto);margin-top:4px;}
+  .salto-card.feito .sc-desc{color:#86efac;}
+
+  /* IQS */
+  .iqs-card{background:var(--cinza);border:1px solid var(--verde);border-radius:12px;padding:20px;display:none;}
+  .iqs-card.visivel{display:block;}
+  .iqs-topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .iqs-valor{font-size:56px;font-weight:900;letter-spacing:-.03em;line-height:1;}
+  .iqs-badge{font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;}
+  .iqs-breakdown{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;}
+  .iqs-comp{text-align:center;background:var(--cinza2);border-radius:8px;padding:8px 4px;}
+  .iqs-comp-val{font-size:16px;font-weight:800;}
+  .iqs-comp-label{font-size:9px;color:var(--cinza-texto);font-weight:600;margin-top:2px;}
+  .iqs-melhor{font-size:11px;color:var(--cinza-texto);margin-top:8px;text-align:center;}
+
+  /* AÇÕES / DIVISOR */
+  .acoes-row{display:none;gap:12px;}
+  .acoes-row.visivel{display:flex;}
+  .divider{height:1px;background:var(--cinza2);}
+
+  /* HISTÓRICO */
+  .hist-lista{display:flex;flex-direction:column;gap:8px;}
+  .hist-item{background:var(--cinza);border:1px solid var(--cinza2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+  .hist-nome{font-size:13px;font-weight:700;}
+  .hist-meta{font-size:11px;color:var(--cinza-texto);margin-top:2px;}
+  .hist-iqs{font-size:22px;font-weight:900;color:var(--acento);}
+  .hist-iqs-label{font-size:10px;color:var(--cinza-texto);font-weight:600;}
+
+  /* OVERLAY CAPTURA */
+  #saltoOverlay{display:none;position:fixed;inset:0;background:var(--preto);z-index:1000;flex-direction:column;align-items:center;justify-content:space-between;padding:48px 32px 48px;}
+  .ov-topo{text-align:center;}
+  .ov-atleta-label{font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--cinza-texto);margin-bottom:6px;}
+  .ov-atleta-nome{font-size:24px;font-weight:800;}
+  .ov-indicador{width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:all .3s;}
+  .ov-indicador.calibrando{background:radial-gradient(circle,#001429,#000a1a);border:3px solid var(--azul);box-shadow:0 0 40px rgba(59,130,246,.2);}
+  .ov-indicador.aguardando{background:radial-gradient(circle,#1a2000,#0d1200);border:3px solid var(--acento);box-shadow:0 0 40px rgba(163,230,53,.2);}
+  .ov-indicador.gravando{background:radial-gradient(circle,#200000,#120000);border:3px solid var(--vermelho);animation:pulsarV 1s ease-in-out infinite;}
+  .ov-indicador.ok{background:radial-gradient(circle,#001a00,#000d00);border:3px solid var(--verde);box-shadow:0 0 40px rgba(34,197,94,.3);}
+  @keyframes pulsarV{0%,100%{box-shadow:0 0 40px rgba(239,68,68,.3);}50%{box-shadow:0 0 70px rgba(239,68,68,.6);}}
+  .ov-icone{font-size:52px;line-height:1;}
+  .ov-texto{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}
+  .ov-indicador.calibrando .ov-texto{color:var(--azul);}
+  .ov-indicador.aguardando .ov-texto{color:var(--acento);}
+  .ov-indicador.gravando   .ov-texto{color:var(--vermelho);}
+  .ov-indicador.ok         .ov-texto{color:var(--verde);}
+  .ov-saltos{display:flex;gap:10px;justify-content:center;width:100%;}
+  .s-mini{flex:1;max-width:90px;background:var(--cinza2);border:1px solid var(--cinza3);border-radius:10px;padding:10px 8px;text-align:center;transition:all .3s;}
+  .s-mini.ativo{border-color:var(--amarelo);background:#1c1400;}
+  .s-mini.feito{border-color:var(--verde);background:#001a00;}
+  .s-mini-num{font-size:9px;font-weight:700;color:var(--cinza-texto);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+  .s-mini-val{font-size:20px;font-weight:900;color:var(--cinza-texto);}
+  .s-mini.feito .s-mini-val{color:var(--verde);}
+  .s-mini.ativo .s-mini-val{color:var(--amarelo);}
+  .s-mini-cm{font-size:9px;color:var(--cinza-texto);font-weight:600;}
+
+  /* BOTÃO LIBERAR (overlay) */
+  .btn-liberar{width:100%;padding:20px;background:#1a3a00;color:var(--acento);border:2px solid var(--acento);border-radius:14px;font-size:16px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s;}
+  .btn-liberar:active{transform:scale(.97);background:#2a5a00;}
+  .btn-liberar:disabled{background:var(--cinza2);color:var(--cinza-texto);border-color:var(--cinza3);cursor:not-allowed;}
+
+  /* CONFIRMADO */
+  #confirmadoOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:2000;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:40px;}
+  .conf-icone{font-size:64px;}
+  .conf-titulo{font-size:28px;font-weight:900;color:var(--verde);}
+  .conf-sub{font-size:14px;color:var(--cinza-texto);line-height:1.6;}
+  .btn-proximo{margin-top:8px;padding:16px 40px;background:var(--branco);color:var(--preto);border:none;border-radius:12px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--cinza);border:1px solid var(--cinza3);color:var(--branco);font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;z-index:9999;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  /* ══ TEMA CLARO — padrão da plataforma ══ */
+  body{background:#f9fafb;color:#111827;display:flex;}
+  #telaLoading,#telaErro{position:fixed;inset:0;z-index:9999;background:#f9fafb;min-height:unset;}
+  #telaLoading{color:#6b7280;}
+  .spinner{border-color:#e5e7eb;border-top-color:var(--acento);}
+  .erro-titulo{color:var(--vermelho);}
+  .erro-msg{color:#6b7280;}
+  #telaMain{background:transparent;}
+  .c-header{background:#fff;border-bottom:1px solid #e5e7eb;}
+  .c-header>span:first-child{color:#111827;}
+  .ble-card{background:#fff;border-color:#e5e7eb;}
+  .ble-card.conectando{border-color:#eab308;}
+  .ble-card.conectado{border-color:#a3e635;}
+  .ble-card.erro{border-color:#ef4444;}
+  .ble-nome{color:#111827;}
+  .ble-sub{color:#6b7280;}
+  .atleta-select{background:#fff;border-color:#e5e7eb;color:#111827;}
+  .cal-row{background:#fff;border-color:#e5e7eb;}
+  .cal-label{color:#111827;}
+  .cal-desc{color:#6b7280;}
+  .cal-btn{background:#f3f4f6;color:#111827;}
+  .cal-btn:active{background:#e5e7eb;}
+  .cal-val{color:#16a34a;}
+  .status-card{background:#fff;border-color:#e5e7eb;}
+  .status-card.gravando{border-color:#eab308;}
+  .status-card.completo{border-color:#22c55e;}
+  .status-label{color:#111827;}
+  .status-sub{color:#6b7280;}
+  .salto-card{background:#fff;border-color:#e5e7eb;}
+  .salto-card.ativo{background:#fefce8;border-color:#eab308;}
+  .salto-card.feito{background:#f0fdf4;border-color:#22c55e;}
+  .sc-val{color:#9ca3af;}
+  .sc-cm{color:#9ca3af;}
+  .sc-desc{color:#9ca3af;}
+  .sc-num{color:#6b7280;}
+  .salto-card.ativo .sc-val{color:#d97706;}
+  .salto-card.feito .sc-val{color:#16a34a;}
+  .salto-card.feito .sc-desc{color:#15803d;}
+  .iqs-card{background:#fff;}
+  .iqs-comp{background:#f3f4f6;}
+  .iqs-comp-val{color:#111827;}
+  .iqs-comp-label{color:#6b7280;}
+  .iqs-melhor{color:#6b7280;}
+  .hist-item{background:#fff;border-color:#e5e7eb;}
+  .hist-nome{color:#111827;}
+  .hist-meta{color:#6b7280;}
+  .hist-iqs{color:#16a34a;}
+  .hist-iqs-label{color:#6b7280;}
+  .divider{background:#e5e7eb;}
+  .label{color:#6b7280;}
+  /* Botões compactos */
+  .btn-primary,.btn-verde,.btn-outline-vm{padding:10px 24px;}
+  /* Toast tema claro */
+  .toast{background:#fff;border-color:#e5e7eb;color:#111827;}
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+<div id="sidebar-container"></div>
+<div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+
+<div id="telaLoading">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--cinza-texto);">Conectando...</div>
+</div>
+
+<div id="telaErro">
+  <div style="font-size:48px;">⚠️</div>
+  <div class="erro-titulo">Erro</div>
+  <div class="erro-msg" id="erroMsg">—</div>
+</div>
+
+<div id="telaMain">
+  <div class="c-header">
+    <span style="font-size:14px;font-weight:800;">CMJ · Ciente IE</span>
+    <span class="badge-ms off" id="badgeMs">⚡ Movesense</span>
+  </div>
+
+  <div class="c-body">
+
+    <!-- SENSOR BLE -->
+    <div>
+      <div class="label">Sensor</div>
+      <div class="ble-card" id="bleCard">
+        <div class="ble-dot" id="bleDot"></div>
+        <div class="ble-info">
+          <div class="ble-nome" id="bleNome">Não conectado</div>
+          <div class="ble-sub"  id="bleSub">Conecte o Movesense antes de iniciar.</div>
+        </div>
+        <button class="btn-ble" id="bleBtn" style="background:var(--acento);color:var(--preto);" onclick="toggleBLE()">Conectar</button>
+      </div>
+    </div>
+
+    <!-- ATLETA -->
+    <div>
+      <div class="label">Atleta</div>
+      <select class="atleta-select" id="cAtletaSelect" onchange="onAtletaChange()">
+        <option value="">— Selecionar atleta —</option>
+      </select>
+    </div>
+
+    <!-- CALIBRAÇÃO -->
+    <div>
+      <div class="label">Fator de correção</div>
+      <div class="cal-row">
+        <div class="cal-info">
+          <div class="cal-label">Multiplicador de altura</div>
+          <div class="cal-desc">1.00 = padrão (Movesense lombar)</div>
+        </div>
+        <div class="cal-ctrl">
+          <button class="cal-btn" onclick="ajustarFator(-0.05)">−</button>
+          <div class="cal-val" id="cFatorValor">1.00</div>
+          <button class="cal-btn" onclick="ajustarFator(+0.05)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INICIAR -->
+    <button class="btn-primary" id="btnIniciar" onclick="iniciarProtocolo()" disabled>
+      Iniciar Coleta · 3 Saltos
+    </button>
+
+    <div class="divider"></div>
+
+    <!-- STATUS -->
+    <div>
+      <div class="label">Status</div>
+      <div class="status-card" id="cStatusCard">
+        <div class="status-dot"></div>
+        <div class="status-info">
+          <div class="status-label" id="cStatusLabel">Aguardando</div>
+          <div class="status-sub"   id="cStatusSub">Conecte o sensor e selecione um atleta</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALTOS -->
+    <div>
+      <div class="label">Saltos</div>
+      <div class="saltos-row">
+        <div class="salto-card" id="cS1"><div class="sc-num">Salto 1</div><div class="sc-val" id="cV1">—</div><div class="sc-cm">cm</div><div class="sc-desc" id="cD1">—</div></div>
+        <div class="salto-card" id="cS2"><div class="sc-num">Salto 2</div><div class="sc-val" id="cV2">—</div><div class="sc-cm">cm</div><div class="sc-desc" id="cD2">—</div></div>
+        <div class="salto-card" id="cS3"><div class="sc-num">Salto 3</div><div class="sc-val" id="cV3">—</div><div class="sc-cm">cm</div><div class="sc-desc" id="cD3">—</div></div>
+      </div>
+    </div>
+
+    <!-- IQS -->
+    <div class="iqs-card" id="iqsCard">
+      <div class="iqs-topo">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--cinza-texto);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;">IQS</div>
+          <div class="iqs-valor" id="iqsValor">—</div>
+        </div>
+        <div class="iqs-badge" id="iqsBadge">—</div>
+      </div>
+      <div class="iqs-breakdown">
+        <div class="iqs-comp"><div class="iqs-comp-val" id="iqsAlt">—</div><div class="iqs-comp-label">Altura ×0.40</div></div>
+        <div class="iqs-comp"><div class="iqs-comp-val" id="iqsDesc">—</div><div class="iqs-comp-label">Descida ×0.30</div></div>
+        <div class="iqs-comp"><div class="iqs-comp-val" id="iqsCons">—</div><div class="iqs-comp-label">Consist. ×0.30</div></div>
+      </div>
+      <div class="iqs-melhor" id="iqsMelhor">—</div>
+    </div>
+
+    <!-- AÇÕES -->
+    <div class="acoes-row" id="cAcoes">
+      <button class="btn-outline-vm" onclick="descartarSessao()">✕ Descartar</button>
+      <button class="btn-verde" id="btnConfirmar" onclick="confirmarResultado()">✓ Salvar</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- HISTÓRICO -->
+    <div>
+      <div class="label">Histórico da Sessão</div>
+      <div class="hist-lista" id="cHistorico">
+        <div style="font-size:13px;color:var(--cinza-texto);text-align:center;padding:16px 0;">Nenhum salto confirmado ainda</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /flex-1 wrapper -->
+
+<!-- OVERLAY CAPTURA -->
+<div id="saltoOverlay">
+  <div class="ov-topo" style="width:100%;display:flex;align-items:center;justify-content:space-between;">
+    <button onclick="cancelarProtocolo()" style="background:var(--cinza2);border:none;color:var(--cinza-texto);font-size:12px;font-weight:700;padding:8px 16px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">← Cancelar</button>
+    <div style="text-align:center;">
+      <div class="ov-atleta-label">Atleta</div>
+      <div class="ov-atleta-nome" id="ovAtleta">—</div>
+    </div>
+    <div style="width:80px;"></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:28px;">
+    <div class="ov-indicador calibrando" id="ovIndicador">
+      <div class="ov-icone" id="ovIcone">🔵</div>
+      <div class="ov-texto" id="ovTexto">Calibrando</div>
+    </div>
+    <div class="ov-saltos">
+      <div class="s-mini" id="ovS1"><div class="s-mini-num">Salto 1</div><div class="s-mini-val" id="ovV1">—</div><div class="s-mini-cm">cm</div></div>
+      <div class="s-mini" id="ovS2"><div class="s-mini-num">Salto 2</div><div class="s-mini-val" id="ovV2">—</div><div class="s-mini-cm">cm</div></div>
+      <div class="s-mini" id="ovS3"><div class="s-mini-num">Salto 3</div><div class="s-mini-val" id="ovV3">—</div><div class="s-mini-cm">cm</div></div>
+    </div>
+  </div>
+
+  <div style="width:100%;max-width:320px;text-align:center;">
+    <button class="btn-liberar" id="ovBtnLiberar" onclick="liberarSalto()" disabled>
+      ▶ Liberar Salto <span id="ovBtnNum">1</span> de 3
+    </button>
+    <div style="font-size:13px;color:var(--cinza-texto);margin-top:12px;" id="ovInstrucao">Calibrando sensor...</div>
+    <div id="ovAviso" style="display:none;margin-top:8px;font-size:11px;color:var(--amarelo);font-weight:700;">⚠️ Sem sensor — usando simulação</div>
+  </div>
+</div>
+
+<!-- CONFIRMADO -->
+<div id="confirmadoOverlay">
+  <div class="conf-icone">🎯</div>
+  <div class="conf-titulo">Salvo!</div>
+  <div class="conf-sub" id="confSub">—</div>
+  <button class="btn-proximo" onclick="fecharConfirmado()">Próximo Atleta</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { db, auth } from "../core/firebase.js";
+import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+// ══════════════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════════════
+let CLUB_ID    = null;
+let atletasMap = {};
+let _fator     = 1.00;
+let _historico = [];
+let _wakeLock  = null;
+
+let _sessaoAtiva = false;
+let _atletaId    = null;
+let _atletaNome  = null;
+let _resultados  = [];
+let _iqs         = null;
+let _onLiberacao = null;
+
+// Expõe handlers
+window.toggleBLE          = toggleBLE;
+window.onAtletaChange     = onAtletaChange;
+window.ajustarFator       = ajustarFator;
+window.iniciarProtocolo   = iniciarProtocolo;
+window.liberarSalto       = liberarSalto;
+window.cancelarProtocolo  = cancelarProtocolo;
+window.confirmarResultado = confirmarResultado;
+window.descartarSessao    = descartarSessao;
+window.fecharConfirmado   = fecharConfirmado;
+
+// ══════════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════════
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { mostrarErro("Usuário não autenticado."); return; }
+  try {
+    const ctx = JSON.parse(localStorage.getItem("userContext") || "{}");
+    CLUB_ID = ctx?.clubId ?? null;
+    if (!CLUB_ID) {
+      const snap = await getDocs(query(collection(db,"users"), where("uid","==",user.uid)));
+      if (!snap.empty) CLUB_ID = snap.docs[0].data().clubId ?? null;
+    }
+    if (!CLUB_ID) { mostrarErro("Usuário sem clube associado."); return; }
+    await carregarAtletas();
+    mostrarTela("telaMain");
+  } catch(e) { mostrarErro("Erro ao inicializar: " + e.message); }
+});
+
+// ══════════════════════════════════════════════════════
+// ATLETAS
+// ══════════════════════════════════════════════════════
+async function carregarAtletas() {
+  try {
+    const snap = await getDocs(query(collection(db,"athletes"), where("clubId","==",CLUB_ID), where("ativo","!=",false)));
+    atletasMap = {};
+    snap.docs.forEach(d => { const v = d.data(); atletasMap[d.id] = { nome: v.nome||d.id, posicao: v.posicao||"" }; });
+    const sel = document.getElementById("cAtletaSelect");
+    sel.innerHTML = '<option value="">— Selecionar atleta —</option>';
+    Object.entries(atletasMap).sort((a,b)=>a[1].nome.localeCompare(b[1].nome)).forEach(([id,{nome,posicao}]) => {
+      const o = document.createElement("option");
+      o.value = id; o.textContent = posicao ? `${nome} (${posicao})` : nome;
+      sel.appendChild(o);
+    });
+  } catch(e) { console.warn("carregarAtletas:", e); }
+}
+
+// ══════════════════════════════════════════════════════
+// NAVEGAÇÃO / UI
+// ══════════════════════════════════════════════════════
+function mostrarTela(id) {
+  ["telaLoading","telaErro","telaMain"].forEach(t => { document.getElementById(t).style.display = "none"; });
+  document.getElementById(id).style.display = "flex";
+}
+function mostrarErro(msg) { document.getElementById("erroMsg").textContent = msg; mostrarTela("telaErro"); }
+
+function onAtletaChange() {
+  _atletaId   = document.getElementById("cAtletaSelect").value || null;
+  _atletaNome = _atletaId ? atletasMap[_atletaId]?.nome : null;
+  atualizarBtnIniciar();
+}
+
+function ajustarFator(d) {
+  _fator = Math.round((_fator + d) * 100) / 100;
+  _fator = Math.max(0.50, Math.min(3.00, _fator));
+  document.getElementById("cFatorValor").textContent = _fator.toFixed(2);
+}
+
+function atualizarBtnIniciar() {
+  document.getElementById("btnIniciar").disabled = !_atletaId || _sessaoAtiva || !_bleConectado;
+}
+
+function setStatus(cls, label, sub) {
+  const c = document.getElementById("cStatusCard");
+  c.className = "status-card" + (cls ? " "+cls : "");
+  document.getElementById("cStatusLabel").textContent = label;
+  document.getElementById("cStatusSub").textContent   = sub;
+}
+
+function resetarUI() {
+  [1,2,3].forEach(i => {
+    document.getElementById(`cS${i}`).className = "salto-card";
+    document.getElementById(`cV${i}`).textContent = "—";
+    document.getElementById(`cD${i}`).textContent = "—";
+  });
+  document.getElementById("iqsCard").classList.remove("visivel");
+  document.getElementById("cAcoes").classList.remove("visivel");
+  setStatus("", "Aguardando", "Conecte o sensor e selecione um atleta");
+}
+
+// ══════════════════════════════════════════════════════
+// PROTOCOLO LOCAL
+// ══════════════════════════════════════════════════════
+async function iniciarProtocolo() {
+  if (!_atletaId || _sessaoAtiva || !_bleConectado) return;
+  _sessaoAtiva = true; _resultados = []; _iqs = null; _protocoloCancelado = false;
+  atualizarBtnIniciar(); resetarUI();
+
+  document.getElementById("ovAtleta").textContent = _atletaNome || "—";
+  document.getElementById("ovAviso").style.display = _bleConectado ? "none" : "block";
+  [1,2,3].forEach(i => {
+    document.getElementById(`ovS${i}`).className = "s-mini";
+    document.getElementById(`ovV${i}`).textContent = "—";
+  });
+  document.getElementById("ovBtnLiberar").style.display = "block";
+  document.getElementById("saltoOverlay").style.display = "flex";
+  setOvIndicador("calibrando");
+  document.getElementById("ovInstrucao").textContent = "Calibrando sensor...";
+  document.getElementById("ovBtnLiberar").disabled = true;
+  await ativarWakeLock();
+
+  try { await executarProtocolo(); }
+  catch(e) { console.error("Protocolo:", e); mostrarToast("Erro no protocolo."); }
+
+  document.getElementById("saltoOverlay").style.display = "none";
+  liberarWakeLock();
+  _sessaoAtiva = false;
+  atualizarBtnIniciar();
+
+  if (_iqs) {
+    renderIQS(_iqs);
+    document.getElementById("iqsCard").classList.add("visivel");
+    document.getElementById("cAcoes").classList.add("visivel");
+    setStatus("completo", `Completo · ${_atletaNome}`, "Confirme ou descarte o resultado");
+  }
+}
+
+async function executarProtocolo() {
+  for (let i = 0; i < 3; i++) {
+    if (_protocoloCancelado) break;
+    // Marca mini-card ativo
+    document.getElementById(`ovS${i+1}`).className = "s-mini ativo";
+    document.getElementById(`cS${i+1}`).className = "salto-card ativo";
+
+    // Aguarda liberação
+    setOvIndicador("aguardando");
+    document.getElementById("ovBtnNum").textContent = i + 1;
+    document.getElementById("ovBtnLiberar").disabled = false;
+    document.getElementById("ovBtnLiberar").style.background = "#1a3a00";
+    document.getElementById("ovBtnLiberar").style.borderColor = "var(--acento)";
+    document.getElementById("ovInstrucao").textContent = `Salto ${i+1} de 3 — pressione Liberar quando pronto`;
+    setStatus("gravando", `Salto ${i+1} de 3 · ${_atletaNome}`, "Libere quando o atleta estiver pronto");
+
+    await aguardarLiberacao();
+
+    // Calibração pós-liberação
+    document.getElementById("ovBtnLiberar").disabled = true;
+    document.getElementById("ovBtnLiberar").style.background = "var(--cinza2)";
+    setOvIndicador("calibrando");
+    document.getElementById("ovInstrucao").textContent = "Calibrando...";
+    await esperar(100);
+
+    try {
+      const res = await capturarSalto(_fator);
+      _resultados[i] = res;
+
+      // Atualiza mini-cards overlay
+      document.getElementById(`ovS${i+1}`).className = "s-mini feito";
+      document.getElementById(`ovV${i+1}`).textContent = res.altura;
+
+      // Atualiza cards painel
+      document.getElementById(`cS${i+1}`).className = "salto-card feito";
+      document.getElementById(`cV${i+1}`).textContent = res.altura;
+      document.getElementById(`cD${i+1}`).textContent = `↓ ${res.tempoDescida}ms`;
+
+      setOvIndicador("ok");
+      document.getElementById("ovInstrucao").textContent = `✓ ${res.altura} cm · ${res.tempoVoo}ms voo`;
+      await esperar(1200);
+    } catch(e) {
+      console.warn(`Salto ${i+1}: ${e.message}`);
+      document.getElementById(`ovS${i+1}`).className = "s-mini";
+      document.getElementById(`cS${i+1}`).className = "salto-card";
+      document.getElementById("ovInstrucao").textContent = e.message.includes("Sensor") ? e.message : "Não detectado — repita";
+      mostrarToast(e.message.includes("Sensor") ? "⚠️ " + e.message : "Salto não detectado");
+      await esperar(1500);
+      if (e.message.includes("Sensor")) break; // erro fatal — sai do loop
+      i--; // retry
+    }
+  }
+
+  setOvIndicador("ok");
+  document.getElementById("ovBtnLiberar").style.display = "none";
+  document.getElementById("ovInstrucao").textContent = "Protocolo completo ✓";
+  await pararStreaming().catch(()=>{});
+
+  if (_protocoloCancelado) {
+    // Cancelado — volta sem mostrar resultado
+    _iqs = null;
+    return;
+  }
+
+  _iqs = calcularIQS(_resultados);
+  await esperar(1500);
+}
+
+function liberarSalto() {
+  if (_onLiberacao) { const cb = _onLiberacao; _onLiberacao = null; cb(); }
+}
+
+let _protocoloCancelado = false;
+
+function cancelarProtocolo() {
+  _protocoloCancelado = true;
+  // Resolve qualquer liberação pendente para desbloquear o loop
+  if (_onLiberacao) { const cb = _onLiberacao; _onLiberacao = null; cb(); }
+}
+
+function aguardarLiberacao() {
+  return new Promise(resolve => {
+    _onLiberacao = resolve;
+    setTimeout(() => { if (_onLiberacao===resolve) { _onLiberacao=null; resolve(); } }, 300000);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SALVAR / DESCARTAR
+// ══════════════════════════════════════════════════════
+async function confirmarResultado() {
+  if (!_iqs || !_atletaId) return;
+  const btn = document.getElementById("btnConfirmar");
+  btn.disabled = true;
+  try {
+    const hoje = new Date().toLocaleDateString("en-CA");
+    await setDoc(doc(db,"daily_metrics",`${CLUB_ID}_${_atletaId}_${hoje}_pre`), {
+      clubId: CLUB_ID, athleteId: _atletaId, date: hoje,
+      pre: {
+        salto: _iqs.melhorAltura,
+        cmj: { iqs:_iqs.valor, classificacao:classificarIQS(_iqs.valor).label, melhorAltura:_iqs.melhorAltura, mediaAltura:_iqs.mediaAltura, tempoDescida:_iqs.tempoDescida, consistencia:_iqs.consistScore, saltos:_resultados }
+      },
+      updatedAt: serverTimestamp()
+    }, { merge:true });
+
+    const cls = classificarIQS(_iqs.valor);
+    _historico.push({ nome:_atletaNome, iqs:_iqs.valor, melhor:_iqs.melhorAltura, label:cls.label, cor:cls.cor, hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) });
+    renderHistorico();
+    document.getElementById("confSub").innerHTML = `${_atletaNome}<br>${_iqs.melhorAltura} cm · IQS ${_iqs.valor} (${cls.label})`;
+    document.getElementById("confirmadoOverlay").style.display = "flex";
+  } catch(e) { mostrarToast("Erro ao salvar."); console.error(e); }
+  finally { btn.disabled = false; }
+}
+
+function descartarSessao() { _iqs=null; _resultados=[]; resetarUI(); mostrarToast("Sessão descartada"); }
+
+function fecharConfirmado() {
+  document.getElementById("confirmadoOverlay").style.display = "none";
+  resetarUI();
+  document.getElementById("cAtletaSelect").value = "";
+  _atletaId=null; _atletaNome=null; atualizarBtnIniciar();
+}
+
+function renderIQS(iqs) {
+  document.getElementById("iqsValor").textContent = iqs.valor;
+  document.getElementById("iqsAlt").textContent   = iqs.alturaScore;
+  document.getElementById("iqsDesc").textContent  = iqs.descidaScore;
+  document.getElementById("iqsCons").textContent  = iqs.consistScore;
+  document.getElementById("iqsMelhor").textContent = `Melhor: ${iqs.melhorAltura} cm · Média: ${iqs.mediaAltura} cm · Descida: ${iqs.tempoDescida}ms`;
+  const cls = classificarIQS(iqs.valor);
+  const b = document.getElementById("iqsBadge");
+  b.textContent = cls.label; b.style.background = cls.bg; b.style.color = cls.cor;
+  document.getElementById("iqsValor").style.color = cls.cor;
+}
+
+function renderHistorico() {
+  const lista = document.getElementById("cHistorico");
+  if (!_historico.length) { lista.innerHTML = '<div style="font-size:13px;color:var(--cinza-texto);text-align:center;padding:16px 0;">Nenhum salto confirmado ainda</div>'; return; }
+  lista.innerHTML = _historico.slice().reverse().map(h => `
+    <div class="hist-item">
+      <div><div class="hist-nome">${h.nome}</div><div class="hist-meta">${h.hora} · Melhor: ${h.melhor}cm · <span style="color:${h.cor};font-weight:700;">${h.label}</span></div></div>
+      <div style="text-align:right;"><div class="hist-iqs">${h.iqs}</div><div class="hist-iqs-label">IQS</div></div>
+    </div>`).join("");
+}
+
+// ══════════════════════════════════════════════════════
+// MOVESENSE BLE — GATT SensorData Protocol (GSP v1)
+// ──────────────────────────────────────────────────────
+// Service  : 34802252-7185-4d5d-b431-630e7050e8f0
+// Write C→S: 34800001-7185-4d5d-b431-630e7050e8f0
+// Notify S→C: 34800002-7185-4d5d-b431-630e7050e8f0
+//
+// Comandos:
+//   HELLO      [0x00][ref]
+//   SUBSCRIBE  [0x01][ref][path utf8]
+//   UNSUBSCRIBE[0x02][ref]
+//
+// Notificações DATA:
+//   [0x02|0x03][ref][uint32 ts µs LE][N × float32 x,y,z]
+// ══════════════════════════════════════════════════════
+const GSP_SVC   = "34802252-7185-4d5d-b431-630e7050e8f0";
+const GSP_WRITE = "34800001-7185-4d5d-b431-630e7050e8f0";
+const GSP_NOTIF = "34800002-7185-4d5d-b431-630e7050e8f0";
+
+// Caminhos tentados em ordem — o primeiro que retornar ACK 200 é usado
+// Acc/52 = 52 Hz bruto (disponível em todos os firmwares ≥2.x)
+// LinearAcc já remove gravidade internamente quando disponível
+const ACC_PATHS = ["/Meas/Acc/52"];
+
+let _bleDevice    = null;
+let _bleWriteChar = null;
+let _bleNotifChar = null;
+let _bleReqId     = 1;
+let _bleConectado = false;
+let _bleOnSample  = null;
+let _bleSubId     = null;
+let _bleAccPath   = null;
+let _pendingAck   = {};
+let _isLinearAcc  = false;
+// Persiste o último subId usado — permite limpar subscrição mesmo após reconexão
+let _lastSubId    = null;
+
+// Codificação GSP
+function gspCmd(cmdId, ref, payload) {
+  const b = payload ? new TextEncoder().encode(payload) : new Uint8Array(0);
+  const buf = new Uint8Array(2 + b.length);
+  buf[0] = cmdId; buf[1] = ref & 0xFF; if (b.length) buf.set(b, 2);
+  return buf;
+}
+
+function aguardarAck(ref, ms=3000) {
+  return new Promise((resolve, reject) => {
+    _pendingAck[ref] = { resolve };
+    setTimeout(() => { if (_pendingAck[ref]) { delete _pendingAck[ref]; reject(new Error(`ACK timeout ref=${ref}`)); } }, ms);
+  });
+}
+
+// Parser de notificações BLE — GSP SensorData Protocol
+// Frame DATA: [rc=0x02, ref(1), timestamp(4 bytes LE), float32 x, y, z × N]
+// Confirmado nos frames reais: "02 01 f4 38 00 00 ax ay az ax ay az..."
+// Offset das amostras: byte 6 (2 header + 4 timestamp)
+function onBleNotify(e) {
+  const dv = e.target.value;
+  if (dv.byteLength < 2) return;
+  const rc  = dv.getUint8(0);
+  const ref = dv.getUint8(1);
+
+  // ACK de comando (SUBSCRIBE, UNSUBSCRIBE, HELLO)
+  if (rc === 0x01) {
+    const status = dv.byteLength >= 4 ? dv.getUint16(2, true) : 0;
+    if (_pendingAck[ref]) { _pendingAck[ref].resolve(status); delete _pendingAck[ref]; }
+    return;
+  }
+
+  // Dados de sensor (DATA ou DATA_PART2)
+  if (rc !== 0x02 && rc !== 0x03) return;
+  if (dv.byteLength < 14) return; // mínimo: 6 header + 12 (1 sample)
+
+  // Offset 6: primeiro sample (bytes 2-5 = timestamp uint32 LE)
+  let off = 6;
+  while (off + 12 <= dv.byteLength) {
+    let ax = dv.getFloat32(off,     true);
+    let ay = dv.getFloat32(off + 4, true);
+    let az = dv.getFloat32(off + 8, true);
+    off += 12;
+
+    // Sanity check
+    if (!isFinite(ax) || !isFinite(ay) || !isFinite(az)) continue;
+    if (Math.abs(ax) > 200 || Math.abs(ay) > 200 || Math.abs(az) > 200) continue;
+
+    // Remover gravidade via low-pass (só para /Meas/Acc, não LinearAcc)
+    if (!_isLinearAcc) {
+      _gX = _gAlpha*_gX + (1-_gAlpha)*ax;
+      _gY = _gAlpha*_gY + (1-_gAlpha)*ay;
+      _gZ = _gAlpha*_gZ + (1-_gAlpha)*az;
+      ax -= _gX; ay -= _gY; az -= _gZ;
+    }
+
+    const cb = _bleOnSample;
+    if (typeof cb === "function") cb(ax, ay, az);
+  }
+}
+
+// Estado do filtro de gravidade (low-pass)
+// Alpha alto (0.98) = remove gravidade lentamente mas não distorce aceleração dinâmica
+// Inicializa com gravidade típica no eixo Z (sensor lombar em pé)
+let _gX=0, _gY=0, _gZ=9.81;
+const _gAlpha = 0.98;
+
+// UI do card BLE
+function setBleUI(estado) {
+  const card = document.getElementById("bleCard");
+  const dot  = document.getElementById("bleDot");
+  const nome = document.getElementById("bleNome");
+  const sub  = document.getElementById("bleSub");
+  const btn  = document.getElementById("bleBtn");
+  const badge = document.getElementById("badgeMs");
+  card.className  = "ble-card " + estado;
+  badge.className = "badge-ms " + (estado==="conectado" ? "on" : "off");
+  const m = {
+    desconectado: ["Não conectado",   "Conecte o Movesense antes de iniciar.",  "Conectar",       "var(--acento)", "var(--preto)", false],
+    conectando:   ["Conectando...",   "Buscando sensor BLE próximo...",          "Aguarde",        "var(--cinza2)", "var(--cinza-texto)", true],
+    conectado:    [_bleDevice?.name||"Movesense", "Sensor ativo — pronto para medir.", "Desconectar", "var(--cinza3)", "var(--vermelho)", false],
+    erro:         ["Erro BLE",        "Falha na conexão. Tente novamente.",      "Tentar novamente","var(--acento)","var(--preto)", false],
+  };
+  const [n,s,bt,bg,cor,dis] = m[estado]||m.desconectado;
+  nome.textContent=n; sub.textContent=s; btn.textContent=bt;
+  btn.style.background=bg; btn.style.color=cor; btn.disabled=dis;
+}
+
+async function toggleBLE() { _bleConectado ? desconectarBLE() : await conectarBLE(); }
+
+async function conectarBLE() {
+  if (!navigator.bluetooth) { mostrarToast("Web Bluetooth não suportado."); return; }
+  setBleUI("conectando");
+  try {
+    _bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [
+        { namePrefix: "Movesense" },
+        { namePrefix: "MOVESENSE" },
+        { services: [GSP_SVC] }
+      ],
+      optionalServices: [GSP_SVC]
+    });
+    _bleDevice.addEventListener("gattserverdisconnected", onBleDisconnected);
+
+    // GATT connect com retry (BLE pode falhar na 1ª tentativa)
+    let server;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try { server = await _bleDevice.gatt.connect(); break; }
+      catch(e) {
+        if (attempt === 3) throw e;
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+
+    let service;
+    try {
+      service = await server.getPrimaryService(GSP_SVC);
+    } catch(e) {
+      // Diagnóstico: listar serviços reais para debug
+      try {
+        const svcs = await server.getPrimaryServices();
+        console.warn("Serviços disponíveis:", svcs.map(s => s.uuid));
+      } catch(_) {}
+      throw new Error("Serviço GSP não encontrado no sensor.");
+    }
+    _bleWriteChar = await service.getCharacteristic(GSP_WRITE);
+    _bleNotifChar = await service.getCharacteristic(GSP_NOTIF);
+    await _bleNotifChar.startNotifications();
+    _bleNotifChar.addEventListener("characteristicvaluechanged", onBleNotify);
+
+    // HELLO — confirma que GSP está ativo
+    const hRef = _bleReqId++;
+    await _bleWriteChar.writeValueWithoutResponse(gspCmd(0x00, hRef));
+    try { await aguardarAck(hRef, 4000); } catch(e) { console.warn("HELLO timeout"); }
+
+    // Limpa qualquer subscrição anterior — manda UNSUBSCRIBE para refs 1-10
+    // Isso resolve o 507 que ocorre quando a sessão anterior não foi encerrada
+    console.log("Limpando subscrições anteriores...");
+    for (let r = 1; r <= 10; r++) {
+      try { await _bleWriteChar.writeValueWithoutResponse(gspCmd(0x02, r)); } catch(e) {}
+      await new Promise(res => setTimeout(res, 40));
+    }
+    await new Promise(res => setTimeout(res, 500));
+    _bleReqId = 1; // reseta após cleanup
+
+    _bleConectado = true;
+    setBleUI("conectado");
+    mostrarToast(`✅ ${_bleDevice.name} conectado`);
+    atualizarBtnIniciar();
+  } catch(e) {
+    console.error("BLE:", e);
+    setBleUI(e.name==="NotFoundError" ? "desconectado" : "erro");
+  }
+}
+
+function desconectarBLE() {
+  _bleConectado=false; _bleOnSample=null; _bleSubId=null; _bleAccPath=null;
+  if (_bleDevice?.gatt?.connected) _bleDevice.gatt.disconnect();
+  _bleDevice=null; setBleUI("desconectado"); atualizarBtnIniciar();
+}
+
+function onBleDisconnected() {
+  _bleConectado=false; _bleOnSample=null; _bleSubId=null; _bleAccPath=null;
+  setBleUI("desconectado"); atualizarBtnIniciar(); mostrarToast("Movesense desconectado");
+}
+
+// Inicia streaming — tenta caminhos em ordem até receber ACK 200
+async function iniciarStreaming() {
+  if (!_bleConectado || !_bleWriteChar) throw new Error("Sensor não conectado");
+  if (_bleSubId != null) return;
+
+  _gX=0; _gY=0; _gZ=9.81;
+
+  for (const path of ACC_PATHS) {
+    const ref = _bleReqId++;
+    console.log(`SUBSCRIBE ${path} refCode=${ref}`);
+    await _bleWriteChar.writeValueWithoutResponse(gspCmd(0x01, ref, path));
+    try {
+      const status = await aguardarAck(ref, 3000);
+      console.log(`  ACK ${path}: status=${status}`);
+      if (status === 200) {
+        _bleSubId    = ref;
+        _lastSubId   = ref;
+        _bleAccPath  = path;
+        _isLinearAcc = path.includes("LinearAcc");
+        console.log(`Streaming ativo: ${path}`);
+        return;
+      }
+    } catch(e) { console.warn(`  ${path}: timeout`); }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error("Sensor retornou 507 — desconecte e reconecte o sensor.");
+}
+
+async function pararStreaming() {
+  _bleOnSample = null;
+  if (!_bleConectado || !_bleWriteChar || _bleSubId==null) return;
+  try { await _bleWriteChar.writeValueWithoutResponse(gspCmd(0x02, _bleSubId)); } catch(e) {}
+  _bleSubId=null; _bleAccPath=null;
+}
+
+// ══════════════════════════════════════════════════════
+// CAPTURA DE SALTO - VERSÃO 3 COM DETECÇÃO ROBUSTA
+// ══════════════════════════════════════════════════════
+// Máquina de estados: CALIBRANDO → ESPERANDO → DESCIDA → VOO → POUSO
+//
+// CORREÇÃO V3: Usa janela deslizante de aceleração para detectar impacto
+// real do pouso. Aguarda até que a aceleração DIMINUA após pico alto,
+// indicando que o atleta já tocou o chão e está absorvendo o impacto.
+// ══════════════════════════════════════════════════════
+function capturarSalto(fator) {
+  const G = 9.81;
+  const TIMEOUT_MS = 30000;
+  const CALIB_MS    = 1500;
+  const MIN_DESC_MS = 100;
+  const MIN_VOO_MS  = 220;
+
+  if (!_bleConectado) return Promise.resolve(_mockSalto(fator));
+
+  return new Promise(async (resolve, reject) => {
+    let fase = "calibrando";
+    let tCalib = performance.now();
+    let magSum = 0, nCalib = 0, magRepouso = 0;
+
+    let tDecol   = null;
+    let tDescIni = null, tDescFim = null;
+    let timeout  = null;
+
+    // ✅ CORREÇÃO V5: Usa o MOMENTO DO PICO de impacto como referência do pouso
+    // (não quando a aceleração cai, que varia com o estilo de aterrissagem)
+    let maxMagInWindow = 0;
+    let tPousoPeak = null;       // timestamp do pico máximo de impacto
+    let temEncontrouPico = false;
+
+    // alphaCalib mais lento = estimativa de repouso mais estável
+    // Consistente com _gAlpha=0.98 usado no filtro contínuo
+    const alphaCalib = 0.85;
+
+    try { await iniciarStreaming(); } catch(e) {
+      done();
+      return reject(new Error("Sensor não respondeu. Reconecte o Movesense e tente novamente."));
+    }
+
+    function onSample(ax, ay, az) {
+      const tAgora = performance.now();
+
+      if (!_isLinearAcc && fase === "calibrando") {
+        _gX = alphaCalib*_gX + (1-alphaCalib)*ax;
+        _gY = alphaCalib*_gY + (1-alphaCalib)*ay;
+        _gZ = alphaCalib*_gZ + (1-alphaCalib)*az;
+      }
+
+      const mag = Math.sqrt(ax*ax + ay*ay + az*az);
+
+      // ── CALIBRANDO ──
+      if (fase === "calibrando") {
+        magSum += mag; nCalib++;
+        if (tAgora - tCalib >= CALIB_MS) {
+          magRepouso = magSum / nCalib;
+          fase = "esperando";
+          magBuffer = [];
+          maxMagInWindow = magRepouso;
+          temEncontrouPico = false;
+          setOvIndicador("aguardando");
+          console.log(`Calibrado: mag_repouso=${magRepouso.toFixed(2)} linear=${_isLinearAcc}`);
+        }
+        return;
+      }
+
+      // Thresholds — após low-pass, mag_repouso ≈ 0 (gravidade removida)
+      // Descida: movimento começa quando mag > 1.5 m/s²
+      // Impulso: pico de saída do chão > 5.0 m/s²
+      // Pouso: impacto > 4.0 m/s²
+      const thDesc    = magRepouso + 1.5;
+      const thImpulso = magRepouso + 5.0;
+      const thPouso   = magRepouso + 3.0;
+
+      if (typeof onSample._n === "undefined") onSample._n = 0;
+      if (++onSample._n % 10 === 0) {
+        console.log({ fase, mag: mag.toFixed(2), thDesc: thDesc.toFixed(2), thImpulso: thImpulso.toFixed(2), thPouso: thPouso.toFixed(2), bufSize: magBuffer.length, maxInWindow: maxMagInWindow.toFixed(2) });
+      }
+
+      if (fase === "esperando") {
+        if (mag > thDesc) { fase = "descida"; tDescIni = tAgora; setOvIndicador("gravando"); }
+      }
+      else if (fase === "descida") {
+        const dur = tAgora - tDescIni;
+        // Entra em "impulso" quando atinge o pico de impulsão
+        if (mag > thImpulso && dur >= MIN_DESC_MS) { fase = "impulso"; tDescFim = tAgora; }
+        // Atleta parou sem saltar
+        if (dur > 1200 && mag < thDesc) { fase = "esperando"; setOvIndicador("aguardando"); }
+      }
+      else if (fase === "impulso") {
+        // Aguarda a queda da aceleração após o pico de impulsão
+        // Só considera decolagem quando a aceleração cai bastante (atleta saiu do chão)
+        if (mag < thDesc) {
+          fase = "voo";
+          tDecol = tAgora;
+          maxMagInWindow = 0;
+          tPousoPeak = tAgora;
+          temEncontrouPico = false;
+          console.log(`Decolagem detectada em ${tAgora.toFixed(0)}ms`);
+        }
+      }
+      else if (fase === "voo") {
+        const tv = tAgora - tDecol;
+
+        // ✅ CORREÇÃO V5: Rastreia o pico máximo de impacto e seu timestamp
+        // Usar tPousoPeak (momento do pico) em vez de tAgora (quando acc cai)
+        // elimina a variabilidade causada por pousamentos suaves vs bruscos
+        if (mag > maxMagInWindow) {
+          maxMagInWindow = mag;
+          tPousoPeak = tAgora;
+        }
+
+        if (tv >= MIN_VOO_MS) {
+          // Passo 1: confirma pico de impacto acima do threshold
+          if (!temEncontrouPico && maxMagInWindow > (thPouso + 3.0)) {
+            temEncontrouPico = true;
+            console.log(`Pico de impacto: ${maxMagInWindow.toFixed(2)} em t=${(tPousoPeak - tDecol).toFixed(0)}ms`);
+          }
+
+          // Passo 2: após o pico, espera acc cair (confirma que o pico já passou)
+          // mas usa tPousoPeak (não tAgora) para calcular o tempo de voo
+          if (temEncontrouPico && mag < thPouso) {
+            const tvMs = Math.round(tPousoPeak - tDecol);  // até o pico, não até agora
+            const td   = Math.round(tDescFim - tDescIni);
+            console.log(`Pouso confirmado: tvMs=${tvMs}ms td=${td}ms maxImpacto=${maxMagInWindow.toFixed(2)}`);
+
+            if (tvMs > 900) {
+              done();
+              return reject(new Error("Tempo de voo muito longo — repita o salto"));
+            }
+
+            const h = Math.round((G * Math.pow(tvMs / 1000, 2) / 8) * 100 * fator * 10) / 10;
+            done();
+            resolve({ altura: Math.max(5, Math.min(100, h)), tempoVoo: tvMs, tempoDescida: td });
+          }
+        }
+      }
+    }
+
+    function done() { _bleOnSample = null; if (timeout) clearTimeout(timeout); }
+    _bleOnSample = onSample;
+    timeout = setTimeout(() => {
+      done();
+      if (fase === "voo") reject(new Error("Salto iniciado mas pouso não detectado — repita"));
+      else reject(new Error("timeout"));
+    }, TIMEOUT_MS);
+  });
+}
+
+function _mockSalto(f=1.00) {
+  const tv=400+Math.random()*120, td=300+Math.random()*150;
+  const h=Math.round(9.81*Math.pow(tv/1000/2,2)/2*100*f*10)/10;
+  return {altura:Math.min(80,h),tempoVoo:Math.round(tv),tempoDescida:Math.round(td)};
+}
+
+// ══════════════════════════════════════════════════════
+// IQS
+// ══════════════════════════════════════════════════════
+function calcularIQS(res) {
+  const hs=res.map(r=>r.altura), ds=res.map(r=>r.tempoDescida);
+  const melhorAltura=Math.max(...hs);
+  const mediaAltura=Math.round(hs.reduce((a,b)=>a+b,0)/hs.length*10)/10;
+  const tempoDescida=Math.round(ds.reduce((a,b)=>a+b,0)/ds.length);
+  const alturaScore=cmjScore(melhorAltura);
+  const descidaScore=clamp(Math.round(100-((tempoDescida-300)/300)*70),30,100);
+  const mA=hs.reduce((a,b)=>a+b,0)/hs.length;
+  const dp=Math.sqrt(hs.reduce((s,x)=>s+(x-mA)**2,0)/hs.length);
+  const cv=mA>0?(dp/mA)*100:0;
+  const consistScore=clamp(Math.round(100-cv*5),0,100);
+  const valor=Math.round(alturaScore*.40+descidaScore*.30+consistScore*.30);
+  return {valor,alturaScore,descidaScore,consistScore,melhorAltura,mediaAltura,tempoDescida};
+}
+function cmjScore(cm) {
+  if(!cm)return 60; if(cm<30)return 25; if(cm<35)return 40;
+  if(cm<40)return 52; if(cm<45)return 65; if(cm<50)return 78; return 90;
+}
+function classificarIQS(v) {
+  if(v>=80)return{label:"Ótimo",  bg:"#052e16",cor:"#22c55e"};
+  if(v>=65)return{label:"Bom",    bg:"#052e16",cor:"#86efac"};
+  if(v>=50)return{label:"Regular",bg:"#1c1400",cor:"#eab308"};
+  if(v>=35)return{label:"Atenção",bg:"#1c0a00",cor:"#f97316"};
+  return         {label:"Crítico",bg:"#1c0000",cor:"#ef4444"};
+}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function setOvIndicador(estado) {
+  const m={
+    calibrando:["calibrando","🔵","Calibrando"],
+    aguardando:["aguardando","🟢","Pronto"],
+    gravando:  ["gravando",  "🔴","Gravando"],
+    ok:        ["ok",        "✅","Capturado"],
+  };
+  const [cls,ic,tx]=m[estado]||m.aguardando;
+  document.getElementById("ovIndicador").className="ov-indicador "+cls;
+  document.getElementById("ovIcone").textContent=ic;
+  document.getElementById("ovTexto").textContent=tx;
+}
+
+function esperar(ms){return new Promise(r=>setTimeout(r,ms));}
+
+async function ativarWakeLock() {
+  if("wakeLock"in navigator){try{_wakeLock=await navigator.wakeLock.request("screen");}catch(e){}}
+  if(screen.orientation?.lock)screen.orientation.lock("portrait").catch(()=>{});
+}
+function liberarWakeLock(){if(_wakeLock){_wakeLock.release().catch(()=>{});_wakeLock=null;}}
+
+function mostrarToast(msg) {
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+</script>
+<script src="/components/layout.js"></script>
+</body>
+</html>

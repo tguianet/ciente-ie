@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <title>Cardápios · Ciente IE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body > * { display: none !important; }
+      #printArea { display: block !important; }
+    }
+    #printArea { display: none; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+
+<div id="sidebar-container"></div>
+
+<div class="flex-1 flex flex-col min-w-0">
+
+  <header class="bg-white border-b px-6 py-4 pl-14 md:pl-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Cardápios</h1>
+      <p class="text-sm text-gray-500">Prescrição individualizada por composição corporal</p>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-6">
+
+    <!-- FILTROS -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
+      <input id="busca" type="text" placeholder="Buscar atleta…"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        oninput="filtrar()" />
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600 font-medium whitespace-nowrap">Prescrições a partir de:</label>
+        <input id="filtroData" type="date"
+          class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onchange="filtrar()" />
+      </div>
+      <button onclick="limparFiltros()" class="text-sm text-blue-600 hover:underline">Limpar</button>
+      <span id="countAtletas" class="text-sm text-gray-400 ml-auto"></span>
+    </div>
+
+    <!-- TABELA -->
+    <div id="viewTabela">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Atleta</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Posição</th>
+              <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">% GC</th>
+              <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Objetivo</th>
+              <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Última Prescrição</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAtletas">
+            <tr><td colspan="6" class="text-center text-gray-400 py-10 text-sm">Carregando atletas…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DETALHE -->
+    <div id="viewDetalhe" class="hidden space-y-5">
+      <button onclick="voltarTabela()" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+        ← Voltar à lista
+      </button>
+
+      <div id="cardAntro" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-gray-700">Composição Corporal</h2>
+          <span id="dataAvaliacao" class="text-xs text-gray-400"></span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500 mb-1">Peso</p>
+            <p id="statPeso" class="text-xl font-bold text-gray-800">—</p>
+            <p class="text-xs text-gray-400">kg</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500 mb-1">Estatura</p>
+            <p id="statEstatura" class="text-xl font-bold text-gray-800">—</p>
+            <p class="text-xs text-gray-400">cm</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500 mb-1">% Gordura</p>
+            <p id="statGC" class="text-xl font-bold text-gray-800">—</p>
+            <p class="text-xs text-gray-400">%</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-gray-500 mb-1">Massa Magra</p>
+            <p id="statMM" class="text-xl font-bold text-gray-800">—</p>
+            <p class="text-xs text-gray-400">kg</p>
+          </div>
+        </div>
+        <div id="gcBadge" class="rounded-lg px-4 py-2 text-sm font-medium"></div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-4">Objetivo Nutricional</h2>
+        <div class="flex gap-2 mb-5 flex-wrap">
+          <button id="btnGanhar" onclick="setObjetivo('ganhar')" class="objetivo-btn px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-colors">Ganhar</button>
+          <button id="btnManter" onclick="setObjetivo('manter')" class="objetivo-btn px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-colors">Manter</button>
+          <button id="btnPerder" onclick="setObjetivo('perder')" class="objetivo-btn px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-colors">Perder</button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div class="bg-orange-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-orange-600 mb-1">Calorias</p>
+            <p id="macroCal" class="text-xl font-bold text-orange-700">—</p>
+            <p class="text-xs text-orange-400">kcal</p>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-blue-600 mb-1">Proteína</p>
+            <p id="macroPro" class="text-xl font-bold text-blue-700">—</p>
+            <p class="text-xs text-blue-400">g</p>
+          </div>
+          <div class="bg-green-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-green-600 mb-1">Carboidratos</p>
+            <p id="macroCarb" class="text-xl font-bold text-green-700">—</p>
+            <p class="text-xs text-green-400">g</p>
+          </div>
+          <div class="bg-yellow-50 rounded-lg p-3 text-center">
+            <p class="text-xs text-yellow-600 mb-1">Gordura</p>
+            <p id="macroGord" class="text-xl font-bold text-yellow-700">—</p>
+            <p class="text-xs text-yellow-400">g</p>
+          </div>
+        </div>
+        <p id="tmbInfo" class="text-xs text-gray-400"></p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-4">Plano Alimentar — 6 Refeições</h2>
+        <div id="gridRefeicoes" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Observações do Nutricionista</h2>
+        <textarea id="notasNutri" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Restrições alimentares, preferências, ajustes individuais…"></textarea>
+        <div class="flex gap-3 mt-4 flex-wrap">
+          <button onclick="salvarCardapio()" class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Salvar Cardápio</button>
+          <button onclick="imprimirCardapio()" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors border border-gray-300">Imprimir / PDF</button>
+        </div>
+        <p id="msgSucesso" class="hidden mt-3 text-sm text-green-600 font-medium">Cardápio salvo com sucesso!</p>
+        <p id="msgErro"   class="hidden mt-3 text-sm text-red-600 font-medium"></p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="printArea">
+  <style>
+    #printArea { font-family: Arial, sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; }
+    #printArea h1 { font-size: 20px; font-weight: bold; margin-bottom: 4px; }
+    #printArea .print-sub { font-size: 12px; color: #666; margin-bottom: 16px; }
+    #printArea .print-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    #printArea .print-macro-box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; text-align: center; }
+    #printArea .print-macro-box .label { font-size: 10px; color: #6b7280; }
+    #printArea .print-macro-box .value { font-size: 18px; font-weight: bold; }
+    #printArea .print-refeicoes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+    #printArea .print-ref { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; }
+    #printArea .print-ref .ref-titulo { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #1f2937; }
+    #printArea .print-ref .ref-itens { font-size: 11px; color: #374151; line-height: 1.5; }
+    #printArea .print-notas { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 16px; font-size: 12px; }
+    #printArea .print-disclaimer { font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+  </style>
+  <h1 id="printNome"></h1>
+  <p class="print-sub" id="printSub"></p>
+  <div class="print-macros" id="printMacros"></div>
+  <div class="print-refeicoes" id="printRefeicoes"></div>
+  <div class="print-notas" id="printNotas"></div>
+  <p class="print-disclaimer">Recomendações baseadas em guidelines internacionais (ISSN, ACSM, IOC). Não substituem avaliação individual por nutricionista habilitado.</p>
+</div>
+
+<script type="module" src="/core/authGuard.js"></script>
+<script src="/components/layout.js"></script>
+
+<script type="module">
+import {
+  collection, getDocs, addDoc, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { db } from "/core/firebase.js";
+
+const HOJE = new Date().toLocaleDateString('en-CA');
+let CLUB_ID = '';
+let todosAtletas = [];
+let atletasFiltrados = [];
+let avaliacaoMap = {};
+let cardapioMap = {};
+let atletaIdAtual = null;
+let avaliacaoAtual = null;
+let objetivoAtual = 'manter';
+let macrosAtuais = null;
+
+const PLANOS = {
+  ganhar: [
+    { hora: '07h', nome: 'Café da manhã',   itens: ['3–4 ovos mexidos', 'Aveia com mel (80g)', 'Banana (2 un.)', 'Leite integral (300ml)'] },
+    { hora: '10h', nome: 'Lanche da manhã', itens: ['Iogurte grego (200g)', 'Granola (40g)', 'Maçã ou pera', 'Castanhas (30g)'] },
+    { hora: '13h', nome: 'Almoço',          itens: ['Arroz branco (200g cozido)', 'Feijão (1 concha grande)', 'Frango grelhado (200g)', 'Legumes refogados', 'Salada à vontade'] },
+    { hora: '16h', nome: 'Pré-treino',      itens: ['Batata-doce ou macarrão (150g cozido)', 'Frango (120g)', 'Suco de laranja natural'] },
+    { hora: '20h', nome: 'Pós-treino',      itens: ['Whey protein (1 dose — 30g)', 'Banana (1–2 un.)', 'Mel (1 col. sopa)', 'Água (500ml)'] },
+    { hora: '22h', nome: 'Jantar',          itens: ['Arroz integral (150g cozido)', 'Salmão ou atum (180g)', 'Brócolis ou abobrinha', 'Azeite (1 col. sopa)'] },
+  ],
+  manter: [
+    { hora: '07h', nome: 'Café da manhã',   itens: ['2–3 ovos', 'Pão integral (2 fatias)', 'Fruta da estação (1 un.)', 'Iogurte natural (150g)'] },
+    { hora: '10h', nome: 'Lanche da manhã', itens: ['Fruta (1 un.)', 'Castanhas (20g)', 'ou Whey protein (1 dose) com água'] },
+    { hora: '13h', nome: 'Almoço',          itens: ['Arroz (150g cozido)', 'Feijão (1 concha)', 'Proteína magra (150g)', 'Salada variada'] },
+    { hora: '16h', nome: 'Lanche da tarde', itens: ['Iogurte grego (170g)', 'Fruta (1 un.)'] },
+    { hora: '20h', nome: 'Jantar',          itens: ['Batata-doce ou arroz (120g cozido)', 'Proteína (150g)', 'Legumes variados'] },
+    { hora: '22h', nome: 'Ceia',            itens: ['Queijo cottage (100g) ou Iogurte natural (150g)'] },
+  ],
+  perder: [
+    { hora: '07h', nome: 'Café da manhã',   itens: ['3 ovos (preferir claras)', 'Aveia (50g) com leite desnatado', 'Fruta de baixo IG (maçã, pera, morango)'] },
+    { hora: '10h', nome: 'Lanche da manhã', itens: ['Fruta (1 un.)', 'Iogurte grego sem açúcar (150g)'] },
+    { hora: '13h', nome: 'Almoço',          itens: ['Proteína magra (180g)', 'Vegetais à vontade', 'Arroz integral (100g cozido)'] },
+    { hora: '16h', nome: 'Lanche da tarde', itens: ['Iogurte grego sem açúcar (170g) ou Whey protein com água'] },
+    { hora: '19h', nome: 'Jantar',          itens: ['Proteína magra (150g)', 'Vegetais refogados', 'Azeite (1 col. chá)'] },
+    { hora: '21h', nome: 'Ceia',            itens: ['Atum em lata (100g) ou Queijo cottage (100g)'] },
+  ],
+};
+
+function calcIdade(dataNasc) {
+  if (!dataNasc) return 25;
+  const [y, m, d] = dataNasc.split('-').map(Number);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - y;
+  if (hoje.getMonth() + 1 < m || (hoje.getMonth() + 1 === m && hoje.getDate() < d)) idade--;
+  return idade;
+}
+
+function calcMacros(peso, estatura, massaMagra, sexo, nascimento, objetivo) {
+  const idade = calcIdade(nascimento);
+  const tmb = sexo === 'F'
+    ? (10 * peso) + (6.25 * estatura) - (5 * idade) - 161
+    : (10 * peso) + (6.25 * estatura) - (5 * idade) + 5;
+  const get = Math.round(tmb * 1.75);
+  let calorias, proteina, carbs;
+  if (objetivo === 'ganhar')      { calorias = get + 400; proteina = Math.round(massaMagra * 2.0); carbs = Math.round(peso * 6); }
+  else if (objetivo === 'manter') { calorias = get;       proteina = Math.round(massaMagra * 1.8); carbs = Math.round(peso * 5); }
+  else                            { calorias = Math.max(get - 400, 1800); proteina = Math.round(massaMagra * 2.3); carbs = Math.round(peso * 4); }
+  const gordura = Math.round(Math.max(calorias - proteina * 4 - carbs * 4, 270) / 9);
+  return { tmb: Math.round(tmb), get, calorias, proteina, carbs, gordura };
+}
+
+function gcBandInfo(gc, sexo) {
+  if (sexo === 'F') {
+    if (gc < 14)  return { objetivo: 'ganhar', label: 'Abaixo do ideal — risco de lesão e queda imune', cor: 'blue' };
+    if (gc <= 22) return { objetivo: 'manter', label: 'Faixa ótima para futebol profissional (14–22%)', cor: 'green' };
+    return { objetivo: 'perder', label: 'Acima do ideal — atenção à composição corporal', cor: 'yellow' };
+  }
+  if (gc < 7)   return { objetivo: 'ganhar', label: 'Abaixo do ideal — risco de lesão e queda imune', cor: 'blue' };
+  if (gc <= 11) return { objetivo: 'manter', label: 'Faixa ótima para futebol profissional (8–11%)', cor: 'green' };
+  if (gc <= 14) return { objetivo: 'perder', label: 'Acima do ideal — atenção à composição corporal', cor: 'yellow' };
+  return { objetivo: 'perder', label: 'Muito acima do ideal — perda de gordura recomendada', cor: 'red' };
+}
+
+function corBadge(cor) {
+  return { blue: 'bg-blue-100 text-blue-800', green: 'bg-green-100 text-green-800', yellow: 'bg-yellow-100 text-yellow-800', red: 'bg-red-100 text-red-800' }[cor] || 'bg-gray-100 text-gray-700';
+}
+function gcCorTexto(cor) {
+  return { blue: 'text-blue-600', green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600' }[cor] || 'text-gray-600';
+}
+function objBadge(obj) {
+  return { ganhar: 'bg-blue-100 text-blue-700', manter: 'bg-green-100 text-green-700', perder: 'bg-orange-100 text-orange-700' }[obj] || 'bg-gray-100 text-gray-500';
+}
+function objLabel(obj) {
+  return { ganhar: 'Ganhar', manter: 'Manter', perder: 'Perder' }[obj] || '—';
+}
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+window.filtrar = function() {
+  const busca = document.getElementById('busca').value.toLowerCase().trim();
+  const data  = document.getElementById('filtroData').value;
+  atletasFiltrados = todosAtletas.filter(a => {
+    const nomeOk = !busca || a.nome.toLowerCase().includes(busca);
+    const dataOk = !data || (cardapioMap[a.id]?.date || '') >= data;
+    return nomeOk && dataOk;
+  });
+  renderTabela();
+};
+
+window.limparFiltros = function() {
+  document.getElementById('busca').value = '';
+  document.getElementById('filtroData').value = '';
+  filtrar();
+};
+
+function renderTabela() {
+  const tbody = document.getElementById('tbodyAtletas');
+  document.getElementById('countAtletas').textContent = `${atletasFiltrados.length} atleta${atletasFiltrados.length !== 1 ? 's' : ''}`;
+  if (!atletasFiltrados.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-10 text-sm">Nenhum atleta encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = atletasFiltrados.map(a => {
+    const av   = avaliacaoMap[a.id];
+    const card = cardapioMap[a.id];
+    const gcVal = av?.gc != null ? av.gc.toFixed(1) + '%' : '—';
+    const band  = av?.gc != null ? gcBandInfo(av.gc, av.sexo || 'M') : null;
+    const gcCor = band ? gcCorTexto(band.cor) : 'text-gray-400';
+    const objAtual = card?.objetivo || band?.objetivo || null;
+    const foto = a.fotoUrl
+      ? `<img src="${a.fotoUrl}" class="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="" />`
+      : `<div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">${a.nome.charAt(0).toUpperCase()}</div>`;
+    return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-3">${foto}<span class="font-medium text-gray-900">${a.nome}</span></div>
+      </td>
+      <td class="px-4 py-3 text-gray-500 text-sm">${a.posicao || '—'}</td>
+      <td class="px-4 py-3 text-center font-bold text-sm ${gcCor}">${gcVal}</td>
+      <td class="px-4 py-3 text-center">
+        ${objAtual ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${objBadge(objAtual)}">${objLabel(objAtual)}</span>` : '<span class="text-gray-300 text-xs">—</span>'}
+      </td>
+      <td class="px-4 py-3 text-center text-xs text-gray-400">${card?.date || '—'}</td>
+      <td class="px-4 py-3 text-right">
+        <button onclick="abrirAtleta('${a.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+          Ver / Prescrever
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.abrirAtleta = function(id) {
+  atletaIdAtual = id;
+  hide('viewTabela');
+  show('viewDetalhe');
+  hide('msgSucesso'); hide('msgErro');
+  document.getElementById('notasNutri').value = '';
+  window.scrollTo(0, 0);
+
+  const av = avaliacaoMap[id];
+  if (!av || av.gc == null) {
+    document.getElementById('msgErro').textContent = 'Nenhuma avaliação física com dados antropométricos encontrada. Realize a avaliação física primeiro.';
+    show('msgErro');
+    return;
+  }
+
+  document.getElementById('statPeso').textContent     = av.peso?.toFixed(1) ?? '—';
+  document.getElementById('statEstatura').textContent = av.estatura?.toFixed(1) ?? '—';
+  document.getElementById('statGC').textContent       = av.gc?.toFixed(1) ?? '—';
+  document.getElementById('statMM').textContent       = av.massaMagra?.toFixed(1) ?? '—';
+  document.getElementById('dataAvaliacao').textContent = av.date ? `Avaliação: ${av.date}` : '';
+
+  const band = gcBandInfo(av.gc, av.sexo || 'M');
+  const badge = document.getElementById('gcBadge');
+  badge.className = `rounded-lg px-4 py-2 text-sm font-medium ${corBadge(band.cor)}`;
+  badge.textContent = `${av.gc.toFixed(1)}% — ${band.label}`;
+
+  avaliacaoAtual = av;
+  window.setObjetivo(band.objetivo);
+};
+
+window.voltarTabela = function() {
+  atletaIdAtual = null; avaliacaoAtual = null;
+  hide('viewDetalhe');
+  show('viewTabela');
+};
+
+window.setObjetivo = function(obj) {
+  objetivoAtual = obj;
+  ['ganhar','manter','perder'].forEach(o => {
+    const btn = document.getElementById('btn' + o.charAt(0).toUpperCase() + o.slice(1));
+    if (!btn) return;
+    btn.className = 'objetivo-btn px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-colors ' +
+      (o === obj ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50');
+  });
+  if (!avaliacaoAtual) return;
+  const atleta = todosAtletas.find(a => a.id === atletaIdAtual);
+  macrosAtuais = calcMacros(avaliacaoAtual.peso, avaliacaoAtual.estatura, avaliacaoAtual.massaMagra, avaliacaoAtual.sexo || 'M', atleta?.data_nascimento, obj);
+  document.getElementById('macroCal').textContent  = macrosAtuais.calorias;
+  document.getElementById('macroPro').textContent  = macrosAtuais.proteina;
+  document.getElementById('macroCarb').textContent = macrosAtuais.carbs;
+  document.getElementById('macroGord').textContent = macrosAtuais.gordura;
+  document.getElementById('tmbInfo').textContent   = `TMB: ${macrosAtuais.tmb} kcal · GET (×1,75): ${macrosAtuais.get} kcal`;
+  const grid = document.getElementById('gridRefeicoes');
+  grid.innerHTML = (PLANOS[obj] || []).map(r => `
+    <div class="border border-gray-200 rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-bold text-blue-600 bg-blue-50 rounded px-2 py-0.5">${r.hora}</span>
+        <span class="text-sm font-semibold text-gray-800">${r.nome}</span>
+      </div>
+      <ul class="text-xs text-gray-600 space-y-0.5 list-disc list-inside">
+        ${r.itens.map(i => `<li>${i}</li>`).join('')}
+      </ul>
+    </div>`).join('');
+};
+
+window.salvarCardapio = async function() {
+  hide('msgSucesso'); hide('msgErro');
+  if (!atletaIdAtual || !avaliacaoAtual || !macrosAtuais) return;
+  try {
+    await addDoc(collection(db, 'cardapios'), {
+      athleteId: atletaIdAtual, clubId: CLUB_ID, date: HOJE,
+      objetivo: objetivoAtual, gc: avaliacaoAtual.gc,
+      peso_kg: avaliacaoAtual.peso, estatura_cm: avaliacaoAtual.estatura, massa_magra_kg: avaliacaoAtual.massaMagra,
+      macros: { calorias: macrosAtuais.calorias, proteina_g: macrosAtuais.proteina, carbs_g: macrosAtuais.carbs, gordura_g: macrosAtuais.gordura },
+      notas: document.getElementById('notasNutri').value.trim(),
+      createdAt: serverTimestamp(),
+    });
+    cardapioMap[atletaIdAtual] = { objetivo: objetivoAtual, date: HOJE };
+    show('msgSucesso');
+  } catch (e) {
+    document.getElementById('msgErro').textContent = 'Erro ao salvar: ' + e.message;
+    show('msgErro');
+  }
+};
+
+window.imprimirCardapio = function() {
+  if (!atletaIdAtual || !avaliacaoAtual || !macrosAtuais) return;
+  const atleta = todosAtletas.find(a => a.id === atletaIdAtual);
+  const objLab = { ganhar: 'Ganhar Massa', manter: 'Manter Peso', perder: 'Perder Gordura' }[objetivoAtual] || objetivoAtual;
+  const notas = document.getElementById('notasNutri').value.trim();
+  document.getElementById('printNome').textContent = atleta?.nome || 'Atleta';
+  document.getElementById('printSub').textContent  = `Objetivo: ${objLab} · Data: ${HOJE}`;
+  document.getElementById('printMacros').innerHTML = `
+    <div class="print-macro-box"><div class="label">Calorias</div><div class="value">${macrosAtuais.calorias}</div><div class="label">kcal</div></div>
+    <div class="print-macro-box"><div class="label">Proteína</div><div class="value">${macrosAtuais.proteina}g</div></div>
+    <div class="print-macro-box"><div class="label">Carboidratos</div><div class="value">${macrosAtuais.carbs}g</div></div>
+    <div class="print-macro-box"><div class="label">Gordura</div><div class="value">${macrosAtuais.gordura}g</div></div>`;
+  document.getElementById('printRefeicoes').innerHTML = (PLANOS[objetivoAtual] || []).map(r => `
+    <div class="print-ref">
+      <div class="ref-titulo">${r.hora} · ${r.nome}</div>
+      <div class="ref-itens">${r.itens.join(' · ')}</div>
+    </div>`).join('');
+  document.getElementById('printNotas').innerHTML = notas
+    ? `<strong>Observações:</strong> ${notas}`
+    : '<em style="color:#9ca3af">Sem observações registradas.</em>';
+  window.print();
+};
+
+async function init() {
+  const ctx = JSON.parse(localStorage.getItem('userContext') || '{}');
+  CLUB_ID = ctx.clubId || '';
+
+  if (!CLUB_ID) {
+    document.getElementById('tbodyAtletas').innerHTML =
+      '<tr><td colspan="6" class="text-center text-red-400 py-10 text-sm">Clube não identificado. Faça login novamente.</td></tr>';
+    return;
+  }
+
+  // Atletas
+  try {
+    const snap = await getDocs(query(collection(db, 'athletes'), where('clubId', '==', CLUB_ID), where('ativo', '==', true)));
+    snap.forEach(d => todosAtletas.push({ id: d.id, ...d.data() }));
+    todosAtletas.sort((a, b) => a.nome.localeCompare(b.nome));
+  } catch(e) { console.error('athletes:', e.message); }
+
+  // Avaliações físicas — filtro de tipo feito client-side para evitar índice composto
+  try {
+    const snap = await getDocs(query(collection(db, 'assessments_functional'), where('clubId', '==', CLUB_ID)));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.tipo !== 'fisica') return;
+      if (!avaliacaoMap[data.athleteId] || data.date > (avaliacaoMap[data.athleteId]?._date || '')) {
+        const ant = data.dados?.antropometria || {};
+        avaliacaoMap[data.athleteId] = {
+          peso: ant.peso_kg || null, estatura: ant.estatura_cm || null,
+          gc: ant.gordura_percentual || null,
+          massaMagra: ant.massa_magra_kg || (ant.peso_kg && ant.gordura_percentual ? Math.round(ant.peso_kg * (1 - ant.gordura_percentual / 100) * 10) / 10 : null),
+          sexo: ant.navy?.sexo || 'M', date: data.date, _date: data.date,
+        };
+      }
+    });
+  } catch(e) { console.error('assessments_functional:', e.message); }
+
+  // Histórico de cardápios
+  try {
+    const snap = await getDocs(query(collection(db, 'cardapios'), where('clubId', '==', CLUB_ID)));
+    snap.forEach(d => {
+      const data = d.data();
+      if (!cardapioMap[data.athleteId] || (data.date || '') > (cardapioMap[data.athleteId]?.date || '')) {
+        cardapioMap[data.athleteId] = { objetivo: data.objetivo, date: data.date };
+      }
+    });
+  } catch(e) { console.error('cardapios:', e.message); }
+
+  atletasFiltrados = [...todosAtletas];
+  renderTabela();
+}
+
+init().catch(console.error);
+</script>
+</body>
+</html>
