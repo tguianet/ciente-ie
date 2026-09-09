@@ -8,6 +8,15 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
 
+  // Garante o controle central de acesso em toda página que usa o layout.
+  // Páginas que já declaram o guard não recebem uma segunda instância.
+  if (!document.querySelector('script[src$="/core/authGuard.js"]')) {
+    const guard = document.createElement("script");
+    guard.type = "module";
+    guard.src = "/core/authGuard.js";
+    document.head.appendChild(guard);
+  }
+
   const container = document.getElementById("sidebar-container");
   if (!container) return;
 
@@ -169,10 +178,7 @@ function inicializarSidebar() {
       logoEl.src = ctx.clubLogoUrl;
       logoEl.style.display = "block";
     }
-    if (ctx?.role === "admin") {
-      const adminSection = document.getElementById("adminSection");
-      if (adminSection) adminSection.style.display = "block";
-    }
+    aplicarPermissoesSidebar(ctx?.role || null);
 
     // Módulo GPS (Polar/Catapult): disponível para todos os clubes
     if (ctx?.clubId) {
@@ -201,6 +207,18 @@ function inicializarSidebar() {
     }
   });
 }
+
+function aplicarPermissoesSidebar(role) {
+  const adminSection = document.getElementById("adminSection");
+  if (adminSection) {
+    adminSection.style.display = role === "admin" ? "block" : "none";
+  }
+}
+
+// Corrige qualquer perfil antigo do localStorage assim que o Firestore responder.
+window.addEventListener("ciente:auth-ready", event => {
+  aplicarPermissoesSidebar(event.detail?.role || null);
+});
 
 function destacarPaginaAtiva() {
   const currentPath = window.location.pathname;
